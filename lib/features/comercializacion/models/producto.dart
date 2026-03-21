@@ -1,0 +1,67 @@
+class Producto {
+  final String id;
+  final String campesinoId;
+  final String? campesinoNombre;
+  final String nombre;
+  final String? descripcion;
+  final double precio;
+  final double cantidadDisponible;
+  final String unidad;
+  final double? lat;
+  final double? lng;
+  final DateTime? createdAt;
+
+  const Producto({
+    required this.id,
+    required this.campesinoId,
+    this.campesinoNombre,
+    required this.nombre,
+    this.descripcion,
+    required this.precio,
+    required this.cantidadDisponible,
+    this.unidad = 'kg',
+    this.lat,
+    this.lng,
+    this.createdAt,
+  });
+
+  factory Producto.fromMap(Map<String, dynamic> map) {
+    return Producto(
+      id: map['id'] as String,
+      campesinoId: map['campesino_id'] as String,
+      campesinoNombre: _campesinoNombreFromMap(map['profiles']),
+      nombre: map['nombre'] as String,
+      descripcion: map['descripcion'] as String?,
+      precio: (map['precio'] as num).toDouble(),
+      cantidadDisponible: (map['cantidad_disponible'] as num).toDouble(),
+      unidad: map['unidad'] as String? ?? 'kg',
+      lat: map['lat'] != null ? (map['lat'] as num).toDouble() : null,
+      lng: map['lng'] != null ? (map['lng'] as num).toDouble() : null,
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : null,
+    );
+  }
+
+  static String? _campesinoNombreFromMap(dynamic profiles) {
+    if (profiles == null) return null;
+    if (profiles is Map) return profiles['full_name'] as String?;
+    if (profiles is List && profiles.isNotEmpty && profiles.first is Map) {
+      return (profiles.first as Map)['full_name'] as String?;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'campesino_id': campesinoId,
+      'nombre': nombre,
+      'descripcion': descripcion,
+      'precio': precio,
+      'cantidad_disponible': cantidadDisponible,
+      'unidad': unidad,
+      'lat': lat,
+      'lng': lng,
+    };
+  }
+}
