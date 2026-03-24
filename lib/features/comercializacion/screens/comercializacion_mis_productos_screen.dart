@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
-import 'producto_form_screen.dart';
-
 class ComercializacionMisProductosScreen extends StatefulWidget {
   const ComercializacionMisProductosScreen({super.key});
 
@@ -46,13 +45,11 @@ class _ComercializacionMisProductosScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis productos'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            tooltip: 'Agregar',
+            icon: const Icon(Icons.add_rounded),
             onPressed: () async {
               await context.push('/comercializacion/producto/nuevo');
               _load();
@@ -64,24 +61,31 @@ class _ComercializacionMisProductosScreenState
           ? const Center(child: CircularProgressIndicator())
           : _productos.isEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Aún no tienes productos publicados'),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: () async {
-                          await context.push('/comercializacion/producto/nuevo');
-                          _load();
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Publicar producto'),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: AppPagePadding.screen,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Aún no publicas nada.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            await context.push('/comercializacion/producto/nuevo');
+                            _load();
+                          },
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Publicar producto'),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: AppPagePadding.screen,
                   itemCount: _productos.length,
                   itemBuilder: (context, i) {
                     final p = _productos[i];

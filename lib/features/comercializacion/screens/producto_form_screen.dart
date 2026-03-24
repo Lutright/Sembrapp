@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
 
@@ -18,10 +19,7 @@ class ProductoFormScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(producto == null ? 'Nuevo producto' : 'Editar producto'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: _ProductoFormBody(
         producto: producto,
@@ -132,16 +130,16 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: AppPagePadding.screen,
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'RF-CV-01 / RF-CV-02: Publicación y edición',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
+              'Completa los datos de tu producto.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
             const SizedBox(height: 24),

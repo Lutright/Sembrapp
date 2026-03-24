@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 
 class AlfabetizacionNivelesScreen extends StatelessWidget {
@@ -18,33 +19,30 @@ class AlfabetizacionNivelesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$tituloModulo - Niveles'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        title: Text('$tituloModulo · niveles'),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: AppPagePadding.screen,
         children: [
-          Text(
-            'RF-A-03: Organización por niveles',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+          const MinimalScreenHint(
+            'Toca un nivel para ver las lecciones.',
           ),
-          const SizedBox(height: 24),
           ...niveles.map((nivel) {
             final lecciones = leccionesPorModuloNivel(modulo, nivel);
             final total = lecciones.length;
-            return Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  child: Text('$nivel'),
-                ),
-                title: Text('Nivel $nivel'),
-                subtitle: Text('$total lección${total != 1 ? 'es' : ''}'),
-                trailing: const Icon(Icons.arrow_forward),
+            final IconData nivelIcon = switch (nivel) {
+              1 => Icons.looks_one_rounded,
+              2 => Icons.looks_two_rounded,
+              3 => Icons.looks_3_rounded,
+              _ => Icons.layers_rounded,
+            };
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppPagePadding.tileGap),
+              child: BigNavTile(
+                icon: nivelIcon,
+                title: 'Nivel $nivel',
+                subtitle: '$total lección${total != 1 ? 'es' : ''}',
                 onTap: () => context.push(
                   '/alfabetizacion/$modulo/nivel/$nivel',
                 ),

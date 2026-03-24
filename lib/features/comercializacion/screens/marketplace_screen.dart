@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
 import '../repositories/beneficios_repository.dart';
 import '../repositories/productos_repository.dart';
@@ -76,18 +77,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         title: const Text('Productos'),
         scrolledUnderElevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.receipt_long),
+            icon: const Icon(Icons.receipt_long_rounded),
             onPressed: () => context.push('/comercializacion/ordenes'),
-            tooltip: 'Mis órdenes',
+            tooltip: 'Mis pedidos',
           ),
           IconButton(
-            icon: const Icon(Icons.person),
+            icon: const Icon(Icons.person_rounded),
             onPressed: () => context.push('/profile'),
             tooltip: 'Mi perfil',
           ),
@@ -96,11 +96,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: SearchBar(
               controller: _searchController,
-              hintText: 'Buscar productos...',
-              leading: const Icon(Icons.search),
+              hintText: 'Buscar por nombre',
+              leading: const Icon(Icons.search_rounded),
               onChanged: (v) {
                 setState(() {
                   _query = v;
@@ -117,11 +117,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _filtered.isEmpty
                     ? Center(
-                        child: Text(
-                          _query.isEmpty
-                              ? 'No hay productos'
-                              : 'Sin resultados para "$_query"',
-                          style: Theme.of(context).textTheme.bodyLarge,
+                        child: Padding(
+                          padding: AppPagePadding.screen,
+                          child: Text(
+                            _query.isEmpty
+                                ? 'Todavía no hay productos'
+                                : 'No hay nada con ese nombre',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
                         ),
                       )
                     : GridView.builder(
@@ -167,9 +171,14 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
+      color: cs.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: cs.outlineVariant.withOpacity(0.6)),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -181,43 +190,42 @@ class _ProductCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: cs.primaryContainer.withOpacity(0.25),
+                    alignment: Alignment.center,
                     child: Icon(
-                      Icons.shopping_basket,
-                      size: 48,
-                      color: Theme.of(context).colorScheme.primary,
+                      Icons.shopping_basket_rounded,
+                      size: 52,
+                      color: cs.primary,
                     ),
                   ),
                   if (destacado)
                     Positioned(
-                      top: 6,
-                      left: 6,
+                      top: 8,
+                      left: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          borderRadius: BorderRadius.circular(8),
+                          color: cs.primary,
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.visibility,
-                              size: 14,
-                              color: Theme.of(context)
-                                  .colorScheme.onPrimary,
+                              Icons.visibility_rounded,
+                              size: 16,
+                              color: cs.onPrimary,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Destacado',
                               style: Theme.of(context)
                                   .textTheme
-                                  .labelSmall
+                                  .labelLarge
                                   ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme.onPrimary,
-                                    fontWeight: FontWeight.bold,
+                                    color: cs.onPrimary,
+                                    fontWeight: FontWeight.w700,
                                   ),
                             ),
                           ],
@@ -237,27 +245,34 @@ class _ProductCard extends StatelessWidget {
                   children: [
                     Text(
                       producto.nombre,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
                           '\$${producto.precio.toStringAsFixed(0)}',
                           style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: cs.primary,
                                   ),
                         ),
                         FilledButton(
                           onPressed: onTap,
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            minimumSize: Size.zero,
+                                horizontal: 16, vertical: 10),
+                            minimumSize: const Size(72, 40),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           child: const Text('Ver'),
                         ),

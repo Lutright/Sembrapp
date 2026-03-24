@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
+
 enum UserRole { campesino, comprador }
 
 class RegisterScreen extends StatefulWidget {
@@ -56,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'Error al registrarse';
+          _error = 'No se pudo crear la cuenta.';
           _loading = false;
         });
       }
@@ -65,40 +67,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Registro'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        title: const Text('Crear cuenta'),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: AppPagePadding.screen,
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'RF-G-01: Registro de usuario',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                const MinimalScreenHint(
+                  'Completa los datos. Toca un botón para elegir tu rol.',
                 ),
-                const SizedBox(height: 24),
                 if (_error != null) ...[
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      color: cs.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
                       _error!,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontSize: 16,
+                        color: cs.onErrorContainer,
                       ),
                     ),
                   ),
@@ -107,11 +104,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Nombre completo',
-                    prefixIcon: Icon(Icons.person_outline),
+                    labelText: 'Tu nombre',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
+                    if (v == null || v.trim().isEmpty) return 'Escribe tu nombre';
                     return null;
                   },
                 ),
@@ -120,11 +117,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Correo electrónico',
+                    labelText: 'Correo',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
+                    if (v == null || v.trim().isEmpty) return 'Escribe tu correo';
                     if (!v.contains('@')) return 'Correo no válido';
                     return null;
                   },
@@ -135,32 +132,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Contraseña',
-                    prefixIcon: Icon(Icons.lock_outline),
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
                   ),
                   validator: (v) {
                     if (v == null || v.length < 6) {
-                      return 'Mínimo 6 caracteres';
+                      return 'Al menos 6 caracteres';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'RF-G-02: Selecciona tu rol',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  'Yo soy',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 SegmentedButton<UserRole>(
                   segments: const [
                     ButtonSegment(
                       value: UserRole.campesino,
-                      label: Text('Campesino'),
-                      icon: Icon(Icons.agriculture),
+                      label: Text('Productor'),
+                      icon: Icon(Icons.agriculture_rounded),
                     ),
                     ButtonSegment(
                       value: UserRole.comprador,
                       label: Text('Comprador'),
-                      icon: Icon(Icons.shopping_cart),
+                      icon: Icon(Icons.shopping_bag_rounded),
                     ),
                   ],
                   selected: {_role},
@@ -172,10 +169,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 FilledButton(
                   onPressed: _loading ? null : _signUp,
                   child: _loading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                      ? SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: cs.onPrimary,
+                          ),
                         )
                       : const Text('Crear cuenta'),
                 ),
@@ -185,11 +185,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     Text(
                       '¿Ya tienes cuenta? ',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
                     TextButton(
                       onPressed: () => context.pop(),
-                      child: const Text('Iniciar sesión'),
+                      child: const Text('Entrar'),
                     ),
                   ],
                 ),

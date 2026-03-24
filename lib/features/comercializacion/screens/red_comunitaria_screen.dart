@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Red comunitaria dentro del módulo de comercialización (solo vista campesino).
-/// RF-CCOM-01: Red de campesinos + RF-CCOM-02: Órdenes compartidas.
+import '../../../core/widgets/minimal_ui.dart';
+
+/// Red comunitaria: productores y pedidos compartidos (vista campesino).
 class RedComunitariaScreen extends StatefulWidget {
   const RedComunitariaScreen({super.key});
 
@@ -77,15 +78,12 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Red comunitaria'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Productores', icon: Icon(Icons.people)),
-            Tab(text: 'Órdenes compartidas', icon: Icon(Icons.share)),
+            Tab(text: 'Gente', icon: Icon(Icons.groups_rounded)),
+            Tab(text: 'Pedidos', icon: Icon(Icons.share_rounded)),
           ],
         ),
       ),

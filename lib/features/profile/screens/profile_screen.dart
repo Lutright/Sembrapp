@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/profile.dart';
 import '../../../core/repositories/profile_repository.dart';
+import '../../../core/widgets/minimal_ui.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -41,76 +42,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi perfil'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: AppPagePadding.screen,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'RF-G-07: Visualización de perfil',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    alignment: Alignment.center,
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 52,
+                          backgroundColor: cs.primaryContainer.withOpacity(0.6),
+                          child: Icon(
+                            _profile?.isCampesino == true
+                                ? Icons.agriculture_rounded
+                                : Icons.shopping_bag_rounded,
+                            size: 52,
+                            color: cs.onPrimaryContainer,
+                          ),
                         ),
-                  ),
-                  const SizedBox(height: 24),
-                  CircleAvatar(
-                    radius: 48,
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                    child: Icon(
-                      _profile?.isCampesino == true
-                          ? Icons.agriculture
-                          : Icons.shopping_cart,
-                      size: 48,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        const SizedBox(height: 16),
+                        Text(
+                          _profile?.fullName?.isNotEmpty == true
+                              ? _profile!.fullName!
+                              : 'Usuario',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          user?.email ?? '',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        Chip(
+                          avatar: Icon(
+                            _profile?.isCampesino == true
+                                ? Icons.agriculture_rounded
+                                : Icons.shopping_bag_rounded,
+                            size: 20,
+                            color: cs.primary,
+                          ),
+                          label: Text(
+                            _profile?.role == 'campesino' ? 'Productor' : 'Comprador',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _profile?.fullName?.isNotEmpty == true
-                        ? _profile!.fullName!
-                        : 'Usuario',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  Text(
-                    user?.email ?? '',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
                   ),
                   const SizedBox(height: 8),
-                  Chip(
-                    label: Text(
-                      _profile?.role == 'campesino' ? 'Campesino' : 'Comprador',
-                    ),
-                    avatar: Icon(
-                      _profile?.isCampesino == true
-                          ? Icons.agriculture
-                          : Icons.shopping_cart,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
                   Text(
-                    'RF-G-08: Edición de perfil',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                    'Cambiar nombre',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _EditProfileForm(
                     initialName: _profile?.fullName ?? '',
                     saving: _saving,
@@ -131,13 +136,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _loadProfile();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil actualizado')),
+          const SnackBar(content: Text('Cambios guardados')),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al actualizar')),
+          const SnackBar(content: Text('No se pudo guardar')),
         );
       }
     } finally {
@@ -179,6 +184,7 @@ class _EditProfileFormState extends State<_EditProfileForm> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Form(
       key: _formKey,
       child: Column(
@@ -187,11 +193,11 @@ class _EditProfileFormState extends State<_EditProfileForm> {
           TextFormField(
             controller: _nameController,
             decoration: const InputDecoration(
-              labelText: 'Nombre completo',
-              prefixIcon: Icon(Icons.person_outline),
+              labelText: 'Nombre',
+              prefixIcon: Icon(Icons.person_outline_rounded),
             ),
             validator: (v) =>
-                v?.trim().isEmpty == true ? 'Ingresa tu nombre' : null,
+                v?.trim().isEmpty == true ? 'Escribe tu nombre' : null,
           ),
           const SizedBox(height: 24),
           FilledButton(
@@ -203,12 +209,15 @@ class _EditProfileFormState extends State<_EditProfileForm> {
                     }
                   },
             child: widget.saving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: cs.onPrimary,
+                    ),
                   )
-                : const Text('Guardar cambios'),
+                : const Text('Guardar'),
           ),
         ],
       ),

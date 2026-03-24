@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
 
@@ -71,7 +72,10 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final leccion = _leccion;
     if (leccion == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Lección')),
+        appBar: AppBar(
+          title: const Text('Lección'),
+          leading: MinimalBackButton(onPressed: () => context.pop()),
+        ),
         body: const Center(child: Text('Lección no encontrada')),
       );
     }
@@ -80,19 +84,22 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       appBar: AppBar(
         title: Text(leccion.titulo),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded, size: 28),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(kMinimalTouchTarget, kMinimalTouchTarget),
+          ),
           onPressed: () => context.pop(),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'RF-A-05: Retroalimentación inmediata · RF-A-06: Reintento sin penalización',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
+              'Toca la respuesta correcta. Puedes intentar de nuevo sin castigo.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
             const SizedBox(height: 24),
@@ -143,12 +150,17 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
 
   Widget _buildOpcionesLectura(BuildContext context, LeccionData leccion) {
     final opciones = leccion.opciones ?? [];
-    return Column(
+      return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: opciones
           .map((op) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 14),
                 child: FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  ),
                   onPressed: () => _responderLectura(op),
                   child: Text(op),
                 ),
@@ -203,13 +215,16 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
             ),
             if (_correcto == true)
               Text(
-                'RF-A-08: +${leccion.puntos} puntos',
-                style: Theme.of(context).textTheme.titleMedium,
+                '+${leccion.puntos} puntos',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             if (_correcto == false && leccion.respuestaCorrecta != null)
               Text(
-                'RF-E-04: Forma correcta: ${leccion.respuestaCorrecta}',
-                style: Theme.of(context).textTheme.bodyMedium,
+                'La forma correcta es: ${leccion.respuestaCorrecta}',
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
               ),
           ],
         ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -13,14 +15,16 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sembrapp'),
+        title: const Text('Inicio'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person),
+            tooltip: 'Mi perfil',
+            icon: const Icon(Icons.person_rounded),
             onPressed: () => context.push('/profile'),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            tooltip: 'Salir',
+            icon: const Icon(Icons.logout_rounded),
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
               if (context.mounted) context.go('/login');
@@ -29,38 +33,27 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: AppPagePadding.screen,
         children: [
+          const MinimalScreenHint(
+            'Elige qué quieres hacer. Toca una opción.',
+          ),
           if (isCampesino) ...[
-            Card(
-              child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.school),
-                ),
-                title: const Text('Módulo de alfabetización'),
-                subtitle: const Text(
-                  'RF-A-01: Lectura y escritura por niveles',
-                ),
-                trailing: const Icon(Icons.arrow_forward),
-                onTap: () => context.push('/alfabetizacion'),
-              ),
+            BigNavTile(
+              icon: Icons.school_rounded,
+              title: 'Aprender',
+              subtitle: 'Lectura y escritura, paso a paso',
+              onTap: () => context.push('/alfabetizacion'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppPagePadding.tileGap),
           ],
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.store),
-              ),
-              title: const Text('Módulo de comercialización'),
-              subtitle: Text(
-                isCampesino
-                    ? 'Publicar y gestionar productos'
-                    : 'Explorar y comprar productos',
-              ),
-              trailing: const Icon(Icons.arrow_forward),
-              onTap: () => context.push('/comercializacion'),
-            ),
+          BigNavTile(
+            icon: Icons.storefront_rounded,
+            title: 'Vender y comprar',
+            subtitle: isCampesino
+                ? 'Publicar productos y ver el mercado'
+                : 'Ver productos y hacer pedidos',
+            onTap: () => context.push('/comercializacion'),
           ),
         ],
       ),

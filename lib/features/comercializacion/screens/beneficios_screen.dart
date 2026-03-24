@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../alfabetizacion/repositories/alfabetizacion_repository.dart';
+import '../../../core/widgets/minimal_ui.dart';
 import '../models/beneficio.dart';
 import '../repositories/beneficios_repository.dart';
 
@@ -17,8 +17,6 @@ class BeneficiosScreen extends StatefulWidget {
 
 class _BeneficiosScreenState extends State<BeneficiosScreen> {
   final _repo = BeneficiosRepository(Supabase.instance.client);
-  final _alfabetizacionRepo =
-      AlfabetizacionRepository(Supabase.instance.client);
 
   int _puntosDisponibles = 0;
   List<Beneficio> _beneficios = [];
@@ -102,23 +100,22 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Beneficios por puntos'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        title: const Text('Beneficios'),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: AppPagePadding.screen,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Los puntos se obtienen completando lecciones en el módulo de alfabetización y pueden canjearse por visibilidad temporal aquí.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    'Ganas puntos al completar lecciones de Aprender. '
+                    'Aquí los cambias para que más gente vea tus productos.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.4,
                         ),
                   ),
                   const SizedBox(height: 24),

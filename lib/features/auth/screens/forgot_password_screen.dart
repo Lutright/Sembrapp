@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
+
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -43,7 +45,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
     } catch (_) {
       if (mounted) setState(() {
-        _error = 'No se pudo enviar el enlace';
+        _error = 'No se pudo enviar el mensaje.';
         _loading = false;
       });
     }
@@ -51,20 +53,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recuperar contraseña'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: AppPagePadding.screen,
           child: _sent
               ? _buildSuccess(context)
-              : _buildForm(context),
+              : _buildForm(context, cs),
         ),
       ),
     );
@@ -77,58 +77,54 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 24),
         Icon(
           Icons.mark_email_read_outlined,
-          size: 64,
+          size: 72,
           color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: 24),
         Text(
           'Revisa tu correo',
-          style: Theme.of(context).textTheme.titleLarge,
+          style: Theme.of(context).textTheme.headlineSmall,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
         Text(
-          'Si existe una cuenta con ${_emailController.text.trim()}, '
-          'recibirás un enlace para restablecer tu contraseña.',
+          'Si hay una cuenta con ${_emailController.text.trim()}, '
+          'te llegará un enlace para crear una contraseña nueva.',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
         const SizedBox(height: 32),
         FilledButton(
           onPressed: () => context.pop(),
-          child: const Text('Volver al inicio de sesión'),
+          child: const Text('Volver a entrar'),
         ),
       ],
     );
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildForm(BuildContext context, ColorScheme cs) {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 16),
-          Text(
-            'RF-G-05: Recuperación de credenciales',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+          const MinimalScreenHint(
+            'Escribe el correo que usaste al registrarte. Te enviaremos un enlace.',
           ),
-          const SizedBox(height: 24),
           if (_error != null) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
                 _error!,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onErrorContainer,
+                  fontSize: 16,
+                  color: cs.onErrorContainer,
                 ),
               ),
             ),
@@ -138,12 +134,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Correo electrónico',
-              hintText: 'ejemplo@correo.com',
+              labelText: 'Correo',
+              hintText: 'tu@correo.com',
               prefixIcon: Icon(Icons.email_outlined),
             ),
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
+              if (v == null || v.trim().isEmpty) return 'Escribe tu correo';
               if (!v.contains('@')) return 'Correo no válido';
               return null;
             },
@@ -152,12 +148,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           FilledButton(
             onPressed: _loading ? null : _sendResetLink,
             child: _loading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: cs.onPrimary,
+                    ),
                   )
-                : const Text('Enviar enlace de recuperación'),
+                : const Text('Enviar enlace'),
           ),
         ],
       ),

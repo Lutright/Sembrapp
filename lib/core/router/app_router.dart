@@ -12,7 +12,6 @@ import '../../features/auth/screens/register_screen.dart';
 import '../../features/comercializacion/screens/beneficios_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_entry_screen.dart';
 import '../../features/comercializacion/screens/indicadores_economicos_screen.dart';
-import '../../features/comercializacion/screens/comercializacion_home_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_mis_productos_screen.dart';
 import '../../features/comercializacion/screens/red_comunitaria_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_ordenes_screen.dart';

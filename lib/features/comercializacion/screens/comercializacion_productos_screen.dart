@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
-import 'producto_detalle_screen.dart';
-
 class ComercializacionProductosScreen extends StatefulWidget {
   const ComercializacionProductosScreen({super.key});
 
@@ -48,20 +47,17 @@ class _ComercializacionProductosScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Productos'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: TextField(
               decoration: const InputDecoration(
-                labelText: 'RF-CC-01: Búsqueda por nombre',
-                hintText: 'Buscar producto...',
-                prefixIcon: Icon(Icons.search),
+                labelText: 'Buscar',
+                hintText: 'Escribe el nombre',
+                prefixIcon: Icon(Icons.search_rounded),
               ),
               onChanged: (v) {
                 setState(() => _busqueda = v);
@@ -73,9 +69,14 @@ class _ComercializacionProductosScreenState
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _productos.isEmpty
-                    ? const Center(child: Text('No hay productos'))
+                    ? Center(
+                        child: Text(
+                          'No hay productos',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         itemCount: _productos.length,
                         itemBuilder: (context, i) {
                           final p = _productos[i];

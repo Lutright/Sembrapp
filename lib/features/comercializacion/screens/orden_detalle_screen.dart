@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
+
 class OrdenDetalleScreen extends StatefulWidget {
   const OrdenDetalleScreen({
     super.key,
@@ -169,11 +171,8 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Orden'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        title: const Text('Pedido'),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: Column(
         children: [
@@ -185,9 +184,17 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('RF-CO-03: Comunicación asociada a la orden'),
-                    const SizedBox(height: 4),
-                    Text('Estado: $estado'),
+                    Text(
+                      'Aquí acuerdan punto de encuentro y detalles.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Estado: $estado',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     if (isCampesinoDeLaOrden) ...[
                       const SizedBox(height: 12),
                       compartidaEnRed

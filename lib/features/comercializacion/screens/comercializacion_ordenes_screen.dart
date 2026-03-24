@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
+
 class ComercializacionOrdenesScreen extends StatefulWidget {
   const ComercializacionOrdenesScreen({super.key});
 
@@ -59,16 +61,22 @@ class _ComercializacionOrdenesScreenState
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis órdenes'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        title: const Text('Mis pedidos'),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: _ordenes.isEmpty
-          ? const Center(child: Text('No tienes órdenes aún'))
+          ? Center(
+              child: Padding(
+                padding: AppPagePadding.screen,
+                child: Text(
+                  'Aún no tienes pedidos.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
+            )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: AppPagePadding.screen,
               itemCount: _ordenes.length,
               itemBuilder: (context, i) {
                 final o = _ordenes[i];

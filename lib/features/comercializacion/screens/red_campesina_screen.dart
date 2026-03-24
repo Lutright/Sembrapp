@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
+
 class RedCampesinaScreen extends StatefulWidget {
   const RedCampesinaScreen({super.key});
 
@@ -54,9 +56,14 @@ class _RedCampesinaScreenState extends State<RedCampesinaScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _campesinos.isEmpty
-              ? const Center(
-                  child: Text(
-                    'RF-CCOM-01: No hay otros productores registrados aún',
+              ? Center(
+                  child: Padding(
+                    padding: AppPagePadding.screen,
+                    child: Text(
+                      'Aún no hay otros productores en la lista.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
                   ),
                 )
               : ListView.builder(

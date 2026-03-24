@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../models/indicador_economico.dart';
 import '../repositories/indicadores_repository.dart';
 
-/// Pantalla de indicadores económicos para usuarios campesinos.
-/// RF-C-05, RF-C-06: información de mercado y actualización desde fuente externa.
+/// Precios de referencia para campesinos (fuente externa).
 class IndicadoresEconomicosScreen extends StatefulWidget {
   const IndicadoresEconomicosScreen({super.key});
 
@@ -160,16 +160,16 @@ class _IndicadoresEconomicosScreenState
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Precios de referencia del sector agropecuario. '
-                  'Use estos valores como guía para fijar sus precios.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  'Sirven de guía para poner el precio a tus productos.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.4,
                       ),
                 ),
                 const SizedBox(height: 8),
@@ -197,8 +197,12 @@ class _IndicadoresEconomicosScreenState
         if (_indicadores.isEmpty && !_loading)
           const SliverFillRemaining(
             child: Center(
-              child: Text(
-                'No hay indicadores. Use "Actualizar desde fuente" para cargar datos.',
+              child: Padding(
+                padding: AppPagePadding.screen,
+                child: Text(
+                  'Toca Actualizar arriba para cargar precios.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           )

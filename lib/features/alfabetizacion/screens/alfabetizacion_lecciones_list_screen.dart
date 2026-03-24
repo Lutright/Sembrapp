@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 
 class AlfabetizacionLeccionesListScreen extends StatelessWidget {
@@ -20,35 +21,27 @@ class AlfabetizacionLeccionesListScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Nivel $nivel'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        leading: MinimalBackButton(onPressed: () => context.pop()),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: AppPagePadding.screen,
         children: [
-          Text(
-            'RF-A-04: Inicio de lección / RF-A-10: Acceso a lecciones completadas',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+          const MinimalScreenHint(
+            'Toca una lección para empezar.',
           ),
-          const SizedBox(height: 24),
-          ...lecciones.map((l) => Card(
-                child: ListTile(
-                  leading: Icon(
-                    l.esLectura ? Icons.menu_book : Icons.edit,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text(l.titulo),
-                  subtitle: Text('${l.puntos} puntos'),
-                  trailing: const Icon(Icons.play_arrow),
-                  onTap: () => context.push(
-                    '/alfabetizacion/leccion/${l.id}',
-                  ),
+          ...lecciones.map(
+            (l) => Padding(
+              padding: const EdgeInsets.only(bottom: AppPagePadding.tileGap),
+              child: BigNavTile(
+                icon: l.esLectura ? Icons.menu_book_rounded : Icons.edit_rounded,
+                title: l.titulo,
+                subtitle: '+${l.puntos} puntos si aciertas',
+                onTap: () => context.push(
+                  '/alfabetizacion/leccion/${l.id}',
                 ),
-              )),
+              ),
+            ),
+          ),
         ],
       ),
     );
