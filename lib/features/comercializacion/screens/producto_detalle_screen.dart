@@ -124,6 +124,8 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
     final user = Supabase.instance.client.auth.currentUser;
     final role = user?.userMetadata?['role'] as String? ?? 'comprador';
     final isCampesino = role == 'campesino';
+    final disponible = p.cantidadDisponible;
+    final puedeSeleccionarCantidad = !isCampesino && disponible >= 0.5;
 
     return Scaffold(
       appBar: AppBar(
@@ -167,42 +169,64 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
             if (!isCampesino) ...[
               const SizedBox(height: 24),
               Text('Cantidad', style: Theme.of(context).textTheme.titleSmall),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      if (_cantidad > 0.5) setState(() => _cantidad -= 0.5);
-                    },
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      value: _cantidad,
-                      min: 0.5,
-                      max: p.cantidadDisponible,
-                      divisions: (p.cantidadDisponible * 2).round(),
-                      label: _cantidad.toStringAsFixed(1),
-                      onChanged: (v) => setState(() => _cantidad = v),
+              if (!puedeSeleccionarCantidad) ...[
+                const SizedBox(height: 8),
+                Text(
+                  disponible <= 0
+                      ? 'Sin stock disponible.'
+                      : 'Stock insuficiente para seleccionar (mínimo 0.5).',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        if (_cantidad > 0.5) setState(() => _cantidad -= 0.5);
+                      },
+                      icon: const Icon(Icons.remove),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      if (_cantidad < p.cantidadDisponible) {
-                        setState(() => _cantidad += 0.5);
-                      }
-                    },
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
-              ),
-              Text(
-                '${_cantidad.toStringAsFixed(1)} ${p.unidad} · '
-                'Total: ${(p.precio * _cantidad).toStringAsFixed(0)} \$',
-                textAlign: TextAlign.center,
-              ),
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          const min = 0.5;
+                          final max = disponible;
+                          final value = _cantidad.clamp(min, max).toDouble();
+                          final steps = ((max - min) / 0.5).round();
+                          final divisions = steps > 0 ? steps : null;
+                          return Slider(
+                            value: value,
+                            min: min,
+                            max: max,
+                            divisions: divisions,
+                            label: value.toStringAsFixed(1),
+                            onChanged: (v) => setState(() => _cantidad = v),
+                          );
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        if (_cantidad < disponible) {
+                          setState(() => _cantidad += 0.5);
+                        }
+                      },
+                      icon: const Icon(Icons.add),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${_cantidad.clamp(0.5, disponible).toStringAsFixed(1)} ${p.unidad} · '
+                  'Total: ${(p.precio * _cantidad.clamp(0.5, disponible)).toStringAsFixed(0)} \$',
+                  textAlign: TextAlign.center,
+                ),
+              ],
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: _creandoOrden ? null : _crearOrdenYIrAlChat,
+                onPressed:
+                    (_creandoOrden || !puedeSeleccionarCantidad) ? null : _crearOrdenYIrAlChat,
                 child: _creandoOrden
                     ? const SizedBox(
                         height: 20,
