@@ -39,7 +39,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['A', 'E', 'O'],
     respuestaCorrecta: 'A',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/L1-1.mp3',
   ),
   const LeccionData(
     id: 'L1-2',
@@ -50,7 +49,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['A', 'E', 'I'],
     respuestaCorrecta: 'E',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/L1-2.mp3',
   ),
   const LeccionData(
     id: 'L1-3',
@@ -61,7 +59,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['I', 'O', 'U'],
     respuestaCorrecta: 'I',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/L1-3.mp3',
   ),
   const LeccionData(
     id: 'L1-4',
@@ -72,7 +69,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['O', 'U', 'A'],
     respuestaCorrecta: 'O',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/L1-4.mp3',
   ),
   const LeccionData(
     id: 'L1-5',
@@ -83,7 +79,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['U', 'A', 'E'],
     respuestaCorrecta: 'U',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/L1-5.mp3',
   ),
   // --- Lectura nivel 2: sílabas ---
   const LeccionData(
@@ -95,7 +90,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['MA', 'ME', 'MO'],
     respuestaCorrecta: 'MA',
     puntos: 15,
-    audioAsset: 'alfabetizacion/audio/L2-1.mp3',
   ),
   const LeccionData(
     id: 'L2-2',
@@ -106,7 +100,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['PA', 'PE', 'PO'],
     respuestaCorrecta: 'PA',
     puntos: 15,
-    audioAsset: 'alfabetizacion/audio/L2-2.mp3',
   ),
   const LeccionData(
     id: 'L2-3',
@@ -117,7 +110,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['LA', 'LE', 'LI'],
     respuestaCorrecta: 'LA',
     puntos: 15,
-    audioAsset: 'alfabetizacion/audio/L2-3.mp3',
   ),
   // --- Lectura nivel 3: palabras ---
   const LeccionData(
@@ -129,7 +121,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['MAMA', 'PAPA', 'CASA'],
     respuestaCorrecta: 'MAMA',
     puntos: 20,
-    audioAsset: 'alfabetizacion/audio/L3-1.mp3',
   ),
   const LeccionData(
     id: 'L3-2',
@@ -140,7 +131,6 @@ final alfabetizacionLecciones = <LeccionData>[
     opciones: ['PAPA', 'MAMA', 'PATO'],
     respuestaCorrecta: 'PAPA',
     puntos: 20,
-    audioAsset: 'alfabetizacion/audio/L3-2.mp3',
   ),
   // --- Escritura nivel 1 ---
   const LeccionData(
@@ -151,7 +141,6 @@ final alfabetizacionLecciones = <LeccionData>[
     contenido: 'A',
     respuestaCorrecta: 'A',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/E1-1.mp3',
   ),
   const LeccionData(
     id: 'E1-2',
@@ -161,7 +150,6 @@ final alfabetizacionLecciones = <LeccionData>[
     contenido: 'E',
     respuestaCorrecta: 'E',
     puntos: 10,
-    audioAsset: 'alfabetizacion/audio/E1-2.mp3',
   ),
   const LeccionData(
     id: 'E1-3',
@@ -171,7 +159,6 @@ final alfabetizacionLecciones = <LeccionData>[
     contenido: 'MA',
     respuestaCorrecta: 'MA',
     puntos: 15,
-    audioAsset: 'alfabetizacion/audio/E1-3.mp3',
   ),
   const LeccionData(
     id: 'E1-4',
@@ -181,7 +168,6 @@ final alfabetizacionLecciones = <LeccionData>[
     contenido: 'MAMA',
     respuestaCorrecta: 'MAMA',
     puntos: 20,
-    audioAsset: 'alfabetizacion/audio/E1-4.mp3',
   ),
 ];
 

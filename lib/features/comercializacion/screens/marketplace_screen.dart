@@ -91,6 +91,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             onPressed: () => context.push('/profile'),
             tooltip: 'Mi perfil',
           ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (context.mounted) context.go('/login');
+            },
+          ),
         ],
       ),
       body: Column(

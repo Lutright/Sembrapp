@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
@@ -26,28 +25,11 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   String? _respuestaUsuario;
   bool? _correcto;
   bool _completado = false;
-  late final AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _leccion = leccionPorId(widget.leccionId);
-    _audioPlayer = AudioPlayer();
-    // Reproducir automáticamente el audio cuando entra a la lección.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _autoplayAudio());
-  }
-
-  Future<void> _autoplayAudio() async {
-    final assetPath = _leccion?.audioAsset;
-    if (assetPath == null) return;
-    if (!mounted) return;
-
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(assetPath));
-    } catch (_) {
-      // Si falta el asset o falla la reproducción, no bloqueamos la lección.
-    }
   }
 
   void _responderLectura(String opcion) {
@@ -156,21 +138,14 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
             if (leccion.audioAsset != null)
               IconButton(
                 icon: const Icon(Icons.volume_up),
-                onPressed: () => _reproducirAudio(leccion.audioAsset!),
+                onPressed: () {
+                  // RF-A-12: reproducción de audio (opcional con asset)
+                },
               ),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _reproducirAudio(String assetPath) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(assetPath));
-    } catch (_) {
-      // Mantener la experiencia de uso: si falla el audio, permitimos continuar.
-    }
   }
 
   Widget _buildOpcionesLectura(BuildContext context, LeccionData leccion) {
@@ -215,12 +190,6 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
         ),
       ],
     );
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
   }
 
   Widget _buildResumen(BuildContext context, LeccionData leccion) {
