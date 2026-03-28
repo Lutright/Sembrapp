@@ -193,3 +193,53 @@ LeccionData? leccionPorId(String id) {
     return null;
   }
 }
+
+/// Devuelve true si todas las lecciones de [nivel] tienen id en [completadas].
+bool nivelEstaCompleto(
+  String modulo,
+  int nivel,
+  Set<String> completadas,
+) {
+  final lecciones = leccionesPorModuloNivel(modulo, nivel);
+  if (lecciones.isEmpty) return true;
+  return lecciones.every((l) => completadas.contains(l.id));
+}
+
+/// Nivel 1 siempre desbloqueado. Nivel N>1 exige completar todas las lecciones del nivel anterior.
+bool nivelDesbloqueado(
+  String modulo,
+  int nivel,
+  Set<String> leccionesCompletadasIds,
+) {
+  if (nivel <= 1) return true;
+  return nivelEstaCompleto(modulo, nivel - 1, leccionesCompletadasIds);
+}
+
+/// El orden es el de [leccionesPorModuloNivel] (orden en el contenido).
+/// Hace falta tener el nivel abierto; la 1.ª lección del nivel queda disponible entonces;
+/// cada lección siguiente exige haber aprobado la inmediatamente anterior.
+bool leccionDesbloqueada(
+  LeccionData leccion,
+  Set<String> leccionesCompletadasIds,
+) {
+  if (!nivelDesbloqueado(
+    leccion.modulo,
+    leccion.nivel,
+    leccionesCompletadasIds,
+  )) {
+    return false;
+  }
+  final lista = leccionesPorModuloNivel(leccion.modulo, leccion.nivel);
+  final idx = lista.indexWhere((l) => l.id == leccion.id);
+  if (idx < 0) return false;
+  if (idx == 0) return true;
+  return leccionesCompletadasIds.contains(lista[idx - 1].id);
+}
+
+/// Título de la lección previa en el mismo nivel, o null si no hay previa en lista.
+String? tituloLeccionAnteriorMismoNivel(LeccionData leccion) {
+  final lista = leccionesPorModuloNivel(leccion.modulo, leccion.nivel);
+  final idx = lista.indexWhere((l) => l.id == leccion.id);
+  if (idx <= 0) return null;
+  return lista[idx - 1].titulo;
+}
