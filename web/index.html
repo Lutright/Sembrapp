@@ -33,6 +33,11 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // Evita depender de CanvasKit (gstatic) en redes restringidas.
+    // Con renderer HTML no intenta descargar canvaskit.js.
+    window.flutterWebRenderer = "html";
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

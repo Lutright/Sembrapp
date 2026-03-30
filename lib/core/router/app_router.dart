@@ -21,22 +21,29 @@ import '../../features/comercializacion/screens/orden_detalle_screen.dart';
 import '../../features/comercializacion/screens/producto_detalle_screen.dart';
 import '../../features/comercializacion/screens/producto_form_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/location/location_gate_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
+import '../services/location_service.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/',
-  redirect: (context, state) {
+  redirect: (context, state) async {
     final session = Supabase.instance.client.auth.currentSession;
     final isAuthRoute = state.matchedLocation == '/login' ||
         state.matchedLocation == '/register' ||
         state.matchedLocation == '/forgot-password' ||
         state.matchedLocation == '/';
+    final isLocationRoute = state.matchedLocation == '/location';
 
     if (session == null && !isAuthRoute) return '/login';
+    if (session != null && !isAuthRoute && !isLocationRoute) {
+      final ok = await LocationService.instance.isReady();
+      if (!ok) return '/location';
+    }
     final role = session?.user.userMetadata?['role'] as String?;
     if (session != null && isAuthRoute && state.matchedLocation == '/') {
       return role == 'comprador' ? '/comercializacion' : '/home';
@@ -57,6 +64,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (_, __) => const SplashScreen(),
+    ),
+    GoRoute(
+      path: '/location',
+      builder: (_, __) => const LocationGateScreen(),
     ),
     GoRoute(
       path: '/login',

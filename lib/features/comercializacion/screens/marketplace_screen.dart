@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
+import '../../../core/services/location_service.dart';
 import '../models/producto.dart';
 import '../repositories/beneficios_repository.dart';
 import '../repositories/productos_repository.dart';
@@ -16,6 +18,9 @@ class MarketplaceScreen extends StatefulWidget {
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
+  static const String _prefsKeyDistanceKm = 'marketplace_distance_km';
+  int _selectedDistanceKm = 25;
+
   final ProductosRepository _repo =
       ProductosRepository(Supabase.instance.client);
   final BeneficiosRepository _beneficiosRepo =
@@ -25,12 +30,41 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Set<String> _campesinosDestacados = {};
   bool _loading = true;
   String _query = '';
+  String? _locationError;
   final _searchController = TextEditingController();
+  double? _buyerLat;
+  double? _buyerLng;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _loadSavedDistance();
+    await _load();
+  }
+
+  Future<void> _loadSavedDistance() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_prefsKeyDistanceKm);
+      if (saved != null && saved >= 1 && saved <= 50 && mounted) {
+        setState(() => _selectedDistanceKm = saved);
+      }
+    } catch (_) {
+      // ignorar errores: usamos el valor por defecto
+    }
+  }
+
+  Future<void> _saveDistance(int km) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefsKeyDistanceKm, km);
+    } catch (_) {
+      // no es crítico si falla
+    }
   }
 
   @override
@@ -42,7 +76,29 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final list = await _repo.listarProductos();
+      if (_buyerLat == null || _buyerLng == null) {
+        final buyerPos = await LocationService.instance.getLastKnownOrFetch();
+        if (buyerPos == null) {
+          if (mounted) {
+            setState(() {
+              _productos = [];
+              _filtered = [];
+              _locationError = 'Activa ubicación para ver productos cercanos';
+              _loading = false;
+            });
+          }
+          return;
+        }
+        _buyerLat = buyerPos.latitude;
+        _buyerLng = buyerPos.longitude;
+      }
+
+      final list = await _repo.listarProductosCercanos(
+        buyerLat: _buyerLat!,
+        buyerLng: _buyerLng!,
+        maxDistanceKm: _selectedDistanceKm.toDouble(),
+      );
+
       final destacados = await _beneficiosRepo.getCampesinosConBeneficioVigente();
       list.sort((a, b) {
         final aDestacado = destacados.contains(a.campesinoId);
@@ -51,6 +107,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         if (!aDestacado && bDestacado) return 1;
         return 0;
       });
+
       if (mounted) {
         setState(() {
           _productos = list;
@@ -61,6 +118,47 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _reloadProductosSoloPorDistancia() async {
+    if (_buyerLat == null || _buyerLng == null) {
+      await _load();
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final list = await _repo.listarProductosCercanos(
+        buyerLat: _buyerLat!,
+        buyerLng: _buyerLng!,
+        maxDistanceKm: _selectedDistanceKm.toDouble(),
+      );
+      final destacados = await _beneficiosRepo.getCampesinosConBeneficioVigente();
+      list.sort((a, b) {
+        final aDestacado = destacados.contains(a.campesinoId);
+        final bDestacado = destacados.contains(b.campesinoId);
+        if (aDestacado && !bDestacado) return -1;
+        if (!aDestacado && bDestacado) return 1;
+        return 0;
+      });
+
+      if (mounted) {
+        setState(() {
+          _productos = list;
+          _campesinosDestacados = destacados;
+          _applyFilter();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+        if (mounted) {
+          setState(() {
+            _productos = [];
+            _filtered = [];
+            _loading = false;
+          });
+        }
     }
   }
 
@@ -120,6 +218,42 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Distancia máxima',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Text(
+                      '$_selectedDistanceKm km',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+                Slider(
+                  min: 1,
+                  max: 50,
+                  divisions: 49,
+                  value: _selectedDistanceKm.toDouble(),
+                  label: '$_selectedDistanceKm km',
+                  onChanged: (v) {
+                    setState(() => _selectedDistanceKm = v.round());
+                  },
+                  onChangeEnd: (v) async {
+                    final km = v.round();
+                    await _saveDistance(km);
+                    await _reloadProductosSoloPorDistancia();
+                  },
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -127,12 +261,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ? Center(
                         child: Padding(
                           padding: AppPagePadding.screen,
-                          child: Text(
-                            _query.isEmpty
-                                ? 'Todavía no hay productos'
-                                : 'No hay nada con ese nombre',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyLarge,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _locationError != null
+                                    ? _locationError!
+                                    : (_query.isEmpty
+                                        ? 'No hay productos cerca de ti'
+                                        : 'No hay nada con ese nombre cerca de ti'),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                              const SizedBox(height: 14),
+                              FilledButton.tonalIcon(
+                                onPressed: _load,
+                                icon: const Icon(Icons.my_location),
+                                label: const Text('Actualizar ubicación'),
+                              ),
+                            ],
                           ),
                         ),
                       )

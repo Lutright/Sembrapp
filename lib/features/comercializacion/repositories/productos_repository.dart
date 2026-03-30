@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/geo_utils.dart';
 import '../models/producto.dart';
 
 class ProductosRepository {
@@ -18,6 +19,25 @@ class ProductosRepository {
     return (res as List)
         .map((e) => Producto.fromMap(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<Producto>> listarProductosCercanos({
+    required double buyerLat,
+    required double buyerLng,
+    double maxDistanceKm = 25,
+    String? busqueda,
+  }) async {
+    final all = await listarProductos(busqueda: busqueda);
+    return all.where((p) {
+      if (p.lat == null || p.lng == null) return false;
+      final d = distanceKm(
+        lat1: buyerLat,
+        lng1: buyerLng,
+        lat2: p.lat!,
+        lng2: p.lng!,
+      );
+      return d <= maxDistanceKm;
+    }).toList();
   }
 
   Future<List<Producto>> misProductos(String campesinoId) async {

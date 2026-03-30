@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/services/location_service.dart';
 import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
@@ -80,6 +81,19 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
     setState(() => _saving = true);
     try {
       final repo = ProductosRepository(Supabase.instance.client);
+      final pos = await LocationService.instance.getLastKnownOrFetch();
+      final lat = pos?.latitude;
+      final lng = pos?.longitude;
+      if (lat == null || lng == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Activa ubicación para publicar este producto'),
+            ),
+          );
+        }
+        return;
+      }
       final precio = double.tryParse(_precioController.text) ?? 0;
       final cantidad = double.tryParse(_cantidadController.text) ?? 0;
       if (widget.producto != null) {
@@ -93,6 +107,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             'precio': precio,
             'cantidad_disponible': cantidad,
             'unidad': _unidad,
+            'lat': lat,
+            'lng': lng,
           },
         );
       } else {
@@ -107,6 +123,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             precio: precio,
             cantidadDisponible: cantidad,
             unidad: _unidad,
+            lat: lat,
+            lng: lng,
           ),
         );
       }
@@ -119,7 +137,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al guardar')),
+          const SnackBar(content: Text('Error al guardar producto')),
         );
       }
     } finally {
