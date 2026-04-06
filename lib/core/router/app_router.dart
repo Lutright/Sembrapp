@@ -13,6 +13,7 @@ import '../../features/comercializacion/screens/beneficios_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_entry_screen.dart';
 import '../../features/comercializacion/screens/indicadores_economicos_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_mis_productos_screen.dart';
+import '../../features/comercializacion/screens/ayuda_chat_screen.dart';
 import '../../features/comercializacion/screens/red_comunitaria_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_ordenes_screen.dart';
 import '../../features/comercializacion/screens/comercializacion_productos_screen.dart';
@@ -20,6 +21,9 @@ import '../../features/comercializacion/models/producto.dart';
 import '../../features/comercializacion/screens/orden_detalle_screen.dart';
 import '../../features/comercializacion/screens/producto_detalle_screen.dart';
 import '../../features/comercializacion/screens/producto_form_screen.dart';
+import '../../features/comercializacion/screens/tienda_campesino_screen.dart';
+import '../../features/comercializacion/navigation/producto_detalle_extra.dart';
+import '../../features/comercializacion/navigation/tienda_campesino_extra.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/location/location_gate_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
@@ -131,6 +135,13 @@ final appRouter = GoRouter(
       builder: (_, __) => const RedComunitariaScreen(),
     ),
     GoRoute(
+      path: '/comercializacion/ayuda-chat/:solicitudId',
+      builder: (_, state) {
+        final id = state.pathParameters['solicitudId'] ?? '';
+        return AyudaChatScreen(solicitudId: id);
+      },
+    ),
+    GoRoute(
       path: '/comercializacion/beneficios',
       builder: (_, __) => const BeneficiosScreen(),
     ),
@@ -164,10 +175,40 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/comercializacion/tienda/:campesinoId',
+      builder: (_, state) {
+        final id = state.pathParameters['campesinoId'] ?? '';
+        final extra = state.extra;
+        String? nombre;
+        Producto? productoIni;
+        var cantIni = 1.0;
+        if (extra is TiendaCampesinoExtra) {
+          nombre = extra.nombreTienda;
+          productoIni = extra.productoInicial;
+          cantIni = extra.cantidadInicial;
+        } else if (extra is String) {
+          nombre = extra;
+        }
+        return TiendaCampesinoScreen(
+          campesinoId: id,
+          nombreTienda: nombre,
+          productoInicial: productoIni,
+          cantidadInicial: cantIni,
+        );
+      },
+    ),
+    GoRoute(
       path: '/comercializacion/producto/:id',
       builder: (_, state) {
         final id = state.pathParameters['id'] ?? '';
         final extra = state.extra;
+        if (extra is ProductoDetalleExtra) {
+          return ProductoDetalleScreen(
+            producto: extra.producto,
+            productoId: id,
+            onAgregarAlPedido: extra.onAgregarAlPedido,
+          );
+        }
         return ProductoDetalleScreen(
           producto: extra is Producto ? extra : null,
           productoId: id,

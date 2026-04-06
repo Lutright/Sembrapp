@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
+import '../repositories/orden_ayuda_repository.dart';
 
 class OrdenDetalleScreen extends StatefulWidget {
   const OrdenDetalleScreen({
@@ -20,6 +21,9 @@ class OrdenDetalleScreen extends StatefulWidget {
 
 class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   Map<String, dynamic>? _orden;
+  List<Map<String, dynamic>> _items = [];
+  /// Última solicitud de ayuda para este pedido (si existe).
+  Map<String, dynamic>? _solicitudAyudaReciente;
   List<Map<String, dynamic>> _mensajes = [];
   final _mensajeController = TextEditingController();
   final _scrollController = ScrollController();
@@ -92,14 +96,162 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           .select()
           .eq('id', widget.ordenId)
           .maybeSingle();
-      if (mounted) setState(() {
-        _orden = res as Map<String, dynamic>?;
-        _loading = false;
-      });
-      if (res != null) _loadMensajes();
+      if (mounted) {
+        setState(() {
+          _orden = res as Map<String, dynamic>?;
+          _loading = false;
+        });
+      }
+      if (res != null) {
+        await _loadItems();
+        if (mounted) await _loadSolicitudAyudaReciente();
+        _loadMensajes();
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('orden_items')
+          .select('id, cantidad, precio_unitario, productos(nombre, unidad)')
+          .eq('orden_id', widget.ordenId);
+      if (!mounted) return;
+      setState(() => _items = List<Map<String, dynamic>>.from(res as List));
+    } catch (_) {
+      if (mounted) setState(() => _items = []);
+    }
+  }
+
+  Future<void> _loadSolicitudAyudaReciente() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('orden_ayuda_solicitud')
+          .select()
+          .eq('orden_id', widget.ordenId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (mounted) setState(() => _solicitudAyudaReciente = res as Map<String, dynamic>?);
+    } catch (_) {
+      if (mounted) setState(() => _solicitudAyudaReciente = null);
+    }
+  }
+
+  Future<void> _publicarSolicitudAyuda(List<String> itemIds, String? nota) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    final repo = OrdenAyudaRepository(Supabase.instance.client);
+    final ubic = await repo.ubicacionParaPublicar(uid);
+    if (ubic == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Activa la ubicación o publica productos con coordenadas para situarte en el mapa de la red.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      await repo.crearSolicitud(
+        ordenId: widget.ordenId,
+        solicitanteId: uid,
+        itemIds: itemIds,
+        lat: ubic.lat,
+        lng: ubic.lng,
+        nota: nota,
+      );
+      if (mounted) {
+        await _loadSolicitudAyudaReciente();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tu pedido de ayuda ya es visible para productores cercanos.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo publicar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelarSolicitudAyuda() async {
+    final s = _solicitudAyudaReciente;
+    if (s == null || (s['estado'] as String?) != 'abierta') return;
+    final id = s['id'] as String?;
+    if (id == null) return;
+    try {
+      await OrdenAyudaRepository(Supabase.instance.client).cancelarSolicitud(id);
+      if (mounted) {
+        await _loadSolicitudAyudaReciente();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud retirada de la red')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _mostrarDialogoPedirAyuda() async {
+    if (!_items.any((e) => e['id'] != null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay líneas de pedido con identificador')),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _PedirAyudaDialog(
+        items: _items,
+        onPublicar: (ids, nota) async {
+          Navigator.pop(ctx);
+          await _publicarSolicitudAyuda(ids, nota);
+        },
+      ),
+    );
+  }
+
+  static String _nombreProducto(Map<String, dynamic> row) {
+    final p = row['productos'];
+    if (p is Map && p['nombre'] != null) return p['nombre'] as String;
+    if (p is List && p.isNotEmpty && p.first is Map) {
+      return (p.first as Map)['nombre'] as String? ?? 'Producto';
+    }
+    return 'Producto';
+  }
+
+  static String _unidadProducto(Map<String, dynamic> row) {
+    final p = row['productos'];
+    if (p is Map && p['unidad'] != null) return p['unidad'] as String;
+    if (p is List && p.isNotEmpty && p.first is Map) {
+      return (p.first as Map)['unidad'] as String? ?? '';
+    }
+    return '';
+  }
+
+  static double _totalItems(List<Map<String, dynamic>> items) {
+    var s = 0.0;
+    for (final row in items) {
+      final c = (row['cantidad'] as num?)?.toDouble() ?? 0;
+      final pu = (row['precio_unitario'] as num?)?.toDouble() ?? 0;
+      s += c * pu;
+    }
+    return s;
   }
 
   Future<void> _loadMensajes() async {
@@ -167,7 +319,20 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     final estado = _orden!['estado'] as String? ?? 'pendiente';
     final uid = Supabase.instance.client.auth.currentUser?.id;
     final isCampesinoDeLaOrden = uid == _orden!['campesino_id'];
-    final compartidaEnRed = _orden!['compartida_en_red'] as bool? ?? false;
+    final sol = _solicitudAyudaReciente;
+    final estadoSol = sol?['estado'] as String?;
+    final sid = sol?['solicitante_id'] as String?;
+    final aid = sol?['ayudante_id'] as String?;
+    final ayudaAbiertaPropia =
+        uid != null && estadoSol == 'abierta' && sid == uid;
+    final ayudaChatDisponible = uid != null &&
+        estadoSol == 'cerrada' &&
+        aid != null &&
+        (sid == uid || aid == uid);
+    final puedeNuevaAyuda = uid != null &&
+        isCampesinoDeLaOrden &&
+        !ayudaAbiertaPropia &&
+        !(estadoSol == 'cerrada' && aid != null);
 
     return Scaffold(
       appBar: AppBar(
@@ -195,37 +360,116 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       'Estado: $estado',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
+                    if (_items.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Productos del pedido',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      ..._items.map((row) {
+                        final cant =
+                            (row['cantidad'] as num?)?.toDouble() ?? 0;
+                        final pu =
+                            (row['precio_unitario'] as num?)?.toDouble() ?? 0;
+                        final sub = cant * pu;
+                        final u = _unidadProducto(row);
+                        final unidad = u.isEmpty ? '' : ' $u';
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${_nombreProducto(row)} · '
+                                  '${cant.toStringAsFixed(cant == cant.roundToDouble() ? 0 : 1)}$unidad',
+                                ),
+                              ),
+                              Text('${sub.toStringAsFixed(0)} \$'),
+                            ],
+                          ),
+                        );
+                      }),
+                      const Divider(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          Text(
+                            '${_totalItems(_items).toStringAsFixed(0)} \$',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (ayudaChatDisponible) ...[
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      FilledButton.icon(
+                        onPressed: () {
+                          final id = sol?['id'] as String?;
+                          if (id != null) {
+                            context.push('/comercializacion/ayuda-chat/$id');
+                          }
+                        },
+                        icon: const Icon(Icons.chat_rounded),
+                        label: const Text('Chat entre productores (ayuda)'),
+                      ),
+                    ],
                     if (isCampesinoDeLaOrden) ...[
                       const SizedBox(height: 12),
-                      compartidaEnRed
-                          ? Row(
-                              children: [
-                                Icon(Icons.check_circle,
-                                    color: Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 8),
-                                const Text('Compartida en la red comunitaria'),
-                              ],
-                            )
-                          : FilledButton.tonalIcon(
-                              onPressed: () async {
-                                await Supabase.instance.client
-                                    .from('ordenes')
-                                    .update({
-                                  'compartida_en_red': true,
-                                  'compartida_at':
-                                      DateTime.now().toIso8601String(),
-                                }).eq('id', widget.ordenId);
-                                _loadOrden();
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Orden compartida en la red')),
-                                );
-                              }
-                              },
-                              icon: const Icon(Icons.share),
-                              label: const Text('Compartir en red comunitaria'),
+                      const Divider(),
+                      Text(
+                        'Ayuda en la comunidad',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Marca los productos que no puedes cubrir. Otros productores cercanos verán tu pedido y podrán ayudarte por chat.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (ayudaAbiertaPropia)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.visibility_rounded,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Tu solicitud está visible en Red comunitaria → Ayuda.',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: _cancelarSolicitudAyuda,
+                              child: const Text('Retirar de la red'),
+                            ),
+                          ],
+                        )
+                      else if (puedeNuevaAyuda)
+                        FilledButton.tonalIcon(
+                          onPressed: _items.any((e) => e['id'] != null)
+                              ? _mostrarDialogoPedirAyuda
+                              : null,
+                          icon: const Icon(Icons.volunteer_activism_rounded),
+                          label: const Text('Pedir ayuda con productos'),
+                        ),
                     ],
                   ],
                 ),
@@ -247,7 +491,9 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Chat con el productor — Acuerden aquí el punto de encuentro para la entrega',
+                    isCampesinoDeLaOrden
+                        ? 'Chat con el comprador — Acuerden el punto de encuentro para la entrega'
+                        : 'Chat con el productor — Acuerden el punto de encuentro para la entrega',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -336,6 +582,104 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PedirAyudaDialog extends StatefulWidget {
+  const _PedirAyudaDialog({
+    required this.items,
+    required this.onPublicar,
+  });
+
+  final List<Map<String, dynamic>> items;
+  final Future<void> Function(List<String> ids, String? nota) onPublicar;
+
+  @override
+  State<_PedirAyudaDialog> createState() => _PedirAyudaDialogState();
+}
+
+class _PedirAyudaDialogState extends State<_PedirAyudaDialog> {
+  final _nota = TextEditingController();
+  final Set<String> _marcados = {};
+
+  @override
+  void dispose() {
+    _nota.dispose();
+    super.dispose();
+  }
+
+  static String _nombre(Map<String, dynamic> row) {
+    final p = row['productos'];
+    if (p is Map && p['nombre'] != null) return p['nombre'] as String;
+    if (p is List && p.isNotEmpty && p.first is Map) {
+      return (p.first as Map)['nombre'] as String? ?? 'Producto';
+    }
+    return 'Producto';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final conId = widget.items.where((e) => e['id'] != null).toList();
+    return AlertDialog(
+      title: const Text('Pedir ayuda en la comunidad'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Selecciona los productos que no puedes entregar.',
+            ),
+            const SizedBox(height: 12),
+            ...conId.map((row) {
+              final id = row['id'] as String;
+              final cant = (row['cantidad'] as num?)?.toDouble() ?? 0;
+              return CheckboxListTile(
+                value: _marcados.contains(id),
+                onChanged: (v) {
+                  setState(() {
+                    if (v == true) {
+                      _marcados.add(id);
+                    } else {
+                      _marcados.remove(id);
+                    }
+                  });
+                },
+                title: Text(_nombre(row)),
+                subtitle: Text('Cantidad: $cant'),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              );
+            }),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _nota,
+              decoration: const InputDecoration(
+                labelText: 'Nota (opcional)',
+                hintText: 'Ej: Necesito apoyo con la entrega el viernes',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _marcados.isEmpty
+              ? null
+              : () => widget.onPublicar(
+                    _marcados.toList(),
+                    _nota.text.trim().isEmpty ? null : _nota.text.trim(),
+                  ),
+          child: const Text('Publicar'),
+        ),
+      ],
     );
   }
 }
