@@ -102,6 +102,8 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
 
   static const double _ttsRateNormal = 0.42;
   static const double _ttsRateLetra = 0.26;
+  static const Duration _ttsStopTimeout = Duration(milliseconds: 900);
+  static const Duration _ttsSpeakTimeout = Duration(seconds: 7);
 
   final FlutterTts _tts = FlutterTts();
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -113,6 +115,18 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   /// Invalida audios encolados al cambiar de pantalla / avanzar antes de que termine la voz.
   int _ttsGen = 0;
   Future<void> _ttsQueue = Future.value();
+
+  Future<void> _ttsStopSeguro() async {
+    try {
+      await _tts.stop().timeout(_ttsStopTimeout);
+    } catch (_) {}
+  }
+
+  Future<void> _ttsSpeakSeguro(String texto) async {
+    try {
+      await _tts.speak(texto).timeout(_ttsSpeakTimeout);
+    } catch (_) {}
+  }
 
   bool _speechDisponible = false;
   bool _escuchandoVoz = false;
@@ -204,9 +218,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   /// Para el motor TTS y deja un margen antes del siguiente [speak] (evita audios en silencio en Android).
   Future<void> _ttsInterrumpir() async {
     _ttsGen++;
-    try {
-      await _tts.stop();
-    } catch (_) {}
+    await _ttsStopSeguro();
     await Future<void>.delayed(const Duration(milliseconds: 130));
   }
 
@@ -218,9 +230,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     _ttsQueue = _ttsQueue.then((_) async {
       try {
         if (miGen != _ttsGen) return;
-        try {
-          await _tts.stop();
-        } catch (_) {}
+        await _ttsStopSeguro();
         await Future<void>.delayed(const Duration(milliseconds: 115));
         if (miGen != _ttsGen) return;
         await accion(miGen);
@@ -238,7 +248,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
       if (miGen != _ttsGen) return;
       await _tts.setSpeechRate(_ttsRateNormal);
       if (miGen != _ttsGen) return;
-      await _tts.speak(texto);
+      await _ttsSpeakSeguro(texto);
     });
   }
 
@@ -251,7 +261,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
         if (miGen != _ttsGen) return;
         await _tts.setSpeechRate(_ttsRateLetra);
         if (miGen != _ttsGen) return;
-        await _tts.speak(texto);
+        await _ttsSpeakSeguro(texto);
       } finally {
         try {
           await _tts.setSpeechRate(_ttsRateNormal);
