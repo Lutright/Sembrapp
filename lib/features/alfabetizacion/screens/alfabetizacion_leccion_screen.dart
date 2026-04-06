@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
+import '../widgets/vocales_leccion_flow.dart';
 
 class AlfabetizacionLeccionScreen extends StatefulWidget {
   const AlfabetizacionLeccionScreen({
@@ -25,6 +26,7 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   TextEditingController? _escrituraController;
   bool? _correcto;
   bool _completado = false;
+  int _preguntaIndex = 0;
   bool _comprobandoAcceso = true;
   bool _accesoPermitido = false;
   String? _textoBloqueo;
@@ -102,23 +104,33 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
 
   void _responderLectura(String opcion) {
     if (_completado || _leccion == null) return;
-    final correcto = opcion == _leccion!.respuestaCorrecta;
+    final pregunta = _preguntaActual;
+    if (pregunta == null) return;
+    final correcto = opcion == pregunta.respuestaCorrecta;
+    if (correcto) {
+      _avanzarSiCorresponde();
+      return;
+    }
     setState(() {
       _correcto = correcto;
       _completado = true;
     });
-    if (correcto) _guardarProgreso();
   }
 
   void _responderEscritura(String texto) {
     if (_completado || _leccion == null) return;
-    final esperada = (_leccion!.respuestaCorrecta ?? '').trim().toUpperCase();
+    final pregunta = _preguntaActual;
+    if (pregunta == null) return;
+    final esperada = (pregunta.respuestaCorrecta ?? '').trim().toUpperCase();
     final correcto = texto.trim().toUpperCase() == esperada;
+    if (correcto) {
+      _avanzarSiCorresponde();
+      return;
+    }
     setState(() {
       _correcto = correcto;
       _completado = true;
     });
-    if (correcto) _guardarProgreso();
   }
 
   void _reintentar() {
@@ -127,6 +139,47 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _correcto = null;
       _escrituraController?.clear();
     });
+  }
+
+  PreguntaData? get _preguntaActual {
+    final leccion = _leccion;
+    if (leccion == null) return null;
+    final preguntas = leccion.preguntas;
+    if (_preguntaIndex < 0 || _preguntaIndex >= preguntas.length) return null;
+    return preguntas[_preguntaIndex];
+  }
+
+  ({int subleccionIndex, int preguntaEnSubleccion})? get _indicesPreguntaActual {
+    final sub = _leccion?.sublecciones;
+    if (sub == null || sub.isEmpty) return null;
+    var acumulado = 0;
+    for (var i = 0; i < sub.length; i++) {
+      final len = sub[i].preguntas.length;
+      if (_preguntaIndex < acumulado + len) {
+        return (subleccionIndex: i, preguntaEnSubleccion: _preguntaIndex - acumulado);
+      }
+      acumulado += len;
+    }
+    return null;
+  }
+
+  Future<void> _avanzarSiCorresponde() async {
+    final leccion = _leccion;
+    if (leccion == null) return;
+    final total = leccion.preguntas.length;
+    final haySiguiente = _preguntaIndex + 1 < total;
+    if (haySiguiente) {
+      setState(() {
+        _preguntaIndex++;
+        _escrituraController?.clear();
+      });
+      return;
+    }
+    setState(() {
+      _correcto = true;
+      _completado = true;
+    });
+    await _guardarProgreso();
   }
 
   Future<void> _guardarProgreso() async {
@@ -199,6 +252,13 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       );
     }
 
+    if (leccion.flujoId == kFlujoVocalesGuiadoId) {
+      return VocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(leccion.titulo),
@@ -216,12 +276,14 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Toca la respuesta correcta o escribe lo que te piden.',
+              'Responde todas las preguntas para completar esta lección.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
             const SizedBox(height: 24),
+            _buildProgresoPregunta(context, leccion),
+            const SizedBox(height: 16),
             if (!_completado) ...[
               _buildContenido(context, leccion),
               const SizedBox(height: 32),
@@ -254,19 +316,34 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   }
 
   Widget _buildContenido(BuildContext context, LeccionData leccion) {
+    final pregunta = _preguntaActual;
+    if (pregunta == null) return const SizedBox.shrink();
+    final idx = _indicesPreguntaActual;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
+            if (idx != null) ...[
+              Text(
+                leccion.sublecciones![idx.subleccionIndex].titulo,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+            ],
             Text(
-              leccion.contenido,
+              pregunta.contenido,
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
+                    letterSpacing: 1.2,
                   ),
+              textAlign: TextAlign.center,
             ),
-            if (leccion.audioAsset != null)
+            if (pregunta.audioAsset != null)
               IconButton(
                 icon: const Icon(Icons.volume_up),
                 onPressed: () {},
@@ -278,7 +355,7 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   }
 
   Widget _buildOpcionesLectura(BuildContext context, LeccionData leccion) {
-    final opciones = leccion.opciones ?? [];
+    final opciones = _preguntaActual?.opciones ?? [];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: opciones
@@ -321,6 +398,19 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
           child: const Text('Comprobar'),
         ),
       ],
+    );
+  }
+
+  Widget _buildProgresoPregunta(BuildContext context, LeccionData leccion) {
+    final total = leccion.preguntas.length;
+    final actual = (_preguntaIndex + 1).clamp(1, total);
+    return Text(
+      'Pregunta $actual de $total',
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w700,
+          ),
+      textAlign: TextAlign.center,
     );
   }
 

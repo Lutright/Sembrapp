@@ -1,5 +1,32 @@
 /// RF-A: Contenido de lecciones para alfabetización (lectura y escritura).
+
+/// Flujo multipantalla + TTS usado por la lección [L1-1] Vocales.
+const kFlujoVocalesGuiadoId = 'vocales_guiado';
 /// Niveles progresivos; cada lección puede ser de tipo lectura o escritura.
+class PreguntaData {
+  const PreguntaData({
+    required this.contenido,
+    this.opciones,
+    this.respuestaCorrecta,
+    this.audioAsset,
+  });
+
+  final String contenido;
+  final List<String>? opciones;
+  final String? respuestaCorrecta;
+  final String? audioAsset;
+}
+
+class SubleccionData {
+  const SubleccionData({
+    required this.titulo,
+    required this.preguntas,
+  });
+
+  final String titulo;
+  final List<PreguntaData> preguntas;
+}
+
 class LeccionData {
   const LeccionData({
     required this.id,
@@ -11,6 +38,9 @@ class LeccionData {
     this.respuestaCorrecta,
     this.puntos = 10,
     this.audioAsset,
+    this.sublecciones,
+    /// Si no es null, la pantalla de lección usa un flujo guiado propio (p. ej. multipantalla + TTS).
+    this.flujoId,
   });
 
   final String id;
@@ -22,62 +52,82 @@ class LeccionData {
   final String? respuestaCorrecta; // para escritura o validación
   final int puntos;
   final String? audioAsset; // RF-A-12
+  final List<SubleccionData>? sublecciones;
+  final String? flujoId;
 
   bool get esLectura => modulo == 'lectura';
   bool get esEscritura => modulo == 'escritura';
+
+  List<PreguntaData> get preguntas {
+    final sub = sublecciones;
+    if (sub != null && sub.isNotEmpty) {
+      return sub.expand((s) => s.preguntas).toList();
+    }
+    return [
+      PreguntaData(
+        contenido: contenido,
+        opciones: opciones,
+        respuestaCorrecta: respuestaCorrecta,
+        audioAsset: audioAsset,
+      ),
+    ];
+  }
 }
 
 /// Contenido fijo para el prototipo (RF-A-03, RF-A-04).
 final alfabetizacionLecciones = <LeccionData>[
-  // --- Lectura nivel 1: letras ---
+  // --- Lectura nivel 1: vocales y abecedario ---
   const LeccionData(
     id: 'L1-1',
     modulo: 'lectura',
     nivel: 1,
-    titulo: 'La letra A',
-    contenido: 'A',
-    opciones: ['A', 'E', 'O'],
-    respuestaCorrecta: 'A',
+    titulo: 'Vocales',
+    contenido: 'Vocales',
+    flujoId: kFlujoVocalesGuiadoId,
     puntos: 10,
   ),
   const LeccionData(
     id: 'L1-2',
     modulo: 'lectura',
     nivel: 1,
-    titulo: 'La letra E',
-    contenido: 'E',
-    opciones: ['A', 'E', 'I'],
-    respuestaCorrecta: 'E',
-    puntos: 10,
-  ),
-  const LeccionData(
-    id: 'L1-3',
-    modulo: 'lectura',
-    nivel: 1,
-    titulo: 'La letra I',
-    contenido: 'I',
-    opciones: ['I', 'O', 'U'],
-    respuestaCorrecta: 'I',
-    puntos: 10,
-  ),
-  const LeccionData(
-    id: 'L1-4',
-    modulo: 'lectura',
-    nivel: 1,
-    titulo: 'La letra O',
-    contenido: 'O',
-    opciones: ['O', 'U', 'A'],
-    respuestaCorrecta: 'O',
-    puntos: 10,
-  ),
-  const LeccionData(
-    id: 'L1-5',
-    modulo: 'lectura',
-    nivel: 1,
-    titulo: 'La letra U',
-    contenido: 'U',
-    opciones: ['U', 'A', 'E'],
-    respuestaCorrecta: 'U',
+    titulo: 'Abecedario',
+    contenido: 'Abecedario',
+    sublecciones: [
+      SubleccionData(
+        titulo: 'Inicio del abecedario',
+        preguntas: [
+          PreguntaData(
+            contenido: '¿Qué letra va después de A?',
+            opciones: ['B', 'D', 'E'],
+            respuestaCorrecta: 'B',
+          ),
+          PreguntaData(
+            contenido: '¿Cuál grupo está en orden correcto?',
+            opciones: ['A B C', 'A C B', 'C A B'],
+            respuestaCorrecta: 'A B C',
+          ),
+        ],
+      ),
+      SubleccionData(
+        titulo: 'Orden alfabético',
+        preguntas: [
+          PreguntaData(
+            contenido: '¿Qué letra va después de M?',
+            opciones: ['N', 'P', 'L'],
+            respuestaCorrecta: 'N',
+          ),
+          PreguntaData(
+            contenido: 'Selecciona el abecedario',
+            opciones: [
+              'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z',
+              'A E I O U',
+              'M A M A',
+            ],
+            respuestaCorrecta: 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z',
+          ),
+        ],
+      ),
+    ],
     puntos: 10,
   ),
   // --- Lectura nivel 2: sílabas ---
