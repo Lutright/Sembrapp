@@ -41,11 +41,22 @@ class ProductosRepository {
   }
 
   Future<List<Producto>> misProductos(String campesinoId) async {
-    final res = await _client
+    return productosPorCampesino(campesinoId);
+  }
+
+  /// Productos publicados por un campesino (vista tienda).
+  Future<List<Producto>> productosPorCampesino(
+    String campesinoId, {
+    String? busqueda,
+  }) async {
+    var query = _client
         .from('productos')
         .select('*, profiles(full_name)')
-        .eq('campesino_id', campesinoId)
-        .order('created_at', ascending: false);
+        .eq('campesino_id', campesinoId);
+    if (busqueda != null && busqueda.trim().isNotEmpty) {
+      query = query.ilike('nombre', '%${busqueda.trim()}%');
+    }
+    final res = await query.order('created_at', ascending: false);
     return (res as List)
         .map((e) => Producto.fromMap(e as Map<String, dynamic>))
         .toList();

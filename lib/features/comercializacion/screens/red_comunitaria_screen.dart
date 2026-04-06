@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/services/location_service.dart';
+import '../../../core/utils/geo_utils.dart';
 import '../../../core/widgets/minimal_ui.dart';
+import '../models/producto.dart';
+import '../navigation/tienda_campesino_extra.dart';
+import '../repositories/orden_ayuda_repository.dart';
+import '../repositories/productos_repository.dart';
 
-/// Red comunitaria: productores y pedidos compartidos (vista campesino).
+List<String> _asUuidList(dynamic v) {
+  if (v == null) return [];
+  if (v is List) return v.map((e) => e.toString()).toList();
+  return [];
+}
+
+/// Red comunitaria: productores y pedidos de ayuda cercanos (misma lógica de radio que comercialización).
 class RedComunitariaScreen extends StatefulWidget {
   const RedComunitariaScreen({super.key});
+
+  static const String _prefsKeyDistanceKm = 'marketplace_distance_km';
 
   @override
   State<RedComunitariaScreen> createState() => _RedComunitariaScreenState();
@@ -15,17 +30,48 @@ class RedComunitariaScreen extends StatefulWidget {
 class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<Map<String, dynamic>> _campesinos = [];
-  List<Map<String, dynamic>> _ordenesCompartidas = [];
-  bool _loadingRed = true;
-  bool _loadingOrdenes = true;
+  final _ayudaRepo = OrdenAyudaRepository(Supabase.instance.client);
+  final _productoRepo = ProductosRepository(Supabase.instance.client);
+
+  int _selectedDistanceKm = 25;
+  double? _buyerLat;
+  double? _buyerLng;
+  String? _locationError;
+
+  List<_CampesinoCercano> _campesinos = [];
+  List<Map<String, dynamic>> _solicitudesFiltradas = [];
+  Map<String, String> _nombresSolicitantes = {};
+
+  bool _loadingCampesinos = true;
+  bool _loadingSolicitudes = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadCampesinos();
-    _loadOrdenesCompartidas();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _loadSavedDistance();
+    await _loadUbicacionYDatos();
+  }
+
+  Future<void> _loadSavedDistance() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(RedComunitariaScreen._prefsKeyDistanceKm);
+      if (saved != null && saved >= 1 && saved <= 50 && mounted) {
+        setState(() => _selectedDistanceKm = saved);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveDistance(int km) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(RedComunitariaScreen._prefsKeyDistanceKm, km);
+    } catch (_) {}
   }
 
   @override
@@ -34,43 +80,268 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     super.dispose();
   }
 
-  Future<void> _loadCampesinos() async {
+  Future<void> _loadUbicacionYDatos() async {
     final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) {
-      setState(() => _loadingRed = false);
+    setState(() {
+      _loadingCampesinos = true;
+      _loadingSolicitudes = true;
+      _locationError = null;
+    });
+
+    final pos = await LocationService.instance.getLastKnownOrFetch();
+    if (pos == null) {
+      if (mounted) {
+        setState(() {
+          _locationError = 'Activa ubicación para ver la red cercana';
+          _campesinos = [];
+          _solicitudesFiltradas = [];
+          _loadingCampesinos = false;
+          _loadingSolicitudes = false;
+        });
+      }
       return;
     }
-    setState(() => _loadingRed = true);
+    _buyerLat = pos.latitude;
+    _buyerLng = pos.longitude;
+
+    await Future.wait([_loadCampesinos(uid), _loadSolicitudes(uid)]);
+  }
+
+  Future<void> _loadCampesinos(String? uid) async {
+    if (_buyerLat == null || _buyerLng == null) return;
     try {
-      final res = await Supabase.instance.client
-          .from('profiles')
-          .select('id, full_name')
-          .eq('role', 'campesino')
-          .neq('id', uid);
-      if (mounted) setState(() {
-        _campesinos = List<Map<String, dynamic>>.from(res as List);
-        _loadingRed = false;
-      });
+      final list = await _productoRepo.listarProductosCercanos(
+        buyerLat: _buyerLat!,
+        buyerLng: _buyerLng!,
+        maxDistanceKm: _selectedDistanceKm.toDouble(),
+      );
+      final by = <String, List<Producto>>{};
+      for (final p in list) {
+        by.putIfAbsent(p.campesinoId, () => []).add(p);
+      }
+      final otros = by.entries.where((e) => uid == null || e.key != uid).toList();
+      final enriched = otros.map((e) {
+        var minD = double.infinity;
+        for (final p in e.value) {
+          if (p.lat != null && p.lng != null) {
+            final d = distanceKm(
+              lat1: _buyerLat!,
+              lng1: _buyerLng!,
+              lat2: p.lat!,
+              lng2: p.lng!,
+            );
+            if (d < minD) minD = d;
+          }
+        }
+        final nombre = e.value.first.campesinoNombre?.trim().isNotEmpty == true
+            ? e.value.first.campesinoNombre!.trim()
+            : 'Productor';
+        return _CampesinoCercano(
+          id: e.key,
+          nombre: nombre,
+          cantidadProductos: e.value.length,
+          distanciaKm: minD.isFinite ? minD : 0,
+        );
+      }).toList();
+      enriched.sort((a, b) => a.distanciaKm.compareTo(b.distanciaKm));
+      if (mounted) {
+        setState(() {
+          _campesinos = enriched;
+          _loadingCampesinos = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loadingRed = false);
+      if (mounted) setState(() => _loadingCampesinos = false);
     }
   }
 
-  Future<void> _loadOrdenesCompartidas() async {
-    setState(() => _loadingOrdenes = true);
+  Future<void> _loadSolicitudes(String? uid) async {
+    if (_buyerLat == null || _buyerLng == null) return;
     try {
-      final res = await Supabase.instance.client
-          .from('ordenes')
-          .select()
-          .eq('compartida_en_red', true)
-          .order('compartida_at', ascending: false);
-      if (mounted) setState(() {
-        _ordenesCompartidas = List<Map<String, dynamic>>.from(res as List);
-        _loadingOrdenes = false;
-      });
+      final all = await _ayudaRepo.listarSolicitudesAbiertas();
+      final maxKm = _selectedDistanceKm.toDouble();
+      final filtradas = <Map<String, dynamic>>[];
+      for (final s in all) {
+        final sid = s['solicitante_id'] as String?;
+        if (sid != null && sid == uid) continue;
+        final lat = (s['lat'] as num?)?.toDouble();
+        final lng = (s['lng'] as num?)?.toDouble();
+        if (lat == null || lng == null) continue;
+        final d = distanceKm(
+          lat1: _buyerLat!,
+          lng1: _buyerLng!,
+          lat2: lat,
+          lng2: lng,
+        );
+        if (d <= maxKm) {
+          filtradas.add({...s, '_dist_km': d});
+        }
+      }
+      final ids = filtradas
+          .map((s) => s['solicitante_id'] as String?)
+          .whereType<String>()
+          .toSet();
+      final nombres = await _ayudaRepo.nombresCampesinos(ids);
+      if (mounted) {
+        setState(() {
+          _solicitudesFiltradas = filtradas;
+          _nombresSolicitantes = nombres;
+          _loadingSolicitudes = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loadingOrdenes = false);
+      if (mounted) setState(() => _loadingSolicitudes = false);
     }
+  }
+
+  Future<void> _onDistanceChangedEnd(double v) async {
+    final km = v.round();
+    await _saveDistance(km);
+    await _loadUbicacionYDatos();
+  }
+
+  Future<void> _mostrarDetalleSolicitud(Map<String, dynamic> s) async {
+    final solicitudId = s['id'] as String? ?? '';
+    final ordenId = s['orden_id'] as String? ?? '';
+    final itemIds = _asUuidList(s['item_ids']);
+    final nota = s['nota'] as String?;
+    final solicitanteId = s['solicitante_id'] as String?;
+    final nombreSol =
+        solicitanteId != null ? _nombresSolicitantes[solicitanteId] : null;
+
+    List<Map<String, dynamic>> items = [];
+    try {
+      final client = Supabase.instance.client;
+      final List<dynamic> res;
+      if (itemIds.isEmpty) {
+        res = await client
+            .from('orden_items')
+            .select('id, cantidad, precio_unitario, productos(nombre, unidad)')
+            .eq('orden_id', ordenId);
+      } else {
+        res = await client
+            .from('orden_items')
+            .select('id, cantidad, precio_unitario, productos(nombre, unidad)')
+            .eq('orden_id', ordenId)
+            .inFilter('id', itemIds);
+      }
+      items = List<Map<String, dynamic>>.from(res);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            bottom: MediaQuery.paddingOf(ctx).bottom + 20,
+            top: 8,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Pedido de ayuda',
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                nombreSol != null
+                    ? '$nombreSol necesita apoyo con parte de un pedido.'
+                    : 'Un productor necesita apoyo con parte de un pedido.',
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
+              if (nota != null && nota.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Nota:', style: Theme.of(ctx).textTheme.titleSmall),
+                Text(nota),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                'Productos en los que pide ayuda',
+                style: Theme.of(ctx).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.35,
+                ),
+                child: items.isEmpty
+                    ? const Text('No se pudieron cargar los ítems.')
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, i) {
+                          final row = items[i];
+                          final cant =
+                              (row['cantidad'] as num?)?.toDouble() ?? 0;
+                          final p = row['productos'];
+                          String nombre = 'Producto';
+                          String u = '';
+                          if (p is Map) {
+                            nombre = p['nombre'] as String? ?? nombre;
+                            u = p['unidad'] as String? ?? '';
+                          }
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(nombre),
+                            subtitle: Text(
+                              '${cant.toStringAsFixed(cant == cant.roundToDouble() ? 0 : 1)} $u',
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Rechazar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final ok = await _ayudaRepo.aceptarSolicitud(solicitudId);
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (!mounted) return;
+                        if (ok) {
+                          await _loadUbicacionYDatos();
+                          if (mounted) {
+                            context.push('/comercializacion/ayuda-chat/$solicitudId');
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Ya no está disponible u otro productor la aceptó.',
+                              ),
+                            ),
+                          );
+                          await _loadUbicacionYDatos();
+                        }
+                      },
+                      child: const Text('Aceptar y abrir chat'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -82,71 +353,167 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Gente', icon: Icon(Icons.groups_rounded)),
-            Tab(text: 'Pedidos', icon: Icon(Icons.share_rounded)),
+            Tab(text: 'Productores', icon: Icon(Icons.groups_rounded)),
+            Tab(text: 'Ayuda', icon: Icon(Icons.volunteer_activism_rounded)),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _loadingRed
-              ? const Center(child: CircularProgressIndicator())
-              : _campesinos.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No hay otros productores registrados aún',
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _campesinos.length,
-                      itemBuilder: (context, i) {
-                        final c = _campesinos[i];
-                        final nombre =
-                            c['full_name'] as String? ?? 'Productor';
-                        return Card(
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              child: Icon(Icons.agriculture),
-                            ),
-                            title: Text(nombre),
-                            subtitle: const Text('Campesino'),
-                          ),
-                        );
-                      },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Distancia máxima',
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-          _loadingOrdenes
-              ? const Center(child: CircularProgressIndicator())
-              : _ordenesCompartidas.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Aún no hay órdenes compartidas en la red',
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _ordenesCompartidas.length,
-                      itemBuilder: (context, i) {
-                        final o = _ordenesCompartidas[i];
-                        final id = o['id'] as String? ?? '';
-                        final estado = o['estado'] as String? ?? 'pendiente';
-                        return Card(
-                          child: ListTile(
-                            title: Text(
-                              'Orden ${id.length >= 8 ? id.substring(0, 8) : id}...',
-                            ),
-                            subtitle: Text(estado),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.push(
-                              '/comercializacion/orden/$id',
-                            ),
-                          ),
-                        );
-                      },
+                    Text(
+                      '$_selectedDistanceKm km',
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
+                  ],
+                ),
+                Slider(
+                  min: 1,
+                  max: 50,
+                  divisions: 49,
+                  value: _selectedDistanceKm.toDouble(),
+                  label: '$_selectedDistanceKm km',
+                  onChanged: (v) =>
+                      setState(() => _selectedDistanceKm = v.round()),
+                  onChangeEnd: _onDistanceChangedEnd,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildTabCampesinos(),
+                _buildTabSolicitudes(),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildTabCampesinos() {
+    if (_loadingCampesinos) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_locationError != null) {
+      return _emptyState(_locationError!, showRefresh: true);
+    }
+    if (_campesinos.isEmpty) {
+      return _emptyState(
+        'No hay otros productores con oferta en tu radio.',
+        showRefresh: true,
+      );
+    }
+    return ListView.separated(
+      padding: AppPagePadding.screen,
+      itemCount: _campesinos.length,
+      separatorBuilder: (_, __) =>
+          const SizedBox(height: AppPagePadding.tileGap),
+      itemBuilder: (context, i) {
+        final c = _campesinos[i];
+        return BigNavTile(
+          icon: Icons.agriculture_rounded,
+          title: c.nombre,
+          subtitle:
+              '${c.cantidadProductos} producto${c.cantidadProductos != 1 ? 's' : ''} · '
+              '${c.distanciaKm.toStringAsFixed(1)} km',
+          onTap: () => context.push(
+            '/comercializacion/tienda/${c.id}',
+            extra: TiendaCampesinoExtra(nombreTienda: c.nombre),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabSolicitudes() {
+    if (_loadingSolicitudes) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_locationError != null) {
+      return _emptyState(_locationError!, showRefresh: true);
+    }
+    if (_solicitudesFiltradas.isEmpty) {
+      return _emptyState(
+        'No hay pedidos de ayuda en tu radio. '
+        'Cuando un colega no pueda cubrir un producto, lo publicará desde su pedido.',
+        showRefresh: true,
+      );
+    }
+    return ListView.separated(
+      padding: AppPagePadding.screen,
+      itemCount: _solicitudesFiltradas.length,
+      separatorBuilder: (_, __) =>
+          const SizedBox(height: AppPagePadding.tileGap),
+      itemBuilder: (context, i) {
+        final s = _solicitudesFiltradas[i];
+        final sid = s['solicitante_id'] as String?;
+        final nombre = sid != null ? _nombresSolicitantes[sid] : null;
+        final d = (s['_dist_km'] as double?) ?? 0;
+        final nItems = _asUuidList(s['item_ids']).length;
+        return BigNavTile(
+          icon: Icons.handshake_rounded,
+          title: nombre ?? 'Productor',
+          subtitle:
+              '$nItems producto${nItems != 1 ? 's' : ''} · ${d.toStringAsFixed(1)} km · '
+              'Toca para ver o aceptar',
+          onTap: () => _mostrarDetalleSolicitud(s),
+        );
+      },
+    );
+  }
+
+  Widget _emptyState(String message, {bool showRefresh = false}) {
+    return Center(
+      child: Padding(
+        padding: AppPagePadding.screen,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            if (showRefresh) ...[
+              const SizedBox(height: 16),
+              FilledButton.tonalIcon(
+                onPressed: _loadUbicacionYDatos,
+                icon: const Icon(Icons.my_location_rounded),
+                label: const Text('Actualizar'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CampesinoCercano {
+  _CampesinoCercano({
+    required this.id,
+    required this.nombre,
+    required this.cantidadProductos,
+    required this.distanciaKm,
+  });
+
+  final String id;
+  final String nombre;
+  final int cantidadProductos;
+  final double distanciaKm;
 }
