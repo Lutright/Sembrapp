@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/widgets/minimal_ui.dart';
 
+const String _assetLogoApp = 'assets/alfabetizacion/images/logo_app.png';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -11,15 +13,41 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
+
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _scale = Tween<double>(begin: 0.92, end: 1).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutBack,
+      ),
+    );
+    _controller.forward();
     _redirect();
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Future<void> _redirect() async {
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
@@ -42,22 +70,36 @@ class _SplashScreenState extends State<SplashScreen> {
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer.withOpacity(0.4),
+                  color: cs.primaryContainer.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.eco_rounded,
-                  size: 88,
-                  color: cs.primary,
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: ScaleTransition(
+                    scale: _scale,
+                    child: ClipOval(
+                      child: Image.asset(
+                        _assetLogoApp,
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 72,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: AppPagePadding.sectionGap),
               Text(
                 'Sembrapp',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                       color: cs.primary,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.3,
                     ),
               ),
               const SizedBox(height: 40),

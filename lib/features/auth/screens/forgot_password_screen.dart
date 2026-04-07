@@ -1,8 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
+
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.8)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.06,
+        0,
+        size.height * 0.8,
+      )
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -34,20 +56,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await Supabase.instance.client.auth.resetPasswordForEmail(
         _emailController.text.trim(),
       );
-      if (mounted) setState(() {
-        _sent = true;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _sent = true;
+          _loading = false;
+        });
+      }
     } on AuthException catch (e) {
-      if (mounted) setState(() {
-        _error = e.message;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() {
-        _error = 'No se pudo enviar el mensaje.';
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'No se pudo enviar el mensaje.';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -55,17 +83,60 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recuperar contraseña'),
-        leading: MinimalBackButton(onPressed: () => context.pop()),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: AppPagePadding.screen,
-          child: _sent
-              ? _buildSuccess(context)
-              : _buildForm(context, cs),
-        ),
+      backgroundColor: cs.surface,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final headerHeight = constraints.maxHeight * 0.25;
+          return Stack(
+            children: [
+              ClipPath(
+                clipper: _OrganicHeaderClipper(),
+                child: Container(
+                  height: headerHeight,
+                  color: cs.primary,
+                ),
+              ),
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppPagePadding.screen.left,
+                    16,
+                    AppPagePadding.screen.right,
+                    20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          onPressed: () => context.pop(),
+                          icon: Icon(Icons.arrow_back_rounded, color: cs.onPrimary),
+                          style: IconButton.styleFrom(
+                            backgroundColor: cs.onPrimary.withValues(alpha: 0.14),
+                            minimumSize: const Size(52, 52),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: headerHeight * 0.34),
+                      Text(
+                        'Recuperar contraseña',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onPrimary,
+                        ),
+                      ),
+                      SizedBox(height: headerHeight * 0.24),
+                      _sent ? _buildSuccess(context) : _buildForm(context, cs),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -110,9 +181,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const MinimalScreenHint(
-            'Escribe el correo que usaste al registrarte. Te enviaremos un enlace.',
+          Center(
+            child: Hero(
+              tag: 'auth-lock-reset-icon',
+              child: Container(
+                width: 132,
+                height: 132,
+                decoration: BoxDecoration(
+                  color: cs.secondaryContainer,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: cs.shadow.withValues(alpha: 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.lock_reset_rounded,
+                  size: 80,
+                  color: cs.onSecondaryContainer,
+                ),
+              ),
+            ),
           ),
+          const SizedBox(height: 20),
+          Text(
+            'No te preocupes, a todos nos pasa. Escribe tu correo abajo.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 20),
           if (_error != null) ...[
             Container(
               padding: const EdgeInsets.all(16),
@@ -130,19 +232,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 16),
           ],
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Correo',
-              hintText: 'tu@correo.com',
-              prefixIcon: Icon(Icons.email_outlined),
+          Card(
+            margin: EdgeInsets.zero,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
             ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Escribe tu correo';
-              if (!v.contains('@')) return 'Correo no válido';
-              return null;
-            },
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Correo',
+                  hintText: 'tu@correo.com',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Escribe tu correo';
+                  if (!v.contains('@')) return 'Correo no válido';
+                  return null;
+                },
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           FilledButton(
@@ -157,6 +269,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   )
                 : const Text('Enviar enlace'),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '¿Recordaste la clave de repente? ',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+              ),
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Volver al inicio'),
+              ),
+            ],
           ),
         ],
       ),
