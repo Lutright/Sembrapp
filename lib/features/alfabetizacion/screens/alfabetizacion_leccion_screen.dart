@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
+import '../widgets/abecedario_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
 
 class AlfabetizacionLeccionScreen extends StatefulWidget {
@@ -254,6 +255,12 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
 
     if (leccion.flujoId == kFlujoVocalesGuiadoId) {
       return VocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoAbecedarioGuiadoId) {
+      return AbecedarioLeccionFlow(
         leccion: leccion,
         onCompletar: _guardarProgreso,
       );

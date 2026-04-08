@@ -2,6 +2,8 @@
 
 /// Flujo multipantalla + TTS usado por la lección [L1-1] Vocales.
 const kFlujoVocalesGuiadoId = 'vocales_guiado';
+/// Flujo multipantalla + TTS usado por la lección [L1-2] Abecedario.
+const kFlujoAbecedarioGuiadoId = 'abecedario_guiado';
 /// Niveles progresivos; cada lección puede ser de tipo lectura o escritura.
 class PreguntaData {
   const PreguntaData({
@@ -92,6 +94,7 @@ final alfabetizacionLecciones = <LeccionData>[
     nivel: 1,
     titulo: 'Abecedario',
     contenido: 'Abecedario',
+    flujoId: kFlujoAbecedarioGuiadoId,
     sublecciones: [
       SubleccionData(
         titulo: 'Inicio del abecedario',
