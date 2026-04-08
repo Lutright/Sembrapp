@@ -48,7 +48,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _precioController = TextEditingController();
-  final _cantidadController = TextEditingController();
   String _unidad = 'kg';
   bool _saving = false;
 
@@ -60,7 +59,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       _nombreController.text = p.nombre;
       _descripcionController.text = p.descripcion ?? '';
       _precioController.text = p.precio.toString();
-      _cantidadController.text = p.cantidadDisponible.toString();
       _unidad = p.unidad;
     }
   }
@@ -70,7 +68,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
     _nombreController.dispose();
     _descripcionController.dispose();
     _precioController.dispose();
-    _cantidadController.dispose();
     super.dispose();
   }
 
@@ -95,7 +92,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
         return;
       }
       final precio = double.tryParse(_precioController.text) ?? 0;
-      final cantidad = double.tryParse(_cantidadController.text) ?? 0;
       if (widget.producto != null) {
         await repo.actualizarProducto(
           widget.producto!.id,
@@ -105,7 +101,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                 ? null
                 : _descripcionController.text.trim(),
             'precio': precio,
-            'cantidad_disponible': cantidad,
             'unidad': _unidad,
             'lat': lat,
             'lng': lng,
@@ -121,7 +116,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                 ? null
                 : _descripcionController.text.trim(),
             precio: precio,
-            cantidadDisponible: cantidad,
+            cantidadDisponible: null,
             unidad: _unidad,
             lat: lat,
             lng: lng,
@@ -155,7 +150,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Completa los datos de tu producto.',
+              'Completa los datos de tu producto. La cantidad disponible no se pide aquí: '
+              'varía día a día y se coordina por chat o con ayuda en la comunidad si hace falta.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -185,20 +181,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               decoration: const InputDecoration(
                 labelText: 'Precio',
                 prefixIcon: Icon(Icons.attach_money),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Requerido';
-                if (double.tryParse(v) == null) return 'Número válido';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _cantidadController,
-              decoration: const InputDecoration(
-                labelText: 'Cantidad disponible',
-                prefixIcon: Icon(Icons.scale),
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {

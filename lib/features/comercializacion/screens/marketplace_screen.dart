@@ -11,6 +11,52 @@ import '../navigation/tienda_campesino_extra.dart';
 import '../repositories/beneficios_repository.dart';
 import '../repositories/productos_repository.dart';
 
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.7)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.1,
+        0,
+        size.height * 0.7,
+      )
+      ..close();
+    return path;
+  }
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class _HeaderAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _HeaderAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: cs.onSecondary),
+            const SizedBox(height: 6),
+            Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSecondary, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Comprador: productos cercanos y tiendas (campesinos) en el mismo radio.
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -96,13 +142,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _anadirAlCarritoEIrATienda(Producto p) {
-    if (p.cantidadDisponible < 0.5) {
+    if (p.limiteSuperiorPedido < 0.5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Este producto no tiene stock suficiente')),
       );
       return;
     }
-    final cant = p.cantidadDisponible >= 1.0 ? 1.0 : p.cantidadDisponible;
+    final cap = p.limiteSuperiorPedido;
+    final cant = cap >= 1.0 ? 1.0 : cap;
     context.push(
       '/comercializacion/tienda/${p.campesinoId}',
       extra: TiendaCampesinoExtra(
@@ -190,251 +237,347 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _emptyMarketplace(BuildContext context, String message) {
-    return Center(
-      child: Padding(
-        padding: AppPagePadding.screen,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 14),
-            FilledButton.tonalIcon(
-              onPressed: _load,
-              icon: const Icon(Icons.my_location),
-              label: const Text('Actualizar ubicación'),
-            ),
-          ],
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Padding(
+          padding: AppPagePadding.screen,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 14),
+              FilledButton.tonalIcon(
+                onPressed: _load,
+                icon: const Icon(Icons.my_location),
+                label: const Text('Actualizar ubicación'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildListaProductos(BuildContext context) {
-    if (_locationError != null) {
-      return _emptyMarketplace(context, _locationError!);
-    }
+    if (_locationError != null) return _emptyMarketplace(context, _locationError!);
     final list = _productosFiltrados();
     if (_productosCercanos.isEmpty) {
       return _emptyMarketplace(
         context,
-        _query.isEmpty
-            ? 'No hay productos en tu radio'
-            : 'Ningún producto coincide',
+        _query.isEmpty ? 'No hay productos en tu radio' : 'Ningún producto coincide',
       );
     }
-    if (list.isEmpty) {
-      return _emptyMarketplace(context, 'Ningún producto coincide');
-    }
-    return ListView.separated(
-      padding: AppPagePadding.screen.copyWith(bottom: 24),
-      itemCount: list.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: AppPagePadding.tileGap),
-      itemBuilder: (context, i) {
-        final p = list[i];
-        final prod = p.campesinoNombre?.trim().isNotEmpty == true
-            ? p.campesinoNombre!.trim()
-            : 'Productor';
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    p.nombre,
-                    style: Theme.of(context).textTheme.titleMedium,
+    if (list.isEmpty) return _emptyMarketplace(context, 'Ningún producto coincide');
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 0.58,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, i) {
+            final p = list[i];
+            final cs = Theme.of(context).colorScheme;
+            final prod = p.campesinoNombre?.trim().isNotEmpty == true
+                ? p.campesinoNombre!.trim()
+                : 'Productor';
+            return Card(
+              elevation: 4,
+              shadowColor: cs.shadow.withValues(alpha: 0.2),
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Container(
+                      color: const Color(0xFFE8F5E9),
+                      child: Icon(Icons.image_outlined, color: Colors.green.shade300, size: 36),
+                    ),
                   ),
-                  subtitle: Text(
-                    '${p.precio.toStringAsFixed(0)} \$ / ${p.unidad} · '
-                    'Disponible: ${p.cantidadDisponible} ${p.unidad}\n$prod',
-                  ),
-                  isThreeLine: true,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => context.push(
-                          '/comercializacion/producto/${p.id}',
-                          extra: p,
-                        ),
-                        child: const Text('Ver detalle'),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.nombre,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${p.precio.toStringAsFixed(0)} \$ / ${p.unidad}',
+                            style: TextStyle(color: cs.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                '${p.tieneStockDeclarado ? 'Ref: ${p.cantidadDisponible} ${p.unidad}' : 'Disponibilidad variable'}\n$prod',
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: cs.primary,
+                                foregroundColor: cs.onPrimary,
+                                padding: EdgeInsets.zero,
+                                shape: const StadiumBorder(),
+                              ),
+                              onPressed: () => _anadirAlCarritoEIrATienda(p),
+                              child: const Text('Añadir'),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: FilledButton.icon(
-                        onPressed: () => _anadirAlCarritoEIrATienda(p),
-                        icon: const Icon(Icons.add_shopping_cart_rounded),
-                        label: const Text('Añadir al carrito'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+                  ),
+                ],
+              ),
+            );
+          },
+          childCount: list.length,
+        ),
+      ),
     );
   }
 
   Widget _buildListaTiendas(BuildContext context) {
-    if (_locationError != null) {
-      return _emptyMarketplace(context, _locationError!);
-    }
+    if (_locationError != null) return _emptyMarketplace(context, _locationError!);
     if (_tiendas.isEmpty) {
       return _emptyMarketplace(
         context,
-        _query.isEmpty
-            ? 'No hay tiendas en tu radio'
-            : 'Ninguna tienda tiene ese producto',
+        _query.isEmpty ? 'No hay tiendas en tu radio' : 'Ninguna tienda tiene ese producto',
       );
     }
-    return ListView.separated(
-      padding: AppPagePadding.screen,
-      itemCount: _tiendas.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: AppPagePadding.tileGap),
-      itemBuilder: (context, i) {
-        final t = _tiendas[i];
-        return BigNavTile(
-          icon: Icons.storefront_rounded,
-          title: t.nombre?.trim().isNotEmpty == true
-              ? t.nombre!.trim()
-              : 'Productor',
-          subtitle:
-              '${t.cantidadProductos} producto${t.cantidadProductos != 1 ? 's' : ''} cerca de ti'
-              '${t.destacado ? ' · Destacado' : ''}',
-          onTap: () => context.push(
-            '/comercializacion/tienda/${t.campesinoId}',
-            extra: TiendaCampesinoExtra(nombreTienda: t.nombre),
-          ),
-        );
-      },
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, i) {
+            final t = _tiendas[i];
+            final cs = Theme.of(context).colorScheme;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                tileColor: cs.surfaceTint.withValues(alpha: 0.05),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: cs.primaryContainer,
+                  child: Icon(Icons.storefront_rounded, color: cs.onPrimaryContainer, size: 28),
+                ),
+                title: Text(
+                  t.nombre?.trim().isNotEmpty == true ? t.nombre!.trim() : 'Productor',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${t.cantidadProductos} producto${t.cantidadProductos != 1 ? 's' : ''} cerca\n'
+                  '${t.destacado ? '⭐ Destacado' : ''}',
+                ),
+                isThreeLine: true,
+                onTap: () => context.push(
+                  '/comercializacion/tienda/${t.campesinoId}',
+                  extra: TiendaCampesinoExtra(nombreTienda: t.nombre),
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+              ),
+            );
+          },
+          childCount: _tiendas.length,
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Comercialización'),
-        scrolledUnderElevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.receipt_long_rounded),
-            onPressed: () => context.push('/comercializacion/ordenes'),
-            tooltip: 'Mis pedidos',
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_rounded),
-            onPressed: () => context.push('/profile'),
-            tooltip: 'Mi perfil',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Cerrar sesión',
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-              if (context.mounted) context.go('/login');
-            },
-          ),
-        ],
+      backgroundColor: cs.surface,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: cs.primary,
+        foregroundColor: cs.onPrimary,
+        elevation: 6,
+        onPressed: () {
+          // Future redirect to Cart
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Carrito proximamente. Ahora añade productos navegando por las granjas.')),
+          );
+        },
+        child: Badge(
+          backgroundColor: cs.error,
+          label: const Text('0'), // Placeholder until state is added
+          child: const Icon(Icons.shopping_cart_rounded),
+        ),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment<int>(
-                  value: 0,
-                  label: Text('Productos'),
-                  icon: Icon(Icons.inventory_2_outlined),
-                ),
-                ButtonSegment<int>(
-                  value: 1,
-                  label: Text('Tiendas'),
-                  icon: Icon(Icons.storefront_outlined),
-                ),
-              ],
-              selected: {_seccion},
-              onSelectionChanged: (Set<int> s) {
-                setState(() => _seccion = s.first);
-              },
+          // Header Orgánico Fijo Superior
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 250,
+            child: ClipPath(
+              clipper: _OrganicHeaderClipper(),
+              child: Container(color: cs.secondary),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: SearchBar(
-              controller: _searchController,
-              hintText: _seccion == 0
-                  ? 'Buscar producto'
-                  : 'Buscar producto (filtra tiendas)',
-              leading: const Icon(Icons.search_rounded),
-              onChanged: (v) {
-                setState(() {
-                  _query = v;
-                  _reconstruirTiendas();
-                });
-              },
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Distancia máxima',
-                      style: Theme.of(context).textTheme.titleSmall,
+          SafeArea(
+            bottom: false,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _HeaderAction(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Órdenes',
+                          onTap: () => context.push('/comercializacion/ordenes'),
+                        ),
+                        _HeaderAction(
+                          icon: Icons.person_rounded,
+                          label: 'Perfil',
+                          onTap: () => context.push('/profile'),
+                        ),
+                        _HeaderAction(
+                          icon: Icons.logout_rounded,
+                          label: 'Salir',
+                          onTap: () async {
+                            await Supabase.instance.client.auth.signOut();
+                            if (context.mounted) context.go('/login');
+                          },
+                        ),
+                      ],
                     ),
-                    Text(
-                      '$_selectedDistanceKm km',
-                      style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 42, 16, 16),
+                    child: Card(
+                      elevation: 4,
+                      shadowColor: cs.shadow.withValues(alpha: 0.15),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      color: cs.surface,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SegmentedButton<int>(
+                              segments: const [
+                                ButtonSegment<int>(
+                                  value: 0,
+                                  label: Text('Productos'),
+                                  icon: Icon(Icons.inventory_2_outlined),
+                                ),
+                                ButtonSegment<int>(
+                                  value: 1,
+                                  label: Text('Tiendas'),
+                                  icon: Icon(Icons.storefront_outlined),
+                                ),
+                              ],
+                              selected: {_seccion},
+                              onSelectionChanged: (s) => setState(() => _seccion = s.first),
+                            ),
+                            const SizedBox(height: 16),
+                            SearchBar(
+                              controller: _searchController,
+                              elevation: const WidgetStatePropertyAll(0),
+                              backgroundColor: WidgetStatePropertyAll(cs.surfaceContainerHighest.withValues(alpha: 0.4)),
+                              hintText: _seccion == 0 ? 'Buscar producto' : 'Buscar (filtra prod. en tienda)',
+                              leading: const Icon(Icons.search_rounded),
+                              padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
+                              onChanged: (v) {
+                                setState(() {
+                                  _query = v;
+                                  _reconstruirTiendas();
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Distancia máxima:',
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                Text(
+                                  '$_selectedDistanceKm km',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            Slider(
+                              min: 5,
+                              max: 50,
+                              divisions: 9, // Salto táctil de 5km
+                              activeColor: cs.primary,
+                              value: _selectedDistanceKm.toDouble().clamp(5.0, 50.0),
+                              label: '$_selectedDistanceKm km',
+                              onChanged: (v) => setState(() => _selectedDistanceKm = v.round()),
+                              onChangeEnd: (v) async {
+                                await _saveDistance(v.round());
+                                await _reloadSoloDistancia();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-                Slider(
-                  min: 1,
-                  max: 50,
-                  divisions: 49,
-                  value: _selectedDistanceKm.toDouble(),
-                  label: '$_selectedDistanceKm km',
-                  onChanged: (v) {
-                    setState(() => _selectedDistanceKm = v.round());
-                  },
-                  onChangeEnd: (v) async {
-                    final km = v.round();
-                    await _saveDistance(km);
-                    await _reloadSoloDistancia();
-                  },
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                    child: Center(
+                      child: Text(
+                        _seccion == 0 ? 'Productos Disponibles' : 'Productores Locales',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: cs.onSurface,
+                              letterSpacing: -0.5,
+                            ),
+                      ),
+                    ),
+                  ),
                 ),
+                if (_loading)
+                  const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else
+                  _seccion == 0 ? _buildListaProductos(context) : _buildListaTiendas(context),
               ],
             ),
-          ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _seccion == 0
-                    ? _buildListaProductos(context)
-                    : _buildListaTiendas(context),
           ),
         ],
       ),

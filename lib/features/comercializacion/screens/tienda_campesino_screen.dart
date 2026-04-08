@@ -120,12 +120,12 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
 
     final mismo = _productos.where((x) => x.id == seed.id).toList();
     final prod = mismo.isNotEmpty ? mismo.first : seed;
-    if (prod.cantidadDisponible < 0.5) return;
+    if (prod.limiteSuperiorPedido < 0.5) return;
 
     const minC = 0.5;
     var cant = widget.cantidadInicial;
     if (cant < minC) cant = minC;
-    if (cant > prod.cantidadDisponible) cant = prod.cantidadDisponible;
+    if (cant > prod.limiteSuperiorPedido) cant = prod.limiteSuperiorPedido;
 
     _ajustarCantidad(prod, cant);
     if (mounted) {
@@ -143,7 +143,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
     if (nueva <= 0) {
       _carrito.remove(p.id);
     } else {
-      final max = p.cantidadDisponible;
+      final max = p.limiteSuperiorPedido;
       final c = nueva.clamp(0.5, max);
       _carrito[p.id] = _CarritoLinea(p, c);
     }
@@ -166,11 +166,12 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
     if (_carrito.isEmpty) return;
 
     for (final e in _carrito.values) {
-      if (e.cantidad > e.producto.cantidadDisponible) {
+      if (e.producto.tieneStockDeclarado &&
+          e.cantidad > e.producto.cantidadDisponible!) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '«${e.producto.nombre}» ya no tiene esa cantidad disponible',
+              '«${e.producto.nombre}» supera la cantidad referenciada',
             ),
           ),
         );
@@ -361,7 +362,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                                     ),
                                     subtitle: Text(
                                       '${p.precio.toStringAsFixed(0)} \$ / ${p.unidad} · '
-                                      'Disponible: ${p.cantidadDisponible} ${p.unidad}',
+                                      '${p.tieneStockDeclarado ? 'Ref. ${p.cantidadDisponible} ${p.unidad}' : 'Disponibilidad variable'}',
                                     ),
                                     trailing: TextButton(
                                       onPressed: () {
