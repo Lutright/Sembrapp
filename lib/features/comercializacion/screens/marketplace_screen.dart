@@ -142,13 +142,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _anadirAlCarritoEIrATienda(Producto p) {
-    if (p.cantidadDisponible < 0.5) {
+    if (p.limiteSuperiorPedido < 0.5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Este producto no tiene stock suficiente')),
       );
       return;
     }
-    final cant = p.cantidadDisponible >= 1.0 ? 1.0 : p.cantidadDisponible;
+    final cap = p.limiteSuperiorPedido;
+    final cant = cap >= 1.0 ? 1.0 : cap;
     context.push(
       '/comercializacion/tienda/${p.campesinoId}',
       extra: TiendaCampesinoExtra(
@@ -325,7 +326,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             child: Padding(
                               padding: const EdgeInsets.only(top: 4.0),
                               child: Text(
-                                'Disp: ${p.cantidadDisponible} ${p.unidad}\n$prod',
+                                '${p.tieneStockDeclarado ? 'Ref: ${p.cantidadDisponible} ${p.unidad}' : 'Disponibilidad variable'}\n$prod',
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2),

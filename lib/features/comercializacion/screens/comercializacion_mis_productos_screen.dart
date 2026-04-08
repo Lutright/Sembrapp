@@ -94,7 +94,7 @@ class _ComercializacionMisProductosScreenState
                         title: Text(p.nombre),
                         subtitle: Text(
                           '${p.precio.toStringAsFixed(0)} \$/${p.unidad} · '
-                          '${p.cantidadDisponible} ${p.unidad}',
+                          '${p.tieneStockDeclarado ? 'Ref. ${p.cantidadDisponible} ${p.unidad}' : 'Sin stock fijo en catálogo'}',
                         ),
                         trailing: PopupMenuButton<String>(
                           onSelected: (v) async {

@@ -5,7 +5,8 @@ class Producto {
   final String nombre;
   final String? descripcion;
   final double precio;
-  final double cantidadDisponible;
+  /// `null`: no se declara stock en catálogo (disponibilidad variable).
+  final double? cantidadDisponible;
   final String unidad;
   final double? lat;
   final double? lng;
@@ -18,7 +19,7 @@ class Producto {
     required this.nombre,
     this.descripcion,
     required this.precio,
-    required this.cantidadDisponible,
+    this.cantidadDisponible,
     this.unidad = 'kg',
     this.lat,
     this.lng,
@@ -33,7 +34,9 @@ class Producto {
       nombre: map['nombre'] as String,
       descripcion: map['descripcion'] as String?,
       precio: (map['precio'] as num).toDouble(),
-      cantidadDisponible: (map['cantidad_disponible'] as num).toDouble(),
+      cantidadDisponible: map['cantidad_disponible'] != null
+          ? (map['cantidad_disponible'] as num).toDouble()
+          : null,
       unidad: map['unidad'] as String? ?? 'kg',
       lat: map['lat'] != null ? (map['lat'] as num).toDouble() : null,
       lng: map['lng'] != null ? (map['lng'] as num).toDouble() : null,
@@ -58,10 +61,18 @@ class Producto {
       'nombre': nombre,
       'descripcion': descripcion,
       'precio': precio,
-      'cantidad_disponible': cantidadDisponible,
+      if (cantidadDisponible != null) 'cantidad_disponible': cantidadDisponible,
       'unidad': unidad,
       'lat': lat,
       'lng': lng,
     };
   }
+
+  /// Tope para cantidad en pedidos (UI y validación). Sin declarar = valor alto simbólico.
+  static const double sinTopeSimbolico = 9999;
+
+  double get limiteSuperiorPedido =>
+      cantidadDisponible ?? sinTopeSimbolico;
+
+  bool get tieneStockDeclarado => cantidadDisponible != null;
 }

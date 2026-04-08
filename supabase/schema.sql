@@ -50,7 +50,7 @@ create table if not exists public.productos (
   nombre text not null,
   descripcion text,
   precio decimal(12,2) not null check (precio >= 0),
-  cantidad_disponible decimal(12,2) not null check (cantidad_disponible >= 0),
+  cantidad_disponible decimal(12,2) check (cantidad_disponible is null or cantidad_disponible >= 0),
   unidad text default 'kg',
   lat double precision,
   lng double precision,

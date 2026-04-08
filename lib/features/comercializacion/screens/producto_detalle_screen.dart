@@ -100,7 +100,7 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
     final p = widget.producto;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    if (p.cantidadDisponible < _cantidad) {
+    if (_cantidad > p.limiteSuperiorPedido) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cantidad no disponible')),
       );
@@ -142,7 +142,7 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
 
   void _agregarAlPedidoYVolver() {
     final p = widget.producto;
-    if (p.cantidadDisponible < _cantidad) {
+    if (_cantidad > p.limiteSuperiorPedido) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cantidad no disponible')),
       );
@@ -154,7 +154,8 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
 
   void _anadirCarritoEIrATienda() {
     final p = widget.producto;
-    if (p.cantidadDisponible < 0.5) {
+    final cap = p.limiteSuperiorPedido;
+    if (cap < 0.5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sin stock suficiente')),
       );
@@ -162,7 +163,7 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
     }
     var cant = _cantidad;
     if (cant < 0.5) cant = 0.5;
-    if (cant > p.cantidadDisponible) cant = p.cantidadDisponible;
+    if (cant > cap) cant = cap;
     context.push(
       '/comercializacion/tienda/${p.campesinoId}',
       extra: TiendaCampesinoExtra(
@@ -211,7 +212,9 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      'Cantidad disponible: ${p.cantidadDisponible} ${p.unidad}',
+                      p.tieneStockDeclarado
+                          ? 'Cantidad disponible (referencia): ${p.cantidadDisponible} ${p.unidad}'
+                          : 'Disponibilidad: variable — se acuerda por chat o con ayuda entre productores.',
                     ),
                     Text(
                       'Productor: ${p.campesinoNombre ?? "—"}',
@@ -233,17 +236,19 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
                   ),
                   Expanded(
                     child: Slider(
-                      value: _cantidad,
+                      value: _cantidad.clamp(0.5, p.limiteSuperiorPedido),
                       min: 0.5,
-                      max: p.cantidadDisponible,
-                      divisions: (p.cantidadDisponible * 2).round(),
+                      max: p.limiteSuperiorPedido,
+                      divisions: p.tieneStockDeclarado
+                          ? ((p.cantidadDisponible! * 2).round().clamp(1, 10000))
+                          : null,
                       label: _cantidad.toStringAsFixed(1),
                       onChanged: (v) => setState(() => _cantidad = v),
                     ),
                   ),
                   IconButton(
                     onPressed: () {
-                      if (_cantidad < p.cantidadDisponible) {
+                      if (_cantidad < p.limiteSuperiorPedido) {
                         setState(() => _cantidad += 0.5);
                       }
                     },
