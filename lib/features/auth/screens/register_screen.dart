@@ -116,28 +116,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: () => context.pop(),
-                          icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary),
-                          style: IconButton.styleFrom(
-                            backgroundColor: cs.onSecondary.withValues(alpha: 0.14),
-                            minimumSize: const Size(52, 52),
-                          ),
+                      SizedBox(
+                        height: headerHeight,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Center(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(width: 56),
+                                  Expanded(
+                                    child: Text(
+                                      'Crear cuenta',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w800,
+                                        color: cs.onSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 56),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              child: IconButton(
+                                onPressed: () => context.pop(),
+                                icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: cs.onSecondary.withValues(alpha: 0.14),
+                                  minimumSize: const Size(48, 48),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      SizedBox(height: headerHeight * 0.34),
-                      Text(
-                        'Crear cuenta',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: cs.onSecondary,
-                        ),
-                      ),
-                      SizedBox(height: headerHeight * 0.24),
+                      const SizedBox(height: 12),
                       Form(
                         key: _formKey,
                         child: Column(

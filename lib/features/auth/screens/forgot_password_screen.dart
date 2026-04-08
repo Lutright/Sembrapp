@@ -107,28 +107,50 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: () => context.pop(),
-                          icon: Icon(Icons.arrow_back_rounded, color: cs.onPrimary),
-                          style: IconButton.styleFrom(
-                            backgroundColor: cs.onPrimary.withValues(alpha: 0.14),
-                            minimumSize: const Size(52, 52),
-                          ),
+                      SizedBox(
+                        height: headerHeight,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Center(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const SizedBox(width: 56),
+                                  Expanded(
+                                    child: Text(
+                                      'Recuperar contraseña',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w800,
+                                        color: cs.onPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 56),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              child: IconButton(
+                                onPressed: () => context.pop(),
+                                icon: Icon(Icons.arrow_back_rounded, color: cs.onPrimary),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: cs.onPrimary.withValues(alpha: 0.14),
+                                  minimumSize: const Size(48, 48),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      SizedBox(height: headerHeight * 0.34),
-                      Text(
-                        'Recuperar contraseña',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: cs.onPrimary,
-                        ),
-                      ),
-                      SizedBox(height: headerHeight * 0.24),
+                      const SizedBox(height: 12),
                       _sent ? _buildSuccess(context) : _buildForm(context, cs),
                     ],
                   ),
