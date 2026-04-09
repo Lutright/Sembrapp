@@ -177,76 +177,122 @@ async function fetchSipsaMayoristasParcial(): Promise<IndicadorEntrada[]> {
   return indicadores;
 }
 
-Deno.serve((req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 204,
-      headers: { ...corsHeaders, "Content-Type": "text/plain" },
+async function sincronizarIndicadores(): Promise<{
+  actualizados: number;
+  fuente: string;
+}> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey =
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const apiUrl = Deno.env.get("INDICADORES_API_URL");
+
+  let indicadores: IndicadorEntrada[] = [];
+  let fuente = "SIPSA";
+
+  // Prioridad: si se configura INDICADORES_API_URL, se usa; si no, SIPSA.
+  if (apiUrl && apiUrl.trim() !== "") {
+    const res = await fetch(apiUrl.trim(), {
+      headers: { Accept: "application/json" },
     });
+    if (!res.ok) {
+      throw new Error(`Fuente externa respondió con ${res.status}`);
+    }
+    const data = await res.json();
+    const arr = Array.isArray(data)
+      ? data
+      : data.indicadores ?? data.data ?? [];
+    if (!Array.isArray(arr) || arr.length === 0) {
+      throw new Error("La fuente externa no devolvió indicadores");
+    }
+    indicadores = arr as IndicadorEntrada[];
+    fuente = "API externa";
+  } else {
+    indicadores = await fetchSipsaMayoristasParcial();
   }
 
-  // Devolver respuesta inmediata para evitar timeouts en web.
-  void (async () => {
-    try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseServiceKey =
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const apiUrl = Deno.env.get("INDICADORES_API_URL");
+  const filas = indicadores.map((ind) => ({
+    producto_tipo: String(ind.producto_tipo).trim(),
+    precio_promedio: Number(ind.precio_promedio) || null,
+    rango_min: ind.rango_min != null ? Number(ind.rango_min) : null,
+    rango_max: ind.rango_max != null ? Number(ind.rango_max) : null,
+    unidad: ind.unidad ?? "kg",
+    fuente: ind.fuente ?? "SIPSA / Datos abiertos",
+    updated_at: new Date().toISOString(),
+  }));
 
-      let indicadores: IndicadorEntrada[] = [];
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const { error } = await supabase.from("info_mercado").upsert(filas, {
+    onConflict: "producto_tipo",
+    ignoreDuplicates: false,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
 
-      // Prioridad: si se configura INDICADORES_API_URL, se usa; si no, SIPSA.
-      if (apiUrl && apiUrl.trim() !== "") {
-        const res = await fetch(apiUrl.trim(), {
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) {
-          throw new Error(`Fuente externa respondió con ${res.status}`);
-        }
-        const data = await res.json();
-        const arr = Array.isArray(data)
-          ? data
-          : data.indicadores ?? data.data ?? [];
-        if (!Array.isArray(arr) || arr.length === 0) {
-          throw new Error("La fuente externa no devolvió indicadores");
-        }
-        indicadores = arr as IndicadorEntrada[];
-      } else {
-        indicadores = await fetchSipsaMayoristasParcial();
-      }
+  return { actualizados: filas.length, fuente };
+}
 
-      const filas = indicadores.map((ind) => ({
-        producto_tipo: String(ind.producto_tipo).trim(),
-        precio_promedio: Number(ind.precio_promedio) || null,
-        rango_min: ind.rango_min != null ? Number(ind.rango_min) : null,
-        rango_max: ind.rango_max != null ? Number(ind.rango_max) : null,
-        unidad: ind.unidad ?? "kg",
-        fuente: ind.fuente ?? "SIPSA / Datos abiertos",
-        updated_at: new Date().toISOString(),
-      }));
-
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      const { error } = await supabase.from("info_mercado").upsert(filas, {
-        onConflict: "producto_tipo",
-        ignoreDuplicates: false,
+Deno.serve(async (req) => {
+  try {
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: { ...corsHeaders, "Content-Type": "text/plain" },
       });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      console.error("sync-indicadores background error:", message);
     }
-  })();
 
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      started: true,
-      actualizados: 0,
-      fuente: "SIPSA",
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+    let wait = false;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        wait = body?.wait === true;
+      } catch (_) {
+        wait = false;
+      }
+    }
+
+    // Modo sincrónico para botón manual: devuelve éxito/error real.
+    if (wait) {
+      const { actualizados, fuente } = await sincronizarIndicadores();
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          started: false,
+          actualizados,
+          fuente,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Devolver respuesta inmediata para evitar timeouts en web/cron.
+    void (async () => {
+      try {
+        await sincronizarIndicadores();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.error("sync-indicadores background error:", message);
+      }
+    })();
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        started: true,
+        actualizados: 0,
+        fuente: "SIPSA",
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("sync-indicadores request error:", message);
+    return new Response(
+      JSON.stringify({ ok: false, error: `request_failed: ${message}` }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
 });
