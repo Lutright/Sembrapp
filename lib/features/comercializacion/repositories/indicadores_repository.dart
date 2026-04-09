@@ -36,7 +36,10 @@ class IndicadoresRepository {
   /// Por defecto consulta SIPSA/DANE; opcionalmente puede usarse un override via `INDICADORES_API_URL`.
   Future<SyncIndicadoresResult> sincronizarDesdeFuente() async {
     try {
-      final response = await _client.functions.invoke('sync-indicadores');
+      final response = await _client.functions.invoke(
+        'sync-indicadores',
+        body: {'wait': true},
+      );
       if (response.status != 200) {
         final body = response.data is Map ? response.data as Map : null;
         final msg = body?['error'] as String? ?? 'Error ${response.status}';
