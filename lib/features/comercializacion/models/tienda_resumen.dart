@@ -39,4 +39,22 @@ class TiendaResumen {
     });
     return list;
   }
+
+  /// Misma prioridad que las tiendas: productos de campesinos con beneficio vigente primero.
+  static List<Producto> ordenarProductosPorVisibilidad(
+    List<Producto> productos,
+    Set<String> campesinosDestacados,
+  ) {
+    final out = List<Producto>.from(productos);
+    out.sort((a, b) {
+      final ad = campesinosDestacados.contains(a.campesinoId);
+      final bd = campesinosDestacados.contains(b.campesinoId);
+      if (ad && !bd) return -1;
+      if (!ad && bd) return 1;
+      final n = a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase());
+      if (n != 0) return n;
+      return a.id.compareTo(b.id);
+    });
+    return out;
+  }
 }

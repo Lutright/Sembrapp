@@ -135,10 +135,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   List<Producto> _productosFiltrados() {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return _productosCercanos;
-    return _productosCercanos
-        .where((p) => p.nombre.toLowerCase().contains(q))
-        .toList();
+    final raw = q.isEmpty
+        ? _productosCercanos
+        : _productosCercanos
+            .where((p) => p.nombre.toLowerCase().contains(q))
+            .toList();
+    return TiendaResumen.ordenarProductosPorVisibilidad(
+      raw,
+      _campesinosDestacados,
+    );
   }
 
   void _anadirAlCarritoEIrATienda(Producto p) {
@@ -290,6 +295,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             final prod = p.campesinoNombre?.trim().isNotEmpty == true
                 ? p.campesinoNombre!.trim()
                 : 'Productor';
+            final esDestacado = _campesinosDestacados.contains(p.campesinoId);
             return Card(
               elevation: 4,
               shadowColor: cs.shadow.withValues(alpha: 0.2),
@@ -311,11 +317,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            p.nombre,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (esDestacado) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 4, top: 2),
+                                  child: Icon(Icons.star_rounded, size: 16, color: cs.tertiary),
+                                ),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  p.nombre,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -326,7 +345,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             child: Padding(
                               padding: const EdgeInsets.only(top: 4.0),
                               child: Text(
-                                '${p.tieneStockDeclarado ? 'Ref: ${p.cantidadDisponible} ${p.unidad}' : 'Disponibilidad variable'}\n$prod',
+                                '${p.tieneStockDeclarado ? 'Ref: ${p.cantidadDisponible} ${p.unidad}' : 'Disponibilidad variable'}\n'
+                                '${esDestacado ? '⭐ Tienda destacada · ' : ''}$prod',
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2),

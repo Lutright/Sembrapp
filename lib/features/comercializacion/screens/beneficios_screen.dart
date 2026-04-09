@@ -81,7 +81,9 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${b.nombre} activado. Tus productos tendrán más visibilidad.'),
+            content: Text(
+              '${b.nombre} activado. Tus productos y tu tienda aparecerán primero en comercialización.',
+            ),
           ),
         );
         _load();
