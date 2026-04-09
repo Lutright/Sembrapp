@@ -50,7 +50,7 @@ class _OrderStatusPill extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       decoration: ShapeDecoration(
         color: bg,
         shape: const StadiumBorder(),
@@ -58,6 +58,7 @@ class _OrderStatusPill extends StatelessWidget {
       child: Text(
         estado.toUpperCase(),
         style: TextStyle(
+          fontFamily: 'Montserrat',
           color: fg,
           fontSize: 10,
           fontWeight: FontWeight.w900,
@@ -97,13 +98,15 @@ class _ComercializacionOrdenesScreenState
     try {
       final res = await Supabase.instance.client
           .from('ordenes')
-          .select()
+          .select('*, orden_items(cantidad, precio_unitario)')
           .or('comprador_id.eq.$uid,campesino_id.eq.$uid')
           .order('created_at', ascending: false);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _ordenes = List<Map<String, dynamic>>.from(res as List);
         _loading = false;
       });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -122,8 +125,18 @@ class _ComercializacionOrdenesScreenState
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 260), // Otorga unos hermosos 30px libres del valle del ClipPath
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 180, bottom: 20),
+                    child: Text(
+                      'Revisa el estado de tus compras de campo.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontFamily: 'Montserrat',
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
                 ),
                 if (_loading)
                   const SliverFillRemaining(
@@ -137,7 +150,10 @@ class _ComercializacionOrdenesScreenState
                         child: Text(
                           'Aún no tienes pedidos.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontFamily: 'Montserrat',
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ),
@@ -152,22 +168,61 @@ class _ComercializacionOrdenesScreenState
                           final id = o['id'] as String? ?? '';
                           final estado = o['estado'] as String? ?? 'Pendiente';
                           
-                          // Manejo de variables con default premium
-                          final totalDouble = o['total'] is num ? (o['total'] as num).toDouble() : null;
-                          final totalStr = totalDouble != null ? '\$${totalDouble.toStringAsFixed(0)}' : '--';
-                          final tiendaNombre = o['tienda_nombre'] as String? ?? 'Orden Sembrapp';
+                          // Manejo de variables con default premium y cálculo dinámico de items
+                          double? totalDouble;
+                          final t = o['total'];
+                          if (t is num) totalDouble = t.toDouble();
+                          else if (t is String) totalDouble = double.tryParse(t);
+                          else if (o['orden_items'] is List) {
+                            double s = 0.0;
+                            for (final item in o['orden_items'] as List) {
+                              if (item is Map) {
+                                final c = (item['cantidad'] as num?)?.toDouble() ?? 0;
+                                final p = (item['precio_unitario'] as num?)?.toDouble() ?? 0;
+                                s += c * p;
+                              }
+                            }
+                            if (s > 0) totalDouble = s;
+                          }
+                          final totalStr = totalDouble != null ? '\$${totalDouble.toStringAsFixed(0)}' : '\$ --';
+                          
+                          final rawTienda = o['tienda_nombre']?.toString() ?? o['productor_nombre']?.toString();
+                          final tiendaNombre = (rawTienda != null && rawTienda.trim().isNotEmpty)
+                              ? 'Compra a $rawTienda'
+                              : 'Compra Sembrapp';
                           
                           final shortId = id.length >= 8 ? id.substring(0, 8) : id;
+                          
+                          final createdAt = o['created_at'] as String?;
+                          String dateStr = '';
+                          if (createdAt != null) {
+                            try {
+                              final dt = DateTime.parse(createdAt).toLocal();
+                              const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                              dateStr = '${dt.day} ${meses[dt.month - 1]}, ${dt.year}';
+                            } catch (_) {}
+                          }
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Card(
-                              elevation: 2,
-                              shadowColor: cs.shadow.withValues(alpha: 0.1),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              color: cs.surfaceContainerLowest,
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerLowest,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: cs.shadow.withValues(alpha: 0.12),
+                                    blurRadius: 12, // Sombra flotada premium
+                                    spreadRadius: 1.0,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(20),
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
                                 onTap: () => context.push('/comercializacion/orden/$id'),
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
@@ -177,7 +232,7 @@ class _ComercializacionOrdenesScreenState
                                         radius: 28,
                                         backgroundColor: cs.tertiaryContainer,
                                         child: Icon(Icons.shopping_bag_outlined, 
-                                          color: cs.onTertiaryContainer, size: 28),
+                                          color: cs.onTertiaryContainer, size: 26),
                                       ),
                                       const SizedBox(width: 16),
                                       Expanded(
@@ -191,21 +246,22 @@ class _ComercializacionOrdenesScreenState
                                                 Expanded(
                                                   child: Text(
                                                     tiendaNombre,
-                                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                      fontWeight: FontWeight.bold,
+                                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                      fontFamily: 'Montserrat',
+                                                      fontWeight: FontWeight.w600,
                                                     ),
                                                     maxLines: 1,
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
-                                                if (totalDouble != null)
                                                   Padding(
                                                     padding: const EdgeInsets.only(left: 8.0),
                                                     child: Text(
                                                       totalStr,
-                                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                                        fontWeight: FontWeight.w900,
-                                                        color: cs.primary, // Rojo Manta exigido
+                                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                        fontFamily: 'Montserrat',
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.green.shade700, // Verde Premium
                                                       ),
                                                     ),
                                                   ),
@@ -213,8 +269,17 @@ class _ComercializacionOrdenesScreenState
                                             ),
                                             const SizedBox(height: 4),
                                             Text('Pedido #$shortId', style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              fontFamily: 'Montserrat',
                                               color: cs.onSurfaceVariant
                                             )),
+                                            if (dateStr.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 2.0),
+                                                child: Text(dateStr, style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  fontFamily: 'Montserrat',
+                                                  color: cs.onSurfaceVariant
+                                                )),
+                                              ),
                                             const SizedBox(height: 12),
                                             _OrderStatusPill(estado: estado),
                                           ],
@@ -224,6 +289,7 @@ class _ComercializacionOrdenesScreenState
                                       Icon(Icons.chevron_right_rounded, size: 32, color: cs.onSurfaceVariant),
                                     ],
                                   ),
+                                ),
                                 ),
                               ),
                             ),
@@ -242,7 +308,7 @@ class _ComercializacionOrdenesScreenState
             left: 0,
             right: 0,
             top: 0,
-            height: 220, // Altura de la Ola
+            height: 160, // Altura de la Ola reducida en un ~27%
             child: IgnorePointer(
               ignoring: true, // Importante: la ola no debe bloquear toques de la lista en huecos vacíos
               child: ClipPath(
@@ -257,30 +323,38 @@ class _ComercializacionOrdenesScreenState
             left: 0,
             right: 0,
             top: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 12, 8, 30), // Aire inferior para despegar el título del borde
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary, size: 28),
-                      onPressed: () => context.pop(),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Mis pedidos',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: cs.onSecondary,
-                          fontWeight: FontWeight.bold,
-                        ),
+            height: 160,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 8,
+                  top: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: IconButton(
+                        icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary, size: 28),
+                        onPressed: () => context.pop(),
                       ),
                     ),
-                    const SizedBox(width: 48), // Contrapeso fijo para que el Text quede perfectamente centrado
-                  ],
+                  ),
                 ),
-              ),
+                SafeArea(
+                  bottom: false,
+                  child: Center(
+                    child: Text(
+                      'Mis pedidos',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
