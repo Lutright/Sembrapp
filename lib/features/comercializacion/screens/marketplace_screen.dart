@@ -161,6 +161,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         nombreTienda: p.campesinoNombre,
         productoInicial: p,
         cantidadInicial: cant,
+        isDestacado: _campesinosDestacados.contains(p.campesinoId),
       ),
     );
   }
@@ -417,7 +418,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 isThreeLine: true,
                 onTap: () => context.push(
                   '/comercializacion/tienda/${t.campesinoId}',
-                  extra: TiendaCampesinoExtra(nombreTienda: t.nombre),
+                  extra: TiendaCampesinoExtra(
+                    nombreTienda: t.nombre,
+                    isDestacado: t.destacado,
+                  ),
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
               ),

@@ -4,19 +4,48 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/location_service.dart';
-import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
-import '../navigation/producto_detalle_extra.dart';
 import '../repositories/ordenes_repository.dart';
 import '../repositories/productos_repository.dart';
 
+// ─── Paleta Sembrapp ─────────────────────────────────────────────────────────
+const Color _azulHorizonte = Color(0xFF1A4463);
+const Color _rojoManta = Color(0xFFD34836);
+const Color _crema = Color(0xFFFBF9F1);
+const Color _ocreSuave = Color(0xFFE8D48B);
+
+// ─── OrganicHeaderClipper ────────────────────────────────────────────────────
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.7)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.1,
+        0,
+        size.height * 0.7,
+      )
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+// ─── Carrito ─────────────────────────────────────────────────────────────────
 class _CarritoLinea {
   _CarritoLinea(this.producto, this.cantidad);
   final Producto producto;
   double cantidad;
 }
 
-/// Tienda de un campesino: varios productos en un solo pedido.
+// ═════════════════════════════════════════════════════════════════════════════
+// TiendaCampesinoScreen — Vitrina Premium
+// ═════════════════════════════════════════════════════════════════════════════
 class TiendaCampesinoScreen extends StatefulWidget {
   const TiendaCampesinoScreen({
     super.key,
@@ -24,13 +53,14 @@ class TiendaCampesinoScreen extends StatefulWidget {
     this.nombreTienda,
     this.productoInicial,
     this.cantidadInicial = 1.0,
+    this.isDestacado = false,
   });
 
   final String campesinoId;
   final String? nombreTienda;
-  /// Semilla al entrar desde el listado de productos del marketplace.
   final Producto? productoInicial;
   final double cantidadInicial;
+  final bool isDestacado;
 
   static const String _prefsKeyDistanceKm = 'marketplace_distance_km';
 
@@ -44,6 +74,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
   final Map<String, _CarritoLinea> _carrito = {};
 
   List<Producto> _productos = [];
+  List<Producto> _productosFiltrados = [];
   bool _loading = true;
   String? _error;
   bool _semillaAplicada = false;
@@ -57,8 +88,37 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_filtrarProductos);
     _cargar();
   }
+
+  // ─── Normalización y filtrado en tiempo real ───────────────────────────────
+
+  /// Elimina tildes/acentos para búsqueda insensible.
+  static String _normalizar(String s) {
+    const conAcento =  'áàäâãéèëêíìïîóòöôõúùüûñÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑ';
+    const sinAcento = 'aaaaaeeeeiiiiooooouuuunAAAAAEEEEIIIIOOOOOUUUUN';
+    var out = s;
+    for (var i = 0; i < conAcento.length; i++) {
+      out = out.replaceAll(conAcento[i], sinAcento[i]);
+    }
+    return out.toLowerCase();
+  }
+
+  void _filtrarProductos() {
+    final q = _normalizar(_searchController.text.trim());
+    if (q.isEmpty) {
+      setState(() => _productosFiltrados = List.from(_productos));
+    } else {
+      setState(() {
+        _productosFiltrados = _productos
+            .where((p) => _normalizar(p.nombre).contains(q))
+            .toList();
+      });
+    }
+  }
+
+  // ─── Data ──────────────────────────────────────────────────────────────────
 
   Future<void> _cargar() async {
     setState(() {
@@ -77,8 +137,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
       }
       final prefs = await SharedPreferences.getInstance();
       final km = prefs.getInt(TiendaCampesinoScreen._prefsKeyDistanceKm);
-      final radio =
-          (km ?? 25).toDouble().clamp(1.0, 50.0).toDouble();
+      final radio = (km ?? 25).toDouble().clamp(1.0, 50.0).toDouble();
 
       final cercanos = await _repo.listarProductosCercanos(
         buyerLat: pos.latitude,
@@ -94,11 +153,13 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
       if (mounted) {
         setState(() {
           _productos = deTienda;
+          _productosFiltrados = List.from(deTienda);
           _loading = false;
           _carrito.removeWhere(
             (id, linea) => !deTienda.any((p) => p.id == id),
           );
         });
+        _filtrarProductos();
         _aplicarSemillaCarrito();
       }
     } catch (_) {
@@ -134,6 +195,10 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
           content: Text(
             '«${prod.nombre}» añadido al pedido. Puedes seguir comprando aquí.',
           ),
+          backgroundColor: _azulHorizonte,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -221,6 +286,9 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) {
         final lines = _carrito.values.toList();
         final maxH = MediaQuery.sizeOf(ctx).height * 0.45;
@@ -237,7 +305,10 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             children: [
               Text(
                 'Tu pedido',
-                style: Theme.of(ctx).textTheme.titleLarge,
+                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                      fontFamily: 'Montserrat',
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
               const SizedBox(height: 12),
               ConstrainedBox(
@@ -251,14 +322,25 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                     final sub = e.producto.precio * e.cantidad;
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(e.producto.nombre),
+                      title: Text(
+                        e.producto.nombre,
+                        style: const TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       subtitle: Text(
                         '${e.cantidad.toStringAsFixed(1)} ${e.producto.unidad} × '
                         '${e.producto.precio.toStringAsFixed(0)} \$',
+                        style: const TextStyle(fontFamily: 'Montserrat'),
                       ),
                       trailing: Text(
                         '${sub.toStringAsFixed(0)} \$',
-                        style: Theme.of(ctx).textTheme.titleSmall,
+                        style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                              fontFamily: 'Montserrat',
+                              fontWeight: FontWeight.w700,
+                              color: _azulHorizonte,
+                            ),
                       ),
                     );
                   },
@@ -268,16 +350,31 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
               Text(
                 'Total: ${_totalPrecio.toStringAsFixed(0)} \$',
                 style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      fontFamily: 'Montserrat',
                       fontWeight: FontWeight.w800,
                     ),
               ),
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _confirmarPedido();
-                },
-                child: const Text('Confirmar pedido y abrir chat'),
+              SizedBox(
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmarPedido();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _rojoManta,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    textStyle: const TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  child: const Text('Confirmar pedido y abrir chat'),
+                ),
               ),
             ],
           ),
@@ -286,153 +383,559 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
     );
   }
 
+  // ─── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
+    final isDestacado = widget.isDestacado;
     final titulo = widget.nombreTienda?.trim().isNotEmpty == true
         ? widget.nombreTienda!.trim()
         : 'Tienda';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(titulo),
-        leading: MinimalBackButton(onPressed: () => context.pop()),
-      ),
-      body: Column(
+      backgroundColor: _crema,
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: SearchBar(
-              controller: _searchController,
-              hintText: 'Buscar en esta tienda',
-              leading: const Icon(Icons.search_rounded),
-              onSubmitted: (_) => _cargar(),
-              trailing: [
-                IconButton(
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: _cargar,
+          // 1. Contenido scrolleable
+          Positioned.fill(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // Espacio para el header
+                SliverToBoxAdapter(
+                  child: SizedBox(height: isDestacado ? 260 : 230),
                 ),
+
+                // Barra de búsqueda
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: const TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 15,
+                        ),
+                        decoration: InputDecoration(
+                          filled: false,
+                          hintText: 'Buscar en esta tienda...',
+                          hintStyle: TextStyle(
+                            fontFamily: 'Montserrat',
+                            color: Colors.grey[400],
+                          ),
+                          prefixIcon: Icon(Icons.search_rounded,
+                              color: Colors.grey[400]),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.close_rounded,
+                                      color: Colors.grey[500], size: 20),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Error
+                if (_error != null)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            fontFamily: 'Montserrat',
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Contenido principal
+                if (_loading)
+                  const SliverFillRemaining(
+                    child:
+                        Center(child: CircularProgressIndicator(color: _azulHorizonte)),
+                  )
+                else if (_productos.isEmpty)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.storefront_outlined,
+                                size: 56, color: Colors.grey[300]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No hay productos de esta tienda en tu radio.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: 'Montserrat',
+                                fontSize: 15,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  // Lista de productos premium
+                  _productosFiltrados.isEmpty
+                      ? SliverFillRemaining(
+                          child: Center(
+                            child: Text(
+                              'Sin resultados para tu búsqueda.',
+                              style: TextStyle(
+                                fontFamily: 'Montserrat',
+                                fontSize: 15,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ),
+                        )
+                      : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          // Separador de 12px entre tarjetas
+                          if (i.isOdd) {
+                            return const SizedBox(height: 12);
+                          }
+                          final idx = i ~/ 2;
+                          final p = _productosFiltrados[idx];
+                          final enCarrito = _carrito[p.id];
+                          return _buildProductCard(context, p, enCarrito);
+                        },
+                        childCount: _productosFiltrados.length * 2 - 1,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                _error!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _productos.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: AppPagePadding.screen,
-                          child: Text(
-                            'No hay productos de esta tienda en tu radio o con ese nombre.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyLarge,
+
+          // 2. Ola orgánica — más alta para el hero
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: isDestacado ? 240 : 210,
+            child: IgnorePointer(
+              ignoring: true,
+              child: ClipPath(
+                clipper: _OrganicHeaderClipper(),
+                child: isDestacado
+                    ? Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF1A4463), // Azul Horizonte
+                              Color(0xFF0D3250), // Azul más profundo
+                              Color(0xFF1A4463),
+                            ],
                           ),
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                        itemCount: _productos.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: AppPagePadding.tileGap),
-                        itemBuilder: (context, i) {
-                          final p = _productos[i];
-                          final enCarrito = _carrito[p.id];
-                          return Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(
-                                      p.nombre,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
-                                    ),
-                                    subtitle: Text(
-                                      '${p.precio.toStringAsFixed(0)} \$ / ${p.unidad} · '
-                                      '${p.tieneStockDeclarado ? 'Ref. ${p.cantidadDisponible} ${p.unidad}' : 'Disponibilidad variable'}',
-                                    ),
-                                    trailing: TextButton(
-                                      onPressed: () {
-                                        context.push(
-                                          '/comercializacion/producto/${p.id}',
-                                          extra: ProductoDetalleExtra(
-                                            producto: p,
-                                            onAgregarAlPedido: (prod, cant) {
-                                              _ajustarCantidad(prod, cant);
-                                            },
-                                          ),
-                                        );
-                                      },
-                                      child: const Text('Ver'),
-                                    ),
+                    : Container(color: _azulHorizonte),
+              ),
+            ),
+          ),
+
+          // 3. Controles del header
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Column(
+                  children: [
+                    // Fila superior: botón atrás
+                    Row(
+                      children: [
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              color: Colors.white, size: 28),
+                          onPressed: () => context.pop(),
+                        ),
+                        const Spacer(),
+                        // Placeholder para balance visual
+                        const SizedBox(width: 56),
+                      ],
+                    ),
+
+                    // Nombre HERO — protagonista absoluto
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        titulo,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                          shadows: isDestacado
+                              ? [
+                                  Shadow(
+                                    color: _ocreSuave.withValues(alpha: 0.4),
+                                    blurRadius: 20,
                                   ),
-                                  Row(
-                                    children: [
-                                      const Text('Cantidad'),
-                                      const Spacer(),
-                                      IconButton(
-                                        onPressed: () {
-                                          final base = enCarrito?.cantidad ?? 0;
-                                          if (base > 0.5) {
-                                            _ajustarCantidad(p, base - 0.5);
-                                          }
-                                        },
-                                        icon: const Icon(Icons.remove_circle_outline),
-                                      ),
-                                      Text(
-                                        enCarrito == null
-                                            ? '—'
-                                            : enCarrito.cantidad
-                                                .toStringAsFixed(1),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium,
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          final base = enCarrito?.cantidad ?? 0;
-                                          final next = base <= 0 ? 0.5 : base + 0.5;
-                                          _ajustarCantidad(p, next);
-                                        },
-                                        icon: const Icon(Icons.add_circle_outline),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                ]
+                              : null,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // Badge "Productor Estrella" debajo del nombre
+                    if (isDestacado)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _ocreSuave.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _ocreSuave.withValues(alpha: 0.6),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.workspace_premium_rounded,
+                                size: 16, color: _ocreSuave),
+                            SizedBox(width: 6),
+                            Text(
+                              'PRODUCTOR ESTRELLA',
+                              style: TextStyle(
+                                fontFamily: 'Montserrat',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: _ocreSuave,
+                                letterSpacing: 1.2,
                               ),
                             ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
+      // ── Bottom bar: Revisar pedido ──────────────────────────────────────
       bottomNavigationBar: _carrito.isEmpty
           ? null
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: FilledButton(
-                  onPressed: _mostrarResumenPedido,
-                  child: Text(
-                    'Revisar pedido ($_totalLineas · ${_totalPrecio.toStringAsFixed(0)} \$)',
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: SizedBox(
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _mostrarResumenPedido,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _rojoManta,
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      shadowColor: _rojoManta.withValues(alpha: 0.4),
+                      shape: const StadiumBorder(),
+                      textStyle: const TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    child: Text(
+                      'Revisar pedido ($_totalLineas · ${_totalPrecio.toStringAsFixed(0)} \$)',
+                    ),
                   ),
                 ),
               ),
             ),
+    );
+  }
+
+
+  // ─── Tarjeta de Producto Premium ───────────────────────────────────────────
+
+  Widget _buildProductCard(
+      BuildContext context, Producto p, _CarritoLinea? enCarrito) {
+    // Detectar si es "Nuevo" (creado en los últimos 3 días)
+    final bool esNuevo = p.createdAt != null &&
+        DateTime.now().difference(p.createdAt!).inDays < 3;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 14,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            children: [
+              // ── Row principal: Imagen + Info ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Imagen / Placeholder
+                  _buildProductImage(p, esNuevo),
+                  const SizedBox(width: 14),
+
+                  // Contenido central — más ancho sin botón info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Nombre en negrita
+                        Text(
+                          p.nombre,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2D2D2D),
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Precio en Azul Horizonte
+                        Text(
+                          '\$${p.precio.toStringAsFixed(0)} / ${p.unidad}',
+                          style: const TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _azulHorizonte,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Referencia de peso/stock
+                        Text(
+                          p.tieneStockDeclarado
+                              ? 'Ref: ${p.cantidadDisponible?.toStringAsFixed(1) ?? "—"} ${p.unidad}'
+                              : 'Disponibilidad variable',
+                          style: TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // ── Fila inferior: descripción parcial + controles de cantidad ──
+              Row(
+                children: [
+                  // Descripción truncada si existe
+                  if (p.descripcion?.isNotEmpty == true)
+                    Expanded(
+                      child: Text(
+                        p.descripcion!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 12,
+                          color: Colors.grey[400],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+
+                  // Controles de cantidad en cápsula
+                  _buildQuantityControls(p, enCarrito),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Imagen del producto con badge ─────────────────────────────────────────
+
+  Widget _buildProductImage(Producto p, bool esNuevo) {
+    return Stack(
+      children: [
+        Container(
+          width: 85,
+          height: 85,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F7F2), // verde tenue natural
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Icon(
+              Icons.eco_rounded,
+              size: 36,
+              color: Colors.green.shade300,
+            ),
+          ),
+        ),
+        // Badge "Nuevo"
+        if (esNuevo)
+          Positioned(
+            top: 4,
+            left: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _rojoManta,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'NUEVO',
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontSize: 8,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ─── Controles de cantidad (cápsula) ───────────────────────────────────────
+
+  Widget _buildQuantityControls(Producto p, _CarritoLinea? enCarrito) {
+    final cantidadTexto = enCarrito == null
+        ? '—'
+        : enCarrito.cantidad.toStringAsFixed(1);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Botón menos — hitbox generoso
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              iconSize: 22,
+              onPressed: () {
+                final base = enCarrito?.cantidad ?? 0;
+                if (base > 0.5) {
+                  _ajustarCantidad(p, base - 0.5);
+                }
+              },
+              icon: const Icon(Icons.remove_rounded, color: _azulHorizonte),
+            ),
+          ),
+
+          // Cantidad en negrita
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              cantidadTexto,
+              style: const TextStyle(
+                fontFamily: 'Montserrat',
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2D2D2D),
+              ),
+            ),
+          ),
+
+          // Botón más — hitbox generoso
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              iconSize: 22,
+              onPressed: () {
+                final base = enCarrito?.cantidad ?? 0;
+                final next = base <= 0 ? 0.5 : base + 0.5;
+                _ajustarCantidad(p, next);
+              },
+              icon: const Icon(Icons.add_rounded, color: _azulHorizonte),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

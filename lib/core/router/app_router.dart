@@ -182,10 +182,12 @@ final appRouter = GoRouter(
         String? nombre;
         Producto? productoIni;
         var cantIni = 1.0;
+        var destacado = false;
         if (extra is TiendaCampesinoExtra) {
           nombre = extra.nombreTienda;
           productoIni = extra.productoInicial;
           cantIni = extra.cantidadInicial;
+          destacado = extra.isDestacado;
         } else if (extra is String) {
           nombre = extra;
         }
@@ -194,6 +196,7 @@ final appRouter = GoRouter(
           nombreTienda: nombre,
           productoInicial: productoIni,
           cantidadInicial: cantIni,
+          isDestacado: destacado,
         );
       },
     ),
