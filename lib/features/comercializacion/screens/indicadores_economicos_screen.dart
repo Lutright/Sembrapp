@@ -25,13 +25,19 @@ class _IndicadoresEconomicosScreenState
   bool _syncing = false;
   String? _error;
 
+  static DateTime _toColombia(DateTime d) {
+    // Colombia permanece en UTC-5 todo el año.
+    return d.toUtc().subtract(const Duration(hours: 5));
+  }
+
   static String _formatFecha(DateTime? d) {
     if (d == null) return '—';
-    final day = d.day.toString().padLeft(2, '0');
-    final month = d.month.toString().padLeft(2, '0');
-    final year = d.year;
-    final h = d.hour.toString().padLeft(2, '0');
-    final m = d.minute.toString().padLeft(2, '0');
+    final c = _toColombia(d);
+    final day = c.day.toString().padLeft(2, '0');
+    final month = c.month.toString().padLeft(2, '0');
+    final year = c.year;
+    final h = c.hour.toString().padLeft(2, '0');
+    final m = c.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $h:$m';
   }
 
