@@ -62,6 +62,8 @@ enum _Fase {
 
 class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
     with SingleTickerProviderStateMixin {
+  static const Color _azulHorizonte = Color(0xFF1A4463);
+  static const Color _rojoManta = Color(0xFFD34836);
   static const _abecedario = <_LetraPaso>[
     _LetraPaso(letra: 'A', deEjemplo: 'A de árbol', emoji: '🌳'),
     _LetraPaso(letra: 'B', deEjemplo: 'B de burro', emoji: '🐴'),
@@ -138,6 +140,8 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
   bool _actividadBloqueada = false;
   bool _mostrarMuyBien = false;
   bool _mostrarIntentaDeNuevo = false;
+  String? _opcionActividadSeleccionada;
+  bool? _opcionActividadFueCorrecta;
 
   late final AnimationController _celebracionCtrl;
   late final Animation<double> _celebracionScale;
@@ -245,6 +249,12 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted || _fase != _Fase.intro) return;
     await _hablar('Pulsa el botón verde para empezar');
+  }
+
+  Future<void> _escucharIntroduccion() async {
+    if (!_ttsListo) return;
+    await _ttsInterrumpir();
+    await _hablar('Vamos a aprender el abecedario');
   }
 
   @override
@@ -383,6 +393,8 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
       setState(() {
         _actividadBloqueada = true;
         _mostrarMuyBien = true;
+        _opcionActividadSeleccionada = opcion;
+        _opcionActividadFueCorrecta = true;
       });
       try {
         SystemSound.play(SystemSoundType.click);
@@ -397,19 +409,29 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
           _indiceEjercicio++;
           _actividadBloqueada = false;
           _mostrarMuyBien = false;
+          _opcionActividadSeleccionada = null;
+          _opcionActividadFueCorrecta = null;
         });
         await _hablarInstruccionEjercicio();
       } else {
         await _finalizarConRecompensa();
       }
     } else {
-      setState(() => _mostrarIntentaDeNuevo = true);
+      setState(() {
+        _mostrarIntentaDeNuevo = true;
+        _opcionActividadSeleccionada = opcion;
+        _opcionActividadFueCorrecta = false;
+      });
       await _hablar('Intenta de nuevo');
       await Future<void>.delayed(const Duration(milliseconds: 500));
       if (!mounted || _fase != _Fase.actividad) return;
       await _repetirPreguntaActividadPorVoz();
       if (mounted) {
-        setState(() => _mostrarIntentaDeNuevo = false);
+        setState(() {
+          _mostrarIntentaDeNuevo = false;
+          _opcionActividadSeleccionada = null;
+          _opcionActividadFueCorrecta = null;
+        });
       }
     }
   }
@@ -570,22 +592,27 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
                 fontWeight: FontWeight.w700,
               ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Botón verde: empezar. Botón blanco: escuchar. Sigue la voz.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+        const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: _ttsListo ? _escucharIntroduccion : null,
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Escuchar introducción'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+            shape: const StadiumBorder(),
+          ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 14),
         FilledButton(
           onPressed: _ttsListo ? _empezarPresentacion : null,
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(52),
             textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          child: const Text('Empezar'),
+          child: const Text('Empezar lección'),
         ),
         if (!_ttsListo) ...[
           const SizedBox(height: 16),
@@ -632,22 +659,30 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 24),
-        FilledButton.tonalIcon(
+        OutlinedButton.icon(
           onPressed: _repetirSonidoLetraPresentacion,
           icon: const Icon(Icons.volume_up_rounded),
-          label: const Text('Escuchar la letra (botón blanco)'),
-          style: FilledButton.styleFrom(
+          label: const Text('Escuchar'),
+          style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            shape: const StadiumBorder(),
           ),
         ),
         const SizedBox(height: 20),
         FilledButton(
           onPressed: _siguientePresentacion,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          style: FilledButton.styleFrom(
+            backgroundColor: _rojoManta,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
           child: Text(
             _indicePresentacion < _abecedario.length - 1
-                ? 'Siguiente letra (botón verde)'
-                : 'Ir a la práctica (botón verde)',
+                ? 'Siguiente'
+                : 'Ir a la práctica',
           ),
         ),
       ],
@@ -696,20 +731,30 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
           ),
         ),
         const SizedBox(height: 16),
-        FilledButton.tonalIcon(
+        OutlinedButton.icon(
           onPressed: _repetirPractica,
           icon: const Icon(Icons.replay_rounded),
-          label: const Text('Escuchar otra vez (botón blanco)'),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          label: const Text('Escuchar otra vez'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            shape: const StadiumBorder(),
+          ),
         ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _siguientePractica,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          style: FilledButton.styleFrom(
+            backgroundColor: _rojoManta,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
           child: Text(
             _indicePractica < _abecedario.length - 1
-                ? 'Siguiente (botón verde)'
-                : 'Ir a la actividad (botón verde)',
+                ? 'Siguiente'
+                : 'Ir a la actividad',
           ),
         ),
       ],
@@ -809,18 +854,24 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
             for (var i = 0; i < ej.opciones.length; i++) ...[
               if (i > 0) const SizedBox(width: 12),
               Expanded(
-                child: FilledButton.tonal(
+                child: OutlinedButton(
                   onPressed: _actividadBloqueada
                       ? null
                       : () => _elegirOpcionActividad(ej.opciones[i]),
-                  style: FilledButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(64),
+                    side: BorderSide(
+                      color: _colorBordeOpcionActividad(ej.opciones[i]),
+                      width: 1.5,
+                    ),
+                    backgroundColor: _colorFondoOpcionActividad(ej.opciones[i]),
+                    foregroundColor: _colorTextoOpcionActividad(ej.opciones[i]),
                     textStyle: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  child: Text(ej.opciones[i]),
+                  child: _buildLabelOpcionActividad(ej.opciones[i]),
                 ),
               ),
             ],
@@ -868,10 +919,65 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow>
         const SizedBox(height: 32),
         FilledButton(
           onPressed: () => context.pop(),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-          child: const Text('Volver (botón verde)'),
+          style: FilledButton.styleFrom(
+            backgroundColor: _rojoManta,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(56),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Volver'),
         ),
       ],
     );
+  }
+
+  Color _colorFondoOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return Colors.white;
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) return Colors.green.shade100;
+    if (ok == false) return _rojoManta.withOpacity(0.10);
+    return Colors.white;
+  }
+
+  Color _colorBordeOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) return Colors.green.shade700;
+    if (ok == false) return _rojoManta;
+    return _azulHorizonte;
+  }
+
+  Color _colorTextoOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) return Colors.green.shade800;
+    if (ok == false) return _rojoManta;
+    return _azulHorizonte;
+  }
+
+  Widget _buildLabelOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return Text(opcion);
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.check_circle, size: 20),
+          const SizedBox(width: 6),
+          Text(opcion),
+        ],
+      );
+    }
+    if (ok == false) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.cancel, size: 20),
+          const SizedBox(width: 6),
+          Text(opcion),
+        ],
+      );
+    }
+    return Text(opcion);
   }
 }
