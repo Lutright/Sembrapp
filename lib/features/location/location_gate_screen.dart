@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/pending_notification_navigation.dart';
 import '../../core/services/location_service.dart';
 import '../../core/widgets/minimal_ui.dart';
 
@@ -46,8 +47,9 @@ class _LocationGateScreenState extends State<LocationGateScreen> {
       _error = null;
     });
     try {
+      // En web `isLocationServiceEnabled` suele ser irrelevante o false; no bloquear.
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
+      if (!serviceEnabled && !kIsWeb) {
         if (!mounted) return;
         setState(() {
           _loading = false;
@@ -87,6 +89,10 @@ class _LocationGateScreenState extends State<LocationGateScreen> {
         });
         return;
       }
+
+      // Actualizar caché del redirect: si no, `locationReady` queda en false del splash
+      // y el router vuelve a mandar a `/location` al hacer go a home.
+      PendingNotificationNavigation.instance.markLocationGranted();
 
       final role = Supabase.instance.client.auth.currentUser?.userMetadata?['role']
           as String?;

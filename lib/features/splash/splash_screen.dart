@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/services/location_service.dart';
+import '../../core/services/pending_notification_navigation.dart';
 import '../../core/widgets/minimal_ui.dart';
 
 const String _assetLogoApp = 'assets/alfabetizacion/images/logo_app.png';
@@ -47,14 +49,32 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _redirect() async {
+    // Esperar la animación del splash.
     await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session != null) {
-      context.go('/home');
-    } else {
-      context.go('/login');
+
+    // Pre-calcular el estado de ubicación (async) ANTES de señalar al router.
+    // El redirect (síncrono) en app_router usará este valor cacheado.
+    try {
+      final locOk = await LocationService.instance.isReady();
+      PendingNotificationNavigation.instance.locationReady = locOk;
+    } catch (_) {
+      PendingNotificationNavigation.instance.locationReady = false;
     }
+
+    if (!mounted) return;
+
+    // Salida por go (no refreshListenable): evita re-parse del Router concurrente → assert match.dart.
+    // [ScheduleColdStartDeepLink] abre el deep link en frío con otro go cuando la base está lista.
+    PendingNotificationNavigation.instance.markSplashDone();
+
+    final session = Supabase.instance.client.auth.currentSession;
+    final role = session?.user.userMetadata?['role'] as String?;
+    final next = session == null
+        ? '/login'
+        : (role == 'comprador' ? '/comercializacion' : '/home');
+    if (!mounted) return;
+    context.go(next);
   }
 
   @override

@@ -18,6 +18,10 @@ class AyudaChatScreen extends StatefulWidget {
 }
 
 class _AyudaChatScreenState extends State<AyudaChatScreen> {
+  void _backFromAyuda(BuildContext context) {
+    context.go('/comercializacion/ordenes');
+  }
+
   final _repo = OrdenAyudaRepository(Supabase.instance.client);
   final _mensajeController = TextEditingController();
   final _scrollController = ScrollController();
@@ -162,7 +166,10 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Ayuda entre productores')),
+        appBar: AppBar(
+          title: const Text('Ayuda entre productores'),
+          leading: MinimalBackButton(onPressed: () => _backFromAyuda(context)),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -170,7 +177,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Ayuda entre productores'),
-          leading: MinimalBackButton(onPressed: () => context.pop()),
+          leading: MinimalBackButton(onPressed: () => _backFromAyuda(context)),
         ),
         body: Center(child: Padding(
           padding: AppPagePadding.screen,
@@ -181,7 +188,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_otroNombre ?? 'Chat'),
-        leading: MinimalBackButton(onPressed: () => context.pop()),
+        leading: MinimalBackButton(onPressed: () => _backFromAyuda(context)),
       ),
       body: Column(
         children: [

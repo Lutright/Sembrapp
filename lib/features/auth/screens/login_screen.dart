@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/services/pending_notification_navigation.dart';
 import '../../../core/widgets/minimal_ui.dart';
 
 /// Rutas de assets
@@ -40,7 +42,20 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      if (mounted) context.go('/home');
+      if (mounted) {
+        final pending =
+            PendingNotificationNavigation.instance.peekPendingDeepLink;
+        if (pending != null) {
+          PendingNotificationNavigation.instance.consumePendingDeepLink();
+          // Un frame después del sign-in evita carrera con el parseo del Router (match.dart).
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            context.go(pending);
+          });
+        } else {
+          context.go('/home');
+        }
+      }
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {

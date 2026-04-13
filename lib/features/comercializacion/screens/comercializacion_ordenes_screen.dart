@@ -335,7 +335,13 @@ class _ComercializacionOrdenesScreenState
                       padding: const EdgeInsets.only(top: 12.0),
                       child: IconButton(
                         icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary, size: 28),
-                        onPressed: () => context.pop(),
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/comercializacion');
+                          }
+                        },
                       ),
                     ),
                   ),
