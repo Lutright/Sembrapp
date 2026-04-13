@@ -102,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 clipper: _OrganicHeaderClipper(),
                 child: Container(
                   height: headerHeight,
-                  color: cs.secondary,
+                  color: cs.primary,
                 ),
               ),
               SafeArea(
@@ -135,7 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       style: GoogleFonts.montserrat(
                                         fontSize: 30,
                                         fontWeight: FontWeight.w800,
-                                        color: cs.onSecondary,
+                                        color: cs.onPrimary,
                                       ),
                                     ),
                                   ),
@@ -148,9 +148,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               left: 0,
                               child: IconButton(
                                 onPressed: () => context.pop(),
-                                icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary),
+                                icon: Icon(Icons.arrow_back_rounded, color: cs.onPrimary),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: cs.onSecondary.withValues(alpha: 0.14),
+                                  backgroundColor: cs.onPrimary.withValues(alpha: 0.14),
                                   minimumSize: const Size(48, 48),
                                   padding: EdgeInsets.zero,
                                 ),
@@ -303,6 +303,9 @@ class _RoleOptionCard extends StatelessWidget {
     required this.onTap,
   });
 
+  static const Color _crema = Color(0xFFFBF9F1);
+  static const Color _rojoManta = Color(0xFFD34836);
+
   final String label;
   final IconData icon;
   final bool selected;
@@ -311,18 +314,16 @@ class _RoleOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final borderColor = selected ? cs.primary : cs.outlineVariant;
-    final bgColor = selected
-        ? cs.primaryContainer.withValues(alpha: 0.6)
-        : cs.surface;
-    final fgColor = selected ? cs.primary : cs.onSurfaceVariant;
+    final borderColor = selected ? _rojoManta : cs.outlineVariant;
+    const bgColor = _crema;
+    final fgColor = selected ? _rojoManta : cs.onSurface;
 
     return Material(
       color: bgColor,
-      elevation: selected ? 2 : 0,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: borderColor, width: selected ? 3 : 1.2),
+        side: BorderSide(color: borderColor, width: selected ? 2.0 : 1.2),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),

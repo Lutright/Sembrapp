@@ -93,7 +93,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 clipper: _OrganicHeaderClipper(),
                 child: Container(
                   height: headerHeight,
-                  color: cs.primary,
+                  color: const Color(0xFF1A4463),
                 ),
               ),
               SafeArea(
@@ -210,7 +210,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 width: 132,
                 height: 132,
                 decoration: BoxDecoration(
-                  color: cs.secondaryContainer,
+                  color: const Color(0xFF1A4463).withValues(alpha: 0.10),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -220,10 +220,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ],
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.lock_reset_rounded,
                   size: 80,
-                  color: cs.onSecondaryContainer,
+                  color: Color(0xFF1A4463),
                 ),
               ),
             ),

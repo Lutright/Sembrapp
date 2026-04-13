@@ -70,7 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.4),
+                  color: const Color(0xFF1A4463).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: FadeTransition(

@@ -75,11 +75,11 @@ class _LoginScreenState extends State<LoginScreen> {
               fit: BoxFit.cover,
               alignment: Alignment.center,
               errorBuilder: (_, __, ___) => ColoredBox(
-                color: cs.secondaryContainer,
+                color: cs.primaryContainer,
                 child: Icon(
                   Icons.landscape_rounded,
                   size: 64,
-                  color: cs.onSecondaryContainer,
+                  color: cs.onPrimaryContainer,
                 ),
               ),
             ),

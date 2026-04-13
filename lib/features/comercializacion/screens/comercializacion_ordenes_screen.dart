@@ -42,8 +42,8 @@ class _OrderStatusPill extends StatelessWidget {
       bg = Theme.of(context).colorScheme.tertiaryContainer;
       fg = Theme.of(context).colorScheme.onTertiaryContainer;
     } else if (e == 'en camino' || e == 'en_camino' || e == 'preparando' || e == 'enviada') {
-      bg = Theme.of(context).colorScheme.secondaryContainer;
-      fg = Theme.of(context).colorScheme.onSecondaryContainer;
+      bg = Theme.of(context).colorScheme.primaryContainer;
+      fg = Theme.of(context).colorScheme.onPrimaryContainer;
     } else if (e == 'entregado' || e == 'entregada' || e == 'completada') {
       bg = Colors.green.shade100;
       fg = Colors.green.shade900;
@@ -186,10 +186,13 @@ class _ComercializacionOrdenesScreenState
                           }
                           final totalStr = totalDouble != null ? '\$${totalDouble.toStringAsFixed(0)}' : '\$ --';
                           
-                          final rawTienda = o['tienda_nombre']?.toString() ?? o['productor_nombre']?.toString();
-                          final tiendaNombre = (rawTienda != null && rawTienda.trim().isNotEmpty)
-                              ? 'Compra a $rawTienda'
-                              : 'Compra Sembrapp';
+                          final rawNombre = o['tienda_nombre']?.toString() ??
+                              o['productor_nombre']?.toString() ??
+                              o['vendedor_nombre']?.toString();
+                          final tituloTarjeta =
+                              (rawNombre != null && rawNombre.trim().isNotEmpty)
+                                  ? rawNombre.trim()
+                                  : 'Productor';
                           
                           final shortId = id.length >= 8 ? id.substring(0, 8) : id;
                           
@@ -245,7 +248,7 @@ class _ComercializacionOrdenesScreenState
                                               children: [
                                                 Expanded(
                                                   child: Text(
-                                                    tiendaNombre,
+                                                    tituloTarjeta,
                                                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                                       fontFamily: 'Montserrat',
                                                       fontWeight: FontWeight.w600,
@@ -313,7 +316,7 @@ class _ComercializacionOrdenesScreenState
               ignoring: true, // Importante: la ola no debe bloquear toques de la lista en huecos vacíos
               child: ClipPath(
                 clipper: _OrganicHeaderClipper(),
-                child: Container(color: cs.secondary),
+                child: Container(color: cs.primary),
               ),
             ),
           ),
@@ -334,7 +337,7 @@ class _ComercializacionOrdenesScreenState
                     child: Padding(
                       padding: const EdgeInsets.only(top: 12.0),
                       child: IconButton(
-                        icon: Icon(Icons.arrow_back_rounded, color: cs.onSecondary, size: 28),
+                        icon: Icon(Icons.arrow_back_rounded, color: cs.onPrimary, size: 28),
                         onPressed: () => context.pop(),
                       ),
                     ),

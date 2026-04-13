@@ -875,9 +875,9 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
   // ─── Controles de cantidad (cápsula) ───────────────────────────────────────
 
   Widget _buildQuantityControls(Producto p, _CarritoLinea? enCarrito) {
-    final cantidadTexto = enCarrito == null
-        ? '—'
-        : enCarrito.cantidad.toStringAsFixed(1);
+    final base = enCarrito?.cantidad ?? 0;
+    final cantidadTexto =
+        base <= 0 ? '0' : base.toStringAsFixed(1);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -896,12 +896,15 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
               padding: EdgeInsets.zero,
               iconSize: 22,
               onPressed: () {
-                final base = enCarrito?.cantidad ?? 0;
-                if (base > 0.5) {
-                  _ajustarCantidad(p, base - 0.5);
+                final c = enCarrito?.cantidad ?? 0;
+                if (c > 0.5) {
+                  _ajustarCantidad(p, c - 0.5);
                 }
               },
-              icon: const Icon(Icons.remove_rounded, color: _azulHorizonte),
+              icon: Opacity(
+                opacity: base <= 0 ? 0.4 : 1,
+                child: const Icon(Icons.remove_rounded, color: _azulHorizonte),
+              ),
             ),
           ),
 
@@ -927,8 +930,8 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
               padding: EdgeInsets.zero,
               iconSize: 22,
               onPressed: () {
-                final base = enCarrito?.cantidad ?? 0;
-                final next = base <= 0 ? 0.5 : base + 0.5;
+                final c = enCarrito?.cantidad ?? 0;
+                final next = c <= 0 ? 0.5 : c + 0.5;
                 _ajustarCantidad(p, next);
               },
               icon: const Icon(Icons.add_rounded, color: _azulHorizonte),

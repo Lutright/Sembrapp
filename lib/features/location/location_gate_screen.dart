@@ -159,7 +159,7 @@ class _LocationGateScreenState extends State<LocationGateScreen> {
                             clipper: _OrganicHeaderClipper(),
                             child: Container(
                               height: headerHeight,
-                              color: cs.tertiary,
+                              color: const Color(0xFF1A4463),
                             ),
                           ),
                           SafeArea(

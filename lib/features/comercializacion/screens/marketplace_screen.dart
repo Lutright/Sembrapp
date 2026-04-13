@@ -47,9 +47,9 @@ class _HeaderAction extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(
           children: [
-            Icon(icon, size: 36, color: cs.onSecondary),
+            Icon(icon, size: 36, color: cs.onPrimary),
             const SizedBox(height: 6),
-            Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSecondary, fontWeight: FontWeight.bold)),
+            Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onPrimary, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -464,7 +464,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             height: 250,
             child: ClipPath(
               clipper: _OrganicHeaderClipper(),
-              child: Container(color: cs.secondary),
+              child: Container(color: cs.primary),
             ),
           ),
           SafeArea(

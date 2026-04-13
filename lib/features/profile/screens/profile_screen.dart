@@ -213,24 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
 
-        // 2. Botón atrás sobre la ola
-        Positioned(
-          left: 8,
-          top: 0,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded,
-                    color: Colors.white, size: 28),
-                onPressed: () => context.pop(),
-              ),
-            ),
-          ),
-        ),
-
-        // 3. Título sobre la ola
+        // 2. Título sobre la ola (debajo del botón atrás en el hit-test)
         Positioned(
           top: 0,
           left: 0,
@@ -247,6 +230,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontFamily: 'Montserrat',
                       fontWeight: FontWeight.w900,
                     ),
+              ),
+            ),
+          ),
+        ),
+
+        // 3. Botón atrás — último en el Stack para quedar encima y recibir toques
+        Positioned(
+          left: 8,
+          top: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded,
+                    color: Colors.white, size: 28),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    final role = Supabase.instance.client.auth.currentUser
+                            ?.userMetadata?['role']
+                        as String?;
+                    context.go(
+                      role == 'comprador' ? '/comercializacion' : '/home',
+                    );
+                  }
+                },
               ),
             ),
           ),

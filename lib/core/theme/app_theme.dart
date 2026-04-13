@@ -14,11 +14,11 @@ final class AppTheme {
 
   static ThemeData get light {
     final base = ColorScheme.fromSeed(
-      seedColor: _primaryRed,
+      seedColor: _mountainBlue,
       brightness: Brightness.light,
-      primary: _primaryRed,
+      primary: _mountainBlue,
       onPrimary: Colors.white,
-      secondary: _mountainBlue,
+      secondary: _primaryRed,
       onSecondary: Colors.white,
       tertiary: _earthOcre,
       surface: _backgroundCrema,
@@ -57,11 +57,16 @@ final class AppTheme {
 
       // Botones "gigantes" para fácil acceso
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(60),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.all(_primaryRed),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          minimumSize: WidgetStateProperty.all(const Size.fromHeight(60)),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
 
@@ -81,7 +86,7 @@ final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: base.primary, width: 2.5),
+          borderSide: BorderSide(color: _mountainBlue, width: 2.5),
         ),
       ),
 
