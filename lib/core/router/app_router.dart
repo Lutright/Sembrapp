@@ -236,10 +236,12 @@ void initAppRouter({required String initialLocation}) {
           String? nombre;
           Producto? productoIni;
           var cantIni = 1.0;
+          var destacado = false;
           if (extra is TiendaCampesinoExtra) {
             nombre = extra.nombreTienda;
             productoIni = extra.productoInicial;
             cantIni = extra.cantidadInicial;
+            destacado = extra.isDestacado;
           } else if (extra is String) {
             nombre = extra;
           }
@@ -248,6 +250,7 @@ void initAppRouter({required String initialLocation}) {
             nombreTienda: nombre,
             productoInicial: productoIni,
             cantidadInicial: cantIni,
+            isDestacado: destacado,
           );
         },
       ),
