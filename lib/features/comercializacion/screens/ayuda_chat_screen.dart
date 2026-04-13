@@ -19,7 +19,7 @@ class AyudaChatScreen extends StatefulWidget {
 
 class _AyudaChatScreenState extends State<AyudaChatScreen> {
   void _backFromAyuda(BuildContext context) {
-    context.go('/comercializacion/ordenes');
+    context.go('/comercializacion/red-comunitaria');
   }
 
   final _repo = OrdenAyudaRepository(Supabase.instance.client);
@@ -31,7 +31,11 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
   bool _loading = true;
   String? _error;
   RealtimeChannel? _channel;
+  RealtimeChannel? _solicitudChannel;
+  RealtimeChannel? _ordenChannel;
   Timer? _pollTimer;
+  bool _chatHabilitado = true;
+  String? _ordenId;
 
   @override
   void initState() {
@@ -50,6 +54,12 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
     _scrollController.dispose();
     if (_channel != null) {
       Supabase.instance.client.removeChannel(_channel!);
+    }
+    if (_solicitudChannel != null) {
+      Supabase.instance.client.removeChannel(_solicitudChannel!);
+    }
+    if (_ordenChannel != null) {
+      Supabase.instance.client.removeChannel(_ordenChannel!);
     }
     super.dispose();
   }
@@ -90,13 +100,17 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
       return;
     }
     final otroId = uid == solicitante ? ayudante : solicitante!;
+    _ordenId = sol['orden_id'] as String?;
+    final ordenActiva = await _ordenSigueActiva(_ordenId);
     final nombres = await _repo.nombresCampesinos([otroId]);
     if (!mounted) return;
     setState(() {
       _solicitud = sol;
       _otroNombre = nombres[otroId] ?? 'Productor';
+      _chatHabilitado = ordenActiva;
       _loading = false;
     });
+    _suscribirCambiosSolicitudYOrden();
     await _cargarMensajes();
   }
 
@@ -117,6 +131,59 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
           },
         )
         .subscribe();
+  }
+
+  void _suscribirCambiosSolicitudYOrden() {
+    _solicitudChannel ??= Supabase.instance.client
+        .channel('ayuda_solicitud_${widget.solicitudId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'orden_ayuda_solicitud',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.solicitudId,
+          ),
+          callback: (_) {
+            if (mounted) _cargar();
+          },
+        )
+        .subscribe();
+
+    if (_ordenId != null && _ordenChannel == null) {
+      _ordenChannel = Supabase.instance.client
+          .channel('ayuda_orden_${_ordenId!}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'ordenes',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: _ordenId!,
+            ),
+            callback: (_) {
+              if (mounted) _cargar();
+            },
+          )
+          .subscribe();
+    }
+  }
+
+  Future<bool> _ordenSigueActiva(String? ordenId) async {
+    if (ordenId == null || ordenId.isEmpty) return true;
+    try {
+      final res = await Supabase.instance.client
+          .from('ordenes')
+          .select('estado')
+          .eq('id', ordenId)
+          .maybeSingle();
+      final estado = (res as Map<String, dynamic>?)?['estado'] as String?;
+      return (estado ?? '').toLowerCase() != 'cancelada';
+    } catch (_) {
+      return true;
+    }
   }
 
   Future<void> _cargarMensajes() async {
@@ -148,7 +215,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
 
   Future<void> _enviar() async {
     final t = _mensajeController.text.trim();
-    if (t.isEmpty) return;
+    if (t.isEmpty || !_chatHabilitado) return;
     try {
       await _repo.enviarMensajeSolicitud(widget.solicitudId, t);
       _mensajeController.clear();
@@ -197,7 +264,9 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Text(
-              'Coordina entrega o entrega de productos con tu colega productor.',
+              _chatHabilitado
+                  ? 'Coordina entrega o entrega de productos con tu colega productor.'
+                  : 'Esta orden fue cancelada. El chat está inhabilitado.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -268,15 +337,17 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
             padding: const EdgeInsets.all(8),
             child: TextField(
               controller: _mensajeController,
+              enabled: _chatHabilitado,
               decoration: InputDecoration(
-                hintText: 'Escribe un mensaje…',
+                hintText:
+                    _chatHabilitado ? 'Escribe un mensaje…' : 'Chat inhabilitado',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.send),
-                  onPressed: _enviar,
+                  onPressed: _chatHabilitado ? _enviar : null,
                 ),
               ),
-              onSubmitted: (_) => _enviar(),
+              onSubmitted: (_) => _chatHabilitado ? _enviar() : null,
               textInputAction: TextInputAction.send,
             ),
           ),

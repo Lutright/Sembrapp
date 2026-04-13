@@ -40,16 +40,23 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
 
   List<_CampesinoCercano> _campesinos = [];
   List<Map<String, dynamic>> _solicitudesFiltradas = [];
+  List<Map<String, dynamic>> _misSolicitudesCreadas = [];
+  List<Map<String, dynamic>> _misSolicitudesAceptadas = [];
   Map<String, String> _nombresSolicitantes = {};
+  Map<String, String> _nombresMisSolicitudes = {};
 
   bool _loadingCampesinos = true;
   bool _loadingSolicitudes = true;
+  bool _loadingMisSolicitudes = true;
+  RealtimeChannel? _solicitudesChannel;
+  RealtimeChannel? _productosChannel;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _init();
+    _suscribirRealtime();
   }
 
   Future<void> _init() async {
@@ -76,8 +83,53 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
 
   @override
   void dispose() {
+    if (_solicitudesChannel != null) {
+      Supabase.instance.client.removeChannel(_solicitudesChannel!);
+    }
+    if (_productosChannel != null) {
+      Supabase.instance.client.removeChannel(_productosChannel!);
+    }
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _suscribirRealtime() {
+    _solicitudesChannel = Supabase.instance.client
+        .channel('red_comunitaria_solicitudes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orden_ayuda_solicitud',
+          callback: (_) {
+            if (mounted) _refreshDataRealtime();
+          },
+        )
+        .subscribe();
+
+    _productosChannel = Supabase.instance.client
+        .channel('red_comunitaria_productos')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'productos',
+          callback: (_) {
+            if (mounted) _refreshDataRealtime();
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _refreshDataRealtime() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (_buyerLat == null || _buyerLng == null) {
+      await _loadUbicacionYDatos();
+      return;
+    }
+    await Future.wait([
+      _loadCampesinos(uid),
+      _loadSolicitudes(uid),
+      _loadMisSolicitudes(uid),
+    ]);
   }
 
   Future<void> _loadUbicacionYDatos() async {
@@ -85,8 +137,11 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     setState(() {
       _loadingCampesinos = true;
       _loadingSolicitudes = true;
+      _loadingMisSolicitudes = true;
       _locationError = null;
     });
+
+    await _loadMisSolicitudes(uid);
 
     final pos = await LocationService.instance.getLastKnownOrFetch();
     if (pos == null) {
@@ -377,6 +432,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
           tabs: const [
             Tab(text: 'Productores', icon: Icon(Icons.groups_rounded)),
             Tab(text: 'Ayuda', icon: Icon(Icons.volunteer_activism_rounded)),
+            Tab(text: 'Mis solicitudes', icon: Icon(Icons.forum_rounded)),
           ],
         ),
       ),
@@ -419,6 +475,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
               children: [
                 _buildTabCampesinos(),
                 _buildTabSolicitudes(),
+                _buildTabMisSolicitudes(),
               ],
             ),
           ),
@@ -523,6 +580,226 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _loadMisSolicitudes(String? uid) async {
+    if (uid == null) {
+      if (mounted) {
+        setState(() {
+          _misSolicitudesCreadas = [];
+          _misSolicitudesAceptadas = [];
+          _nombresMisSolicitudes = {};
+          _loadingMisSolicitudes = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final creadas = await _ayudaRepo.listarSolicitudesCreadasPorUsuario(uid);
+      final aceptadas =
+          await _ayudaRepo.listarSolicitudesAceptadasPorUsuario(uid);
+      final otrosIds = <String>{};
+
+      for (final s in creadas) {
+        final ayudanteId = s['ayudante_id'] as String?;
+        if (ayudanteId != null && ayudanteId.isNotEmpty) {
+          otrosIds.add(ayudanteId);
+        }
+      }
+      for (final s in aceptadas) {
+        final solicitanteId = s['solicitante_id'] as String?;
+        if (solicitanteId != null && solicitanteId.isNotEmpty) {
+          otrosIds.add(solicitanteId);
+        }
+      }
+
+      final nombres = await _ayudaRepo.nombresCampesinos(otrosIds);
+      if (!mounted) return;
+      setState(() {
+        _misSolicitudesCreadas = creadas;
+        _misSolicitudesAceptadas = aceptadas;
+        _nombresMisSolicitudes = nombres;
+        _loadingMisSolicitudes = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingMisSolicitudes = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildTabMisSolicitudes() {
+    if (_loadingMisSolicitudes) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_misSolicitudesCreadas.isEmpty && _misSolicitudesAceptadas.isEmpty) {
+      return _emptyState(
+        'Aún no tienes solicitudes creadas ni aceptadas.',
+        showRefresh: true,
+      );
+    }
+    return ListView(
+      padding: AppPagePadding.screen,
+      children: [
+        _buildSeccionMisSolicitudes(
+          titulo: 'Aceptadas por mí',
+          vacio: 'No has aceptado solicitudes todavía.',
+          icon: Icons.volunteer_activism_rounded,
+          items: _misSolicitudesAceptadas,
+          builderTitulo: (s) {
+            final solicitanteId = s['solicitante_id'] as String?;
+            return solicitanteId != null
+                ? (_nombresMisSolicitudes[solicitanteId] ?? 'Productor')
+                : 'Productor';
+          },
+          permitirCancelar: false,
+        ),
+        const SizedBox(height: 20),
+        _buildSeccionMisSolicitudes(
+          titulo: 'Creadas por mí',
+          vacio: 'No has creado solicitudes de ayuda todavía.',
+          icon: Icons.campaign_rounded,
+          items: _misSolicitudesCreadas,
+          builderTitulo: (s) {
+            final ayudanteId = s['ayudante_id'] as String?;
+            if (ayudanteId == null || ayudanteId.isEmpty) {
+              return 'Sin ayudante asignado';
+            }
+            return _nombresMisSolicitudes[ayudanteId] ?? 'Productor';
+          },
+          permitirCancelar: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeccionMisSolicitudes({
+    required String titulo,
+    required String vacio,
+    required IconData icon,
+    required List<Map<String, dynamic>> items,
+    required String Function(Map<String, dynamic>) builderTitulo,
+    required bool permitirCancelar,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (items.isEmpty)
+          Text(
+            vacio,
+            style: Theme.of(context).textTheme.bodyMedium,
+          )
+        else
+          ...items.map(
+            (s) => Padding(
+              padding: const EdgeInsets.only(bottom: AppPagePadding.tileGap),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  BigNavTile(
+                    icon: icon,
+                    title: builderTitulo(s),
+                    subtitle: _misSolicitudSubtitle(s),
+                    onTap: () => _abrirChatMisSolicitud(s),
+                  ),
+                  if (permitirCancelar && _puedeCancelarSolicitudCreada(s))
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _cancelarSolicitudCreada(s),
+                        icon: const Icon(Icons.close_rounded),
+                        label: const Text('Cancelar solicitud'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _misSolicitudSubtitle(Map<String, dynamic> s) {
+    final nItems = _asUuidList(s['item_ids']).length;
+    final estado = s['estado'] as String? ?? '';
+    final ayudanteId = s['ayudante_id'] as String?;
+    final creada = DateTime.tryParse(s['created_at'] as String? ?? '');
+    final fecha = creada != null
+        ? '${creada.day.toString().padLeft(2, '0')}/${creada.month.toString().padLeft(2, '0')}/${creada.year}'
+        : 'sin fecha';
+    final chatDisponible = estado == 'cerrada' && ayudanteId != null;
+    final estadoUi = chatDisponible ? 'Chat disponible' : 'Pendiente';
+    return '$nItems producto${nItems != 1 ? 's' : ''} · $fecha · $estadoUi';
+  }
+
+  void _abrirChatMisSolicitud(Map<String, dynamic> s) {
+    final solicitudId = s['id'] as String? ?? '';
+    final estado = s['estado'] as String? ?? '';
+    final ayudanteId = s['ayudante_id'] as String?;
+    final chatDisponible = estado == 'cerrada' && ayudanteId != null;
+    if (!chatDisponible) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Esta solicitud aún no tiene chat disponible.',
+          ),
+        ),
+      );
+      return;
+    }
+    context.push('/comercializacion/ayuda-chat/$solicitudId');
+  }
+
+  bool _puedeCancelarSolicitudCreada(Map<String, dynamic> s) {
+    final estado = s['estado'] as String? ?? '';
+    final ayudanteId = s['ayudante_id'] as String?;
+    return estado == 'abierta' && (ayudanteId == null || ayudanteId.isEmpty);
+  }
+
+  Future<void> _cancelarSolicitudCreada(Map<String, dynamic> s) async {
+    final solicitudId = s['id'] as String?;
+    if (solicitudId == null) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar solicitud'),
+        content: const Text(
+          'Dejará de aparecer en Red comunitaria y otros productores no podrán aceptarla.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    try {
+      await _ayudaRepo.cancelarSolicitud(solicitudId);
+      await _loadUbicacionYDatos();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud cancelada.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cancelar: $e')),
+      );
+    }
   }
 }
 

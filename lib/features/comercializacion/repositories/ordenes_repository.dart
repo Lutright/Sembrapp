@@ -32,4 +32,18 @@ class OrdenesRepository {
 
     return ordenId;
   }
+
+  Future<bool> cancelarOrdenComoCampesino({
+    required String ordenId,
+    required String campesinoId,
+  }) async {
+    final res = await _client
+        .from('ordenes')
+        .update({'estado': 'cancelada'})
+        .eq('id', ordenId)
+        .eq('campesino_id', campesinoId)
+        .not('estado', 'in', '(cancelada,completada,entregada,entregado)')
+        .select('id');
+    return (res as List).isNotEmpty;
+  }
 }

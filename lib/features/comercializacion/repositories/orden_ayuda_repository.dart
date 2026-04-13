@@ -37,6 +37,32 @@ class OrdenAyudaRepository {
     return res as Map<String, dynamic>?;
   }
 
+  Future<List<Map<String, dynamic>>> listarSolicitudesCreadasPorUsuario(
+    String userId,
+  ) async {
+    final res = await _client
+        .from('orden_ayuda_solicitud')
+        .select(
+          'id, orden_id, nota, item_ids, estado, solicitante_id, ayudante_id, created_at',
+        )
+        .eq('solicitante_id', userId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(res as List);
+  }
+
+  Future<List<Map<String, dynamic>>> listarSolicitudesAceptadasPorUsuario(
+    String userId,
+  ) async {
+    final res = await _client
+        .from('orden_ayuda_solicitud')
+        .select(
+          'id, orden_id, nota, item_ids, estado, solicitante_id, ayudante_id, created_at',
+        )
+        .eq('ayudante_id', userId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(res as List);
+  }
+
   Future<void> crearSolicitud({
     required String ordenId,
     required String solicitanteId,

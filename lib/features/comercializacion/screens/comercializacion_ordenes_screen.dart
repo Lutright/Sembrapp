@@ -85,11 +85,21 @@ class _ComercializacionOrdenesScreenState
     extends State<ComercializacionOrdenesScreen> {
   List<Map<String, dynamic>> _ordenes = [];
   bool _loading = true;
+  RealtimeChannel? _ordenesChannel;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _suscribirRealtimeOrdenes();
+  }
+
+  @override
+  void dispose() {
+    if (_ordenesChannel != null) {
+      Supabase.instance.client.removeChannel(_ordenesChannel!);
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -114,6 +124,30 @@ class _ComercializacionOrdenesScreenState
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _suscribirRealtimeOrdenes() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    _ordenesChannel = Supabase.instance.client
+        .channel('mis_ordenes_$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'ordenes',
+          callback: (_) {
+            if (mounted) _load();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orden_items',
+          callback: (_) {
+            if (mounted) _load();
+          },
+        )
+        .subscribe();
   }
 
   @override

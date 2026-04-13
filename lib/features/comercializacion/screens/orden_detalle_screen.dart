@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
 import '../repositories/orden_ayuda_repository.dart';
+import '../repositories/ordenes_repository.dart';
 
 class OrdenDetalleScreen extends StatefulWidget {
   const OrdenDetalleScreen({
@@ -33,13 +34,18 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   final _scrollController = ScrollController();
   bool _loading = true;
   RealtimeChannel? _realtimeChannel;
+  RealtimeChannel? _ordenChannel;
+  RealtimeChannel? _ayudaChannel;
   Timer? _pollTimer;
+  final _ordenesRepo = OrdenesRepository(Supabase.instance.client);
 
   @override
   void initState() {
     super.initState();
     _loadOrden();
     _suscribirMensajesRealtime();
+    _suscribirCambiosOrden();
+    _suscribirCambiosAyuda();
     _iniciarPollingMensajes();
   }
 
@@ -50,6 +56,12 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     _scrollController.dispose();
     if (_realtimeChannel != null) {
       Supabase.instance.client.removeChannel(_realtimeChannel!);
+    }
+    if (_ordenChannel != null) {
+      Supabase.instance.client.removeChannel(_ordenChannel!);
+    }
+    if (_ayudaChannel != null) {
+      Supabase.instance.client.removeChannel(_ayudaChannel!);
     }
     super.dispose();
   }
@@ -73,6 +85,44 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             value: widget.ordenId,
           ),
           callback: _onNuevoMensajeRealtime,
+        )
+        .subscribe();
+  }
+
+  void _suscribirCambiosOrden() {
+    _ordenChannel = Supabase.instance.client
+        .channel('orden_estado_${widget.ordenId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'ordenes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.ordenId,
+          ),
+          callback: (_) {
+            if (mounted) _loadOrden();
+          },
+        )
+        .subscribe();
+  }
+
+  void _suscribirCambiosAyuda() {
+    _ayudaChannel = Supabase.instance.client
+        .channel('orden_ayuda_${widget.ordenId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orden_ayuda_solicitud',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'orden_id',
+            value: widget.ordenId,
+          ),
+          callback: (_) {
+            if (mounted) _loadSolicitudAyudaReciente();
+          },
         )
         .subscribe();
   }
@@ -230,6 +280,66 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     );
   }
 
+  Future<void> _confirmarCancelarPedido() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar pedido'),
+        content: const Text(
+          'Este pedido quedará cancelado para ambas partes. '
+          'Úsalo solo si no puedes cumplir la orden y no recibiste ayuda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar pedido'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+    try {
+      final cancelada = await _ordenesRepo.cancelarOrdenComoCampesino(
+        ordenId: widget.ordenId,
+        campesinoId: uid,
+      );
+      if (!mounted) return;
+      if (!cancelada) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cancelar (puede que ya esté cerrada).'),
+          ),
+        );
+        return;
+      }
+
+      if (_solicitudAyudaReciente?['estado'] == 'abierta') {
+        final solicitudId = _solicitudAyudaReciente?['id'] as String?;
+        if (solicitudId != null) {
+          await OrdenAyudaRepository(Supabase.instance.client)
+              .cancelarSolicitud(solicitudId);
+        }
+      }
+      await _loadOrden();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pedido cancelado correctamente.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cancelar: $e')),
+      );
+    }
+  }
+
   static String _nombreProducto(Map<String, dynamic> row) {
     final p = row['productos'];
     if (p is Map && p['nombre'] != null) return p['nombre'] as String;
@@ -294,7 +404,8 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
 
   Future<void> _enviarMensaje() async {
     final texto = _mensajeController.text.trim();
-    if (texto.isEmpty || _orden == null) return;
+    final estado = (_orden?['estado'] as String? ?? '').toLowerCase();
+    if (texto.isEmpty || _orden == null || estado == 'cancelada') return;
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) return;
     await Supabase.instance.client.from('orden_mensajes').insert({
@@ -343,6 +454,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
         isCampesinoDeLaOrden &&
         !ayudaAbiertaPropia &&
         !(estadoSol == 'cerrada' && aid != null);
+    final chatPedidoHabilitado = estado.toLowerCase() != 'cancelada';
 
     return Scaffold(
       appBar: AppBar(
@@ -480,6 +592,14 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                           icon: const Icon(Icons.volunteer_activism_rounded),
                           label: const Text('Pedir ayuda con productos'),
                         ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: estado.toLowerCase() == 'cancelada'
+                            ? null
+                            : _confirmarCancelarPedido,
+                        icon: const Icon(Icons.cancel_outlined),
+                        label: const Text('Cancelar pedido'),
+                      ),
                     ],
                   ],
                 ),
@@ -502,8 +622,12 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 Expanded(
                   child: Text(
                     isCampesinoDeLaOrden
-                        ? 'Chat con el comprador — Acuerden el punto de encuentro para la entrega'
-                        : 'Chat con el productor — Acuerden el punto de encuentro para la entrega',
+                        ? (chatPedidoHabilitado
+                            ? 'Chat con el comprador — Acuerden el punto de encuentro para la entrega'
+                            : 'Pedido cancelado — Chat inhabilitado')
+                        : (chatPedidoHabilitado
+                            ? 'Chat con el productor — Acuerden el punto de encuentro para la entrega'
+                            : 'Pedido cancelado — Chat inhabilitado'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -575,15 +699,19 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 Expanded(
                   child: TextField(
                     controller: _mensajeController,
+                    enabled: chatPedidoHabilitado,
                     decoration: InputDecoration(
-                      hintText: 'Ej: Punto de encuentro: plaza central a las 3pm',
+                      hintText: chatPedidoHabilitado
+                          ? 'Ej: Punto de encuentro: plaza central a las 3pm'
+                          : 'Chat inhabilitado',
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.send),
-                        onPressed: _enviarMensaje,
+                        onPressed: chatPedidoHabilitado ? _enviarMensaje : null,
                       ),
                     ),
-                    onSubmitted: (_) => _enviarMensaje(),
+                    onSubmitted: (_) =>
+                        chatPedidoHabilitado ? _enviarMensaje() : null,
                     textInputAction: TextInputAction.send,
                   ),
                 ),
