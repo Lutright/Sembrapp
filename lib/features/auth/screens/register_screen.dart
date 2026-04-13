@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/services/pending_notification_navigation.dart';
 import '../../../core/widgets/minimal_ui.dart';
 
 enum UserRole { campesino, comprador }
@@ -68,7 +70,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         },
       );
       if (mounted) {
-        context.go('/home');
+        final pending =
+            PendingNotificationNavigation.instance.peekPendingDeepLink;
+        if (pending != null) {
+          PendingNotificationNavigation.instance.consumePendingDeepLink();
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            context.go(pending);
+          });
+        } else {
+          context.go('/home');
+        }
       }
     } on AuthException catch (e) {
       if (mounted) {

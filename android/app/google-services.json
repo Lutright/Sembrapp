@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "517275193091",
+    "project_id": "sembrapp-1abd4",
+    "storage_bucket": "sembrapp-1abd4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:517275193091:android:2e672cf9a9186ef19ee336",
+        "android_client_info": {
+          "package_name": "com.sembrapp.sembrapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmSun-L2zJcSGw6v8RMHv3KZPjUnnxCDc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

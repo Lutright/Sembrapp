@@ -105,6 +105,20 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     _buyerLng = pos.longitude;
 
     await Future.wait([_loadCampesinos(uid), _loadSolicitudes(uid)]);
+    await _syncMapAnchorToProfile(uid);
+  }
+
+  /// Ancla GPS + radio en `profiles` para que el webhook de push filtre como esta pantalla.
+  Future<void> _syncMapAnchorToProfile(String? uid) async {
+    if (uid == null || _buyerLat == null || _buyerLng == null) return;
+    try {
+      await Supabase.instance.client.from('profiles').update({
+        'last_map_lat': _buyerLat,
+        'last_map_lng': _buyerLng,
+        'last_map_at': DateTime.now().toUtc().toIso8601String(),
+        'red_comunitaria_radius_km': _selectedDistanceKm,
+      }).eq('id', uid);
+    } catch (_) {}
   }
 
   Future<void> _loadCampesinos(String? uid) async {
@@ -197,6 +211,14 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
   Future<void> _onDistanceChangedEnd(double v) async {
     final km = v.round();
     await _saveDistance(km);
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null) {
+      try {
+        await Supabase.instance.client.from('profiles').update({
+          'red_comunitaria_radius_km': km,
+        }).eq('id', uid);
+      } catch (_) {}
+    }
     await _loadUbicacionYDatos();
   }
 

@@ -16,7 +16,15 @@ class ComercializacionHomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mercado'),
-        leading: MinimalBackButton(onPressed: () => context.pop()),
+        leading: MinimalBackButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
       ),
       body: ListView(
         padding: AppPagePadding.screen,

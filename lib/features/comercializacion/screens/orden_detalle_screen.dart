@@ -20,6 +20,10 @@ class OrdenDetalleScreen extends StatefulWidget {
 }
 
 class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
+  void _backFromOrden(BuildContext context) {
+    context.go('/comercializacion/ordenes');
+  }
+
   Map<String, dynamic>? _orden;
   List<Map<String, dynamic>> _items = [];
   /// Última solicitud de ayuda para este pedido (si existe).
@@ -306,13 +310,19 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Orden')),
+        appBar: AppBar(
+          title: const Text('Orden'),
+          leading: MinimalBackButton(onPressed: () => _backFromOrden(context)),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (_orden == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Orden')),
+        appBar: AppBar(
+          title: const Text('Orden'),
+          leading: MinimalBackButton(onPressed: () => _backFromOrden(context)),
+        ),
         body: const Center(child: Text('Orden no encontrada')),
       );
     }
@@ -337,7 +347,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pedido'),
-        leading: MinimalBackButton(onPressed: () => context.pop()),
+        leading: MinimalBackButton(onPressed: () => _backFromOrden(context)),
       ),
       body: Column(
         children: [

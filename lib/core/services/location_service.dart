@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,8 +16,10 @@ final class LocationService {
   Position? _cached;
 
   Future<bool> isReady() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return false;
+    if (!kIsWeb) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return false;
+    }
     final perm = await Geolocator.checkPermission();
     final hasPermission = perm == LocationPermission.whileInUse ||
         perm == LocationPermission.always;
@@ -24,8 +29,10 @@ final class LocationService {
   /// Pide permiso si hace falta y guarda una ubicación inicial.
   /// Devuelve null si el usuario no habilita GPS / permisos.
   Future<Position?> ensureReadyAndFetch() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return null;
+    if (!kIsWeb) {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+    }
 
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
@@ -36,9 +43,27 @@ final class LocationService {
       return null;
     }
 
-    final pos = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    );
+    Position pos;
+    try {
+      pos = await Geolocator.getCurrentPosition(
+        locationSettings: kIsWeb
+            ? const LocationSettings(accuracy: LocationAccuracy.low)
+            : const LocationSettings(accuracy: LocationAccuracy.high),
+      ).timeout(
+        kIsWeb ? const Duration(seconds: 25) : const Duration(seconds: 60),
+      );
+    } on TimeoutException {
+      if (kIsWeb) {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) {
+          pos = last;
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
     _cached = pos;
 
     final prefs = await SharedPreferences.getInstance();
