@@ -92,6 +92,26 @@ class OrdenAyudaRepository {
     }).eq('id', solicitudId);
   }
 
+  /// Elimina la solicitud y sus mensajes vía RPC (RLS no permite DELETE directo).
+  Future<bool> eliminarSolicitud(String solicitudId) async {
+    final res = await _client.rpc(
+      'eliminar_mi_solicitud_ayuda',
+      params: {'p_solicitud_id': solicitudId},
+    );
+    if (res is Map && res['ok'] == true) return true;
+    return false;
+  }
+
+  /// Tras cancelar el pedido como campesino dueño: borra todas las solicitudes de ayuda de esa orden.
+  Future<bool> eliminarSolicitudesAyudaTrasCancelarPedido(String ordenId) async {
+    final res = await _client.rpc(
+      'eliminar_solicitudes_ayuda_al_cancelar_pedido',
+      params: {'p_orden_id': ordenId},
+    );
+    if (res is Map && res['ok'] == true) return true;
+    return false;
+  }
+
   /// `true` si se asignó correctamente.
   Future<bool> aceptarSolicitud(String solicitudId) async {
     final res = await _client.rpc(

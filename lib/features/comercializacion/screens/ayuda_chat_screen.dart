@@ -19,7 +19,11 @@ class AyudaChatScreen extends StatefulWidget {
 
 class _AyudaChatScreenState extends State<AyudaChatScreen> {
   void _backFromAyuda(BuildContext context) {
-    context.go('/comercializacion/red-comunitaria');
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/comercializacion/red-comunitaria');
+    }
   }
 
   final _repo = OrdenAyudaRepository(Supabase.instance.client);
@@ -261,11 +265,10 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: Text(
               _chatHabilitado
-                  ? 'Coordina entrega o entrega de productos con tu colega productor.'
+                  ? 'Chat entre productores'
                   : 'Esta orden fue cancelada. El chat está inhabilitado.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -293,8 +296,8 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: isMio
@@ -302,7 +305,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
                             : Theme.of(context)
                                 .colorScheme
                                 .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,6 +318,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
                                 .labelSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 11,
                                   color: isMio
                                       ? Theme.of(context)
                                           .colorScheme
@@ -323,7 +327,10 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
                                 ),
                           ),
                           const SizedBox(height: 2),
-                          Text(m['mensaje'] as String? ?? ''),
+                          Text(
+                            m['mensaje'] as String? ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ],
                       ),
                     ),
@@ -334,14 +341,19 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
           ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
             child: TextField(
               controller: _mensajeController,
               enabled: _chatHabilitado,
               decoration: InputDecoration(
                 hintText:
-                    _chatHabilitado ? 'Escribe un mensaje…' : 'Chat inhabilitado',
+                    _chatHabilitado ? 'Escribe un mensaje...' : 'Chat inhabilitado',
                 border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                isDense: true,
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.send),
                   onPressed: _chatHabilitado ? _enviar : null,

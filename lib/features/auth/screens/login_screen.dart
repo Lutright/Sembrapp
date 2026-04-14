@@ -31,6 +31,22 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  static String _mensajeLoginEspanol(AuthException e) {
+    final m = e.message.toLowerCase();
+    if (m.contains('invalid login credentials') ||
+        m.contains('invalid credentials') ||
+        m.contains('email or password')) {
+      return 'Correo o contraseña incorrectos.';
+    }
+    if (m.contains('email not confirmed')) {
+      return 'Confirma tu correo antes de entrar.';
+    }
+    if (m.contains('user not found')) {
+      return 'No hay cuenta con ese correo.';
+    }
+    return e.message;
+  }
+
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -59,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.message;
+          _error = _mensajeLoginEspanol(e);
           _loading = false;
         });
       }

@@ -46,4 +46,18 @@ class OrdenesRepository {
         .select('id');
     return (res as List).isNotEmpty;
   }
+
+  Future<bool> aceptarOrdenComoCampesino({
+    required String ordenId,
+    required String campesinoId,
+  }) async {
+    final res = await _client
+        .from('ordenes')
+        .update({'estado': 'preparando'})
+        .eq('id', ordenId)
+        .eq('campesino_id', campesinoId)
+        .eq('estado', 'pendiente')
+        .select('id');
+    return (res as List).isNotEmpty;
+  }
 }

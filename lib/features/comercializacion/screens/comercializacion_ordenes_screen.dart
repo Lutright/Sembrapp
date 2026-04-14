@@ -42,6 +42,9 @@ class _OrderStatusPill extends StatelessWidget {
     if (e == 'pendiente' || e == 'creada') {
       bg = Theme.of(context).colorScheme.tertiaryContainer;
       fg = Theme.of(context).colorScheme.onTertiaryContainer;
+    } else if (e == 'cancelada' || e == 'cancelado') {
+      bg = Theme.of(context).colorScheme.errorContainer;
+      fg = Theme.of(context).colorScheme.onErrorContainer;
     } else if (e == 'en camino' ||
         e == 'en_camino' ||
         e == 'preparando' ||
@@ -86,6 +89,8 @@ class _ComercializacionOrdenesScreenState
   List<Map<String, dynamic>> _ordenes = [];
   bool _loading = true;
   RealtimeChannel? _ordenesChannel;
+  RealtimeChannel? _ordenesCompradorChannel;
+  RealtimeChannel? _ordenesCampesinoChannel;
 
   @override
   void initState() {
@@ -98,6 +103,12 @@ class _ComercializacionOrdenesScreenState
   void dispose() {
     if (_ordenesChannel != null) {
       Supabase.instance.client.removeChannel(_ordenesChannel!);
+    }
+    if (_ordenesCompradorChannel != null) {
+      Supabase.instance.client.removeChannel(_ordenesCompradorChannel!);
+    }
+    if (_ordenesCampesinoChannel != null) {
+      Supabase.instance.client.removeChannel(_ordenesCampesinoChannel!);
     }
     super.dispose();
   }
@@ -130,19 +141,45 @@ class _ComercializacionOrdenesScreenState
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) return;
     _ordenesChannel = Supabase.instance.client
-        .channel('mis_ordenes_$uid')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'ordenes',
-          callback: (_) {
-            if (mounted) _load();
-          },
-        )
+        .channel('mis_ordenes_items_$uid')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'orden_items',
+          callback: (_) {
+            if (mounted) _load();
+          },
+        )
+        .subscribe();
+
+    _ordenesCompradorChannel = Supabase.instance.client
+        .channel('mis_ordenes_comprador_$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'ordenes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'comprador_id',
+            value: uid,
+          ),
+          callback: (_) {
+            if (mounted) _load();
+          },
+        )
+        .subscribe();
+
+    _ordenesCampesinoChannel = Supabase.instance.client
+        .channel('mis_ordenes_campesino_$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'ordenes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'campesino_id',
+            value: uid,
+          ),
           callback: (_) {
             if (mounted) _load();
           },

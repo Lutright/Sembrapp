@@ -719,6 +719,15 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                         label: const Text('Cancelar solicitud'),
                       ),
                     ),
+                  if (permitirCancelar)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _eliminarSolicitudCreada(s),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        label: const Text('Eliminar solicitud'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -798,6 +807,55 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No se pudo cancelar: $e')),
+      );
+    }
+  }
+
+  Future<void> _eliminarSolicitudCreada(Map<String, dynamic> s) async {
+    final solicitudId = s['id'] as String?;
+    if (solicitudId == null) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar solicitud'),
+        content: const Text(
+          'Se eliminará de tu historial en esta app. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    try {
+      final ok = await _ayudaRepo.eliminarSolicitud(solicitudId);
+      await _loadUbicacionYDatos();
+      if (!mounted) return;
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud eliminada.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo eliminar la solicitud. Si acabas de actualizar la app, '
+              'aplica la migración 013 en Supabase o revisa tu conexión.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar: $e')),
       );
     }
   }
