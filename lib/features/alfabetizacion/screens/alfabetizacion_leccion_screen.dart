@@ -8,6 +8,29 @@ import '../repositories/alfabetizacion_repository.dart';
 import '../widgets/abecedario_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
 
+const Color _azulHorizonte = Color(0xFF1A4463);
+
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.78)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.06,
+        0,
+        size.height * 0.78,
+      )
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
 class AlfabetizacionLeccionScreen extends StatefulWidget {
   const AlfabetizacionLeccionScreen({
     super.key,
@@ -267,57 +290,125 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(leccion.titulo),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, size: 28),
-          style: IconButton.styleFrom(
-            minimumSize: const Size(kMinimalTouchTarget, kMinimalTouchTarget),
-          ),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Responde todas las preguntas para completar esta lección.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 124),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Responde todas las preguntas para completar esta lección.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildProgresoPregunta(context, leccion),
+                    const SizedBox(height: 16),
+                    if (!_completado) ...[
+                      _buildContenido(context, leccion),
+                      const SizedBox(height: 32),
+                      if (leccion.esLectura) _buildOpcionesLectura(context, leccion),
+                      if (leccion.esEscritura) _buildEntradaEscritura(context, leccion),
+                    ] else if (_correcto == true) ...[
+                      _buildResumenExito(context, leccion),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: () => context.pop(),
+                        child: const Text('Volver'),
+                      ),
+                    ] else ...[
+                      _buildResumenError(context),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _reintentar,
+                        child: const Text('Reintentar'),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: () => context.pop(),
+                        child: const Text('Salir de la lección'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
-            _buildProgresoPregunta(context, leccion),
-            const SizedBox(height: 16),
-            if (!_completado) ...[
-              _buildContenido(context, leccion),
-              const SizedBox(height: 32),
-              if (leccion.esLectura) _buildOpcionesLectura(context, leccion),
-              if (leccion.esEscritura) _buildEntradaEscritura(context, leccion),
-            ] else if (_correcto == true) ...[
-              _buildResumenExito(context, leccion),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => context.pop(),
-                child: const Text('Volver'),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: ClipPath(
+              clipper: _OrganicHeaderClipper(),
+              child: Container(color: _azulHorizonte),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 8,
+                    top: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        style: IconButton.styleFrom(
+                          minimumSize:
+                              const Size(kMinimalTouchTarget, kMinimalTouchTarget),
+                        ),
+                        onPressed: () => context.pop(),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          leccion.titulo,
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontFamily: 'Montserrat',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Escritura · Nivel ${leccion.nivel}',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontSize: 13,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ] else ...[
-              _buildResumenError(context),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _reintentar,
-                child: const Text('Reintentar'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () => context.pop(),
-                child: const Text('Salir de la lección'),
-              ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -326,37 +417,67 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final pregunta = _preguntaActual;
     if (pregunta == null) return const SizedBox.shrink();
     final idx = _indicesPreguntaActual;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            if (idx != null) ...[
-              Text(
-                leccion.sublecciones![idx.subleccionIndex].titulo,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-            ],
+    final String textoModelo = pregunta.contenido.trim().toUpperCase();
+    const ejemplos = <String, String>{
+      'A': 'A de árbol',
+      'E': 'E de escoba',
+      'I': 'I de iguana',
+      'O': 'O de oveja',
+      'U': 'U de uva',
+    };
+    final contexto = ejemplos[textoModelo];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _azulHorizonte.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      child: Column(
+        children: [
+          Text(
+            'Letra modelo',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: _azulHorizonte,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            pregunta.contenido,
+            style: const TextStyle(
+              fontSize: 100,
+              fontWeight: FontWeight.bold,
+              color: _azulHorizonte,
+              height: 1,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (contexto != null) ...[
+            const SizedBox(height: 4),
             Text(
-              pregunta.contenido,
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
+              contexto,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: _azulHorizonte.withOpacity(0.6),
+              ),
+            ),
+          ],
+          if (idx != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              leccion.sublecciones![idx.subleccionIndex].titulo,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
                   ),
               textAlign: TextAlign.center,
             ),
-            if (pregunta.audioAsset != null)
-              IconButton(
-                icon: const Icon(Icons.volume_up),
-                onPressed: () {},
-              ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -390,16 +511,40 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Row(
+          children: [
+            const Icon(Icons.edit, color: _azulHorizonte, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              'Ahora escríbela tú',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: _azulHorizonte,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         TextField(
           controller: c,
           decoration: const InputDecoration(
             labelText: 'Escribe aquí',
-            hintText: 'Tu respuesta',
+            hintText: '...',
+            contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           ),
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: _azulHorizonte,
+          ),
+          textAlign: TextAlign.center,
+          minLines: 1,
+          maxLines: 1,
           textCapitalization: TextCapitalization.characters,
           onSubmitted: _responderEscritura,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         FilledButton(
           onPressed: () => _responderEscritura(c.text),
           child: const Text('Comprobar'),

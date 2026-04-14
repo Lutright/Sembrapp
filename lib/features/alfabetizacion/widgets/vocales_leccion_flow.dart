@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 
 /// Flujo en 6 etapas para la lección Vocales: intro → presentación → práctica →
@@ -25,6 +24,27 @@ class VocalesLeccionFlow extends StatefulWidget {
 
   @override
   State<VocalesLeccionFlow> createState() => _VocalesLeccionFlowState();
+}
+
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.78)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.06,
+        0,
+        size.height * 0.78,
+      )
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class _VocalPaso {
@@ -70,6 +90,8 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     with SingleTickerProviderStateMixin {
   static const Color _azulHorizonte = Color(0xFF1A4463);
   static const Color _rojoManta = Color(0xFFD34836);
+  static const Color _ocrePremium = Color(0xFFE8D48B);
+  static const Color _ocrePremiumOscuro = Color(0xFF8B6914);
   static const _vocales = <_VocalPaso>[
     _VocalPaso(letra: 'A', deEjemplo: 'A de árbol', emoji: '🌳'),
     _VocalPaso(letra: 'E', deEjemplo: 'E de escoba', emoji: '🧹'),
@@ -600,53 +622,135 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tituloModulo =
+        widget.leccion.modulo == 'lectura' ? 'Lectura' : 'Escritura';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.leccion.titulo),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, size: 28),
-          style: IconButton.styleFrom(
-            minimumSize: const Size(kMinimalTouchTarget, kMinimalTouchTarget),
-          ),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                LinearProgressIndicator(
-                  value: _progresoLineal,
-                  borderRadius: BorderRadius.circular(8),
-                  minHeight: 6,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _etiquetaPaso,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 124),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        LinearProgressIndicator(
+                          value: _progresoLineal,
+                          borderRadius: BorderRadius.circular(8),
+                          minHeight: 6,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _etiquetaPaso,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _fase == _Fase.recompensa
+                        ? Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Center(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 320),
+                                child: KeyedSubtree(
+                                  key: ValueKey(
+                                    (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
+                                  ),
+                                  child: _cuerpoFase(context),
+                                ),
+                              ),
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            padding: const EdgeInsets.all(20),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 320),
+                              child: KeyedSubtree(
+                                key: ValueKey(
+                                  (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
+                                ),
+                                child: _cuerpoFase(context),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                child: KeyedSubtree(
-                  key: ValueKey(
-                    (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: ClipPath(
+              clipper: _OrganicHeaderClipper(),
+              child: Container(color: _azulHorizonte),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 8,
+                    top: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () => context.pop(),
+                      ),
+                    ),
                   ),
-                  child: _cuerpoFase(context),
-                ),
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.leccion.titulo,
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontFamily: 'Montserrat',
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '$tituloModulo · Nivel ${widget.leccion.nivel}',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontFamily: 'Montserrat',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1060,33 +1164,67 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   }
 
   Widget _buildRecompensa(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 16),
-        Icon(Icons.emoji_events_rounded, size: 80, color: scheme.tertiary),
-        const SizedBox(height: 16),
-        Text(
-          'Completaste la lección',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
+        Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: _ocrePremium.withOpacity(0.20),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 64)),
+              const SizedBox(height: 12),
+              Text(
+                'Completaste la lección',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                    ),
               ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '🏆 +${widget.leccion.puntos} puntos',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: 8),
+              Text(
+                '+${widget.leccion.puntos} puntos',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: _ocrePremiumOscuro,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
               ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          '⭐ Progreso: 10%',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: _azulHorizonte.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                color: _ocrePremium,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Progreso del módulo: 10%',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 32),
         FilledButton(
