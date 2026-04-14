@@ -69,11 +69,16 @@ class ProductosRepository {
         .eq('id', id)
         .maybeSingle();
     if (res == null) return null;
-    return Producto.fromMap(res as Map<String, dynamic>);
+    return Producto.fromMap(res);
   }
 
-  Future<void> crearProducto(Producto p) async {
-    await _client.from('productos').insert(p.toMap());
+  Future<String> crearProducto(Producto p) async {
+    final res = await _client
+        .from('productos')
+        .insert(p.toMap())
+        .select('id')
+        .single();
+    return res['id'] as String;
   }
 
   Future<void> actualizarProducto(String id, Map<String, dynamic> data) async {

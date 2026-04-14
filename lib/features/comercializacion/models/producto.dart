@@ -3,6 +3,7 @@ class Producto {
   final String campesinoId;
   final String? campesinoNombre;
   final String nombre;
+  final String? imagenUrl;
   final String? descripcion;
   final double precio;
   /// `null`: no se declara stock en catálogo (disponibilidad variable).
@@ -17,6 +18,7 @@ class Producto {
     required this.campesinoId,
     this.campesinoNombre,
     required this.nombre,
+    this.imagenUrl,
     this.descripcion,
     required this.precio,
     this.cantidadDisponible,
@@ -32,6 +34,7 @@ class Producto {
       campesinoId: map['campesino_id'] as String,
       campesinoNombre: _campesinoNombreFromMap(map['profiles']),
       nombre: map['nombre'] as String,
+      imagenUrl: map['imagen_url'] as String?,
       descripcion: map['descripcion'] as String?,
       precio: (map['precio'] as num).toDouble(),
       cantidadDisponible: map['cantidad_disponible'] != null
@@ -59,6 +62,7 @@ class Producto {
     return {
       'campesino_id': campesinoId,
       'nombre': nombre,
+      if (imagenUrl != null) 'imagen_url': imagenUrl,
       'descripcion': descripcion,
       'precio': precio,
       if (cantidadDisponible != null) 'cantidad_disponible': cantidadDisponible,

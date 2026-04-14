@@ -4,8 +4,31 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/widgets/minimal_ui.dart';
 import '../repositories/orden_ayuda_repository.dart';
+
+const Color _azulHorizonte = Color(0xFF1A4463);
+const Color _crema = Color(0xFFFBF9F1);
+
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.78)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.06,
+        0,
+        size.height * 0.78,
+      )
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
 
 /// Chat entre el campesino que pidió ayuda y quien aceptó cubrir productos.
 class AyudaChatScreen extends StatefulWidget {
@@ -183,7 +206,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
           .select('estado')
           .eq('id', ordenId)
           .maybeSingle();
-      final estado = (res as Map<String, dynamic>?)?['estado'] as String?;
+      final estado = res?['estado'] as String?;
       return (estado ?? '').toLowerCase() != 'cancelada';
     } catch (_) {
       return true;
@@ -236,46 +259,29 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Ayuda entre productores'),
-          leading: MinimalBackButton(onPressed: () => _backFromAyuda(context)),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
+      return _buildBaseScaffold(
+        context: context,
+        title: 'Ayuda entre productores',
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
     if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Ayuda entre productores'),
-          leading: MinimalBackButton(onPressed: () => _backFromAyuda(context)),
+      return _buildBaseScaffold(
+        context: context,
+        title: 'Ayuda entre productores',
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Text(_error!, textAlign: TextAlign.center),
+          ),
         ),
-        body: Center(child: Padding(
-          padding: AppPagePadding.screen,
-          child: Text(_error!, textAlign: TextAlign.center),
-        )),
       );
     }
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_otroNombre ?? 'Chat'),
-        leading: MinimalBackButton(onPressed: () => _backFromAyuda(context)),
-      ),
-      body: Column(
+    return _buildBaseScaffold(
+      context: context,
+      title: _otroNombre ?? 'Chat',
+      child: Column(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-            child: Text(
-              _chatHabilitado
-                  ? 'Chat entre productores'
-                  : 'Esta orden fue cancelada. El chat está inhabilitado.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ),
-          const Divider(height: 1),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -293,43 +299,59 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * 0.8,
                     ),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isMio
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: isMio
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             nombre,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                  color: isMio
-                                      ? Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer
-                                      : Theme.of(context).colorScheme.primary,
-                                ),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            m['mensaje'] as String? ?? '',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isMio ? _azulHorizonte : Colors.white,
+                              border: isMio
+                                  ? null
+                                  : Border.all(
+                                      color:
+                                          Colors.grey.withValues(alpha: 0.3),
+                                    ),
+                              borderRadius: isMio
+                                  ? const BorderRadius.only(
+                                      topLeft: Radius.circular(12),
+                                      topRight: Radius.circular(12),
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(2),
+                                    )
+                                  : const BorderRadius.only(
+                                      topLeft: Radius.circular(2),
+                                      topRight: Radius.circular(12),
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12),
+                                    ),
+                            ),
+                            child: Text(
+                              m['mensaje'] as String? ?? '',
+                              style:
+                                  Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: isMio
+                                            ? Colors.white
+                                            : const Color(0xFF1A1A1A),
+                                      ),
+                            ),
                           ),
                         ],
                       ),
@@ -348,19 +370,124 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
               decoration: InputDecoration(
                 hintText:
                     _chatHabilitado ? 'Escribe un mensaje...' : 'Chat inhabilitado',
-                border: const OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(
+                    color: _azulHorizonte.withValues(alpha: 0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(
+                    color: _azulHorizonte.withValues(alpha: 0.3),
+                  ),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(24)),
+                  borderSide: BorderSide(color: _azulHorizonte, width: 1.5),
+                ),
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
+                  horizontal: 14,
                   vertical: 12,
                 ),
                 isDense: true,
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _chatHabilitado ? _enviar : null,
+                suffixIcon: Container(
+                  margin: const EdgeInsets.only(right: 4),
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: _azulHorizonte),
+                    onPressed: _chatHabilitado ? _enviar : null,
+                  ),
                 ),
               ),
               onSubmitted: (_) => _chatHabilitado ? _enviar() : null,
               textInputAction: TextInputAction.send,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBaseScaffold({
+    required BuildContext context,
+    required String title,
+    required Widget child,
+  }) {
+    return Scaffold(
+      backgroundColor: _crema,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 124),
+              child: child,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: ClipPath(
+              clipper: _OrganicHeaderClipper(),
+              child: Container(color: _azulHorizonte),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 8,
+                    top: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () => _backFromAyuda(context),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontFamily: 'Montserrat',
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Chat entre productores',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

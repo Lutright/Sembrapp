@@ -5,11 +5,35 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/location_service.dart';
 import '../../../core/utils/geo_utils.dart';
-import '../../../core/widgets/minimal_ui.dart';
 import '../models/producto.dart';
 import '../navigation/tienda_campesino_extra.dart';
 import '../repositories/orden_ayuda_repository.dart';
 import '../repositories/productos_repository.dart';
+
+const Color _azulHorizonte = Color(0xFF1A4463);
+const Color _crema = Color(0xFFFBF9F1);
+const Color _rojoManta = Color(0xFFD34836);
+
+final class _OrganicHeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height * 0.78)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height * 1.06,
+        0,
+        size.height * 0.78,
+      )
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
 
 List<String> _asUuidList(dynamic v) {
   if (v == null) return [];
@@ -55,8 +79,15 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _init();
     _suscribirRealtime();
+  }
+
+  void _onTabChanged() {
+    if (!mounted) return;
+    if (_tabController.indexIsChanging) return;
+    setState(() {});
   }
 
   Future<void> _init() async {
@@ -89,6 +120,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     if (_productosChannel != null) {
       Supabase.instance.client.removeChannel(_productosChannel!);
     }
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -310,7 +342,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: false,
       builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
@@ -323,26 +355,56 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 'Pedido de ayuda',
-                style: Theme.of(ctx).textTheme.titleLarge,
+                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                      fontFamily: 'Montserrat',
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
                 nombreSol != null
                     ? '$nombreSol necesita apoyo con parte de un pedido.'
                     : 'Un productor necesita apoyo con parte de un pedido.',
-                style: Theme.of(ctx).textTheme.bodyMedium,
+                style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                      color: _azulHorizonte,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
               if (nota != null && nota.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text('Nota:', style: Theme.of(ctx).textTheme.titleSmall),
-                Text(nota),
+                Text(
+                  'Nota:',
+                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Text(
+                  nota,
+                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
+                ),
               ],
               const SizedBox(height: 12),
               Text(
-                'Productos en los que pide ayuda',
-                style: Theme.of(ctx).textTheme.titleSmall,
+                'Productos:',
+                style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
               const SizedBox(height: 8),
               ConstrainedBox(
@@ -366,11 +428,25 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                             nombre = p['nombre'] as String? ?? nombre;
                             u = p['unidad'] as String? ?? '';
                           }
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(nombre),
-                            subtitle: Text(
-                              '${cant.toStringAsFixed(cant == cant.roundToDouble() ? 0 : 1)} $u',
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _azulHorizonte.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(nombre)),
+                                Text(
+                                  '${cant.toStringAsFixed(cant == cant.roundToDouble() ? 0 : 1)} $u',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -382,6 +458,15 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.6),
+                        ),
+                        foregroundColor: Colors.grey.shade700,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       child: const Text('Rechazar'),
                     ),
                   ),
@@ -409,6 +494,13 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                           await _loadUbicacionYDatos();
                         }
                       },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _rojoManta,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       child: const Text('Aceptar y abrir chat'),
                     ),
                   ),
@@ -424,59 +516,175 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Red comunitaria'),
-        leading: MinimalBackButton(onPressed: () => context.pop()),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Productores', icon: Icon(Icons.groups_rounded)),
-            Tab(text: 'Ayuda', icon: Icon(Icons.volunteer_activism_rounded)),
-            Tab(text: 'Mis solicitudes', icon: Icon(Icons.forum_rounded)),
-          ],
-        ),
-      ),
-      body: Column(
+      backgroundColor: _crema,
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Distancia máxima',
-                      style: Theme.of(context).textTheme.titleSmall,
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 124),
+              child: Column(
+                children: [
+                  Container(
+                    color: _crema,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: Row(
+                      children: [
+                        _TabPill(
+                          label: 'Productores',
+                          selected: _tabController.index == 0,
+                          onTap: () => _tabController.animateTo(0),
+                        ),
+                        const SizedBox(width: 8),
+                        _TabPill(
+                          label: 'Ayuda',
+                          selected: _tabController.index == 1,
+                          onTap: () => _tabController.animateTo(1),
+                        ),
+                        const SizedBox(width: 8),
+                        _TabPill(
+                          label: 'Mis solicitudes',
+                          selected: _tabController.index == 2,
+                          onTap: () => _tabController.animateTo(2),
+                          compact: true,
+                        ),
+                      ],
                     ),
-                    Text(
-                      '$_selectedDistanceKm km',
-                      style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Distancia máxima',
+                                style: TextStyle(
+                                  color: _azulHorizonte,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                '$_selectedDistanceKm km',
+                                style: const TextStyle(
+                                  color: _azulHorizonte,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: _azulHorizonte,
+                              thumbColor: _azulHorizonte,
+                            ),
+                            child: Slider(
+                              min: 1,
+                              max: 50,
+                              divisions: 49,
+                              value: _selectedDistanceKm.toDouble(),
+                              label: '$_selectedDistanceKm km',
+                              onChanged: (v) =>
+                                  setState(() => _selectedDistanceKm = v.round()),
+                              onChangeEnd: _onDistanceChangedEnd,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-                Slider(
-                  min: 1,
-                  max: 50,
-                  divisions: 49,
-                  value: _selectedDistanceKm.toDouble(),
-                  label: '$_selectedDistanceKm km',
-                  onChanged: (v) =>
-                      setState(() => _selectedDistanceKm = v.round()),
-                  onChangeEnd: _onDistanceChangedEnd,
-                ),
-              ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildTabCampesinos(),
+                        _buildTabSolicitudes(),
+                        _buildTabMisSolicitudes(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTabCampesinos(),
-                _buildTabSolicitudes(),
-                _buildTabMisSolicitudes(),
-              ],
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: ClipPath(
+              clipper: _OrganicHeaderClipper(),
+              child: Container(color: _azulHorizonte),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 120,
+            child: SafeArea(
+              bottom: false,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 8,
+                    top: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () => context.pop(),
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 10),
+                          Text(
+                            'Red comunitaria',
+                            textAlign: TextAlign.center,
+                            style:
+                                Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                      color: Colors.white,
+                                      fontFamily: 'Montserrat',
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Productores cerca de ti',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -497,25 +705,67 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
         showRefresh: true,
       );
     }
-    return ListView.separated(
-      padding: AppPagePadding.screen,
-      itemCount: _campesinos.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: AppPagePadding.tileGap),
-      itemBuilder: (context, i) {
-        final c = _campesinos[i];
-        return BigNavTile(
-          icon: Icons.agriculture_rounded,
-          title: c.nombre,
-          subtitle:
-              '${c.cantidadProductos} producto${c.cantidadProductos != 1 ? 's' : ''} · '
-              '${c.distanciaKm.toStringAsFixed(1)} km',
-          onTap: () => context.push(
-            '/comercializacion/tienda/${c.id}',
-            extra: TiendaCampesinoExtra(nombreTienda: c.nombre),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _azulHorizonte.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 18, color: _azulHorizonte),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Estos son los productores dentro de tu radio seleccionado. '
+                    'Toca uno para ver sus productos.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _azulHorizonte.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            itemCount: _campesinos.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, i) {
+              final c = _campesinos[i];
+              return _CommunityCard(
+                leading: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: _azulHorizonte.withValues(alpha: 0.10),
+                  child: Text(
+                    _iniciales(c.nombre),
+                    style: const TextStyle(
+                      color: _azulHorizonte,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                title: c.nombre,
+                subtitle:
+                    '${c.cantidadProductos} producto${c.cantidadProductos != 1 ? 's' : ''} · '
+                    '${c.distanciaKm.toStringAsFixed(1)} km',
+                onTap: () => context.push(
+                  '/comercializacion/tienda/${c.id}',
+                  extra: TiendaCampesinoExtra(nombreTienda: c.nombre),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -534,22 +784,28 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
       );
     }
     return ListView.separated(
-      padding: AppPagePadding.screen,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: _solicitudesFiltradas.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: AppPagePadding.tileGap),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final s = _solicitudesFiltradas[i];
         final sid = s['solicitante_id'] as String?;
         final nombre = sid != null ? _nombresSolicitantes[sid] : null;
         final d = (s['_dist_km'] as double?) ?? 0;
         final nItems = _asUuidList(s['item_ids']).length;
-        return BigNavTile(
-          icon: Icons.handshake_rounded,
+        return _CommunityCard(
+          leading: CircleAvatar(
+            radius: 24,
+            backgroundColor: _azulHorizonte.withValues(alpha: 0.10),
+            child: const Icon(
+              Icons.handshake_outlined,
+              color: _azulHorizonte,
+              size: 24,
+            ),
+          ),
           title: nombre ?? 'Productor',
           subtitle:
-              '$nItems producto${nItems != 1 ? 's' : ''} · ${d.toStringAsFixed(1)} km · '
-              'Toca para ver o aceptar',
+              '$nItems producto${nItems != 1 ? 's' : ''} · ${d.toStringAsFixed(1)} km',
           onTap: () => _mostrarDetalleSolicitud(s),
         );
       },
@@ -559,14 +815,23 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
   Widget _emptyState(String message, {bool showRefresh = false}) {
     return Center(
       child: Padding(
-        padding: AppPagePadding.screen,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 48,
+              color: Colors.grey.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 10),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                    fontSize: 14,
+                  ),
             ),
             if (showRefresh) ...[
               const SizedBox(height: 16),
@@ -580,6 +845,16 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
         ),
       ),
     );
+  }
+
+  String _iniciales(String nombre) {
+    final partes = nombre.trim().split(RegExp(r'\s+'));
+    if (partes.isEmpty) return 'P';
+    if (partes.length == 1) {
+      return partes.first.characters.take(2).toString().toUpperCase();
+    }
+    return (partes.first.characters.first + partes[1].characters.first)
+        .toUpperCase();
   }
 
   Future<void> _loadMisSolicitudes(String? uid) async {
@@ -642,7 +917,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
       );
     }
     return ListView(
-      padding: AppPagePadding.screen,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         _buildSeccionMisSolicitudes(
           titulo: 'Aceptadas por mí',
@@ -687,25 +962,62 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          titulo,
-          style: Theme.of(context).textTheme.titleMedium,
+        Row(
+          children: [
+            Text(
+              titulo,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: _azulHorizonte,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 1,
+                color: _azulHorizonte.withValues(alpha: 0.25),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         if (items.isEmpty)
-          Text(
-            vacio,
-            style: Theme.of(context).textTheme.bodyMedium,
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 48,
+                    color: Colors.grey.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    vacio,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade700,
+                          fontSize: 14,
+                        ),
+                  ),
+                ],
+              ),
+            ),
           )
         else
           ...items.map(
             (s) => Padding(
-              padding: const EdgeInsets.only(bottom: AppPagePadding.tileGap),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  BigNavTile(
-                    icon: icon,
+                  _CommunityCard(
+                    leading: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: _azulHorizonte.withValues(alpha: 0.10),
+                      child: Icon(icon, color: _azulHorizonte, size: 24),
+                    ),
                     title: builderTitulo(s),
                     subtitle: _misSolicitudSubtitle(s),
                     onTap: () => _abrirChatMisSolicitud(s),
@@ -873,4 +1185,121 @@ class _CampesinoCercano {
   final String nombre;
   final int cantidadProductos;
   final double distanciaKm;
+}
+
+class _CommunityCard extends StatelessWidget {
+  const _CommunityCard({
+    required this.leading,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final Widget leading;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: cs.outlineVariant.withValues(alpha: 0.55),
+          width: 0.5,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            children: [
+              leading,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontFamily: 'Montserrat',
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 13,
+                            color: cs.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Icon(Icons.chevron_right, color: _azulHorizonte, size: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabPill extends StatelessWidget {
+  const _TabPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.compact = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? _azulHorizonte
+                : _azulHorizonte.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected
+                  ? Colors.white
+                  : _azulHorizonte.withValues(alpha: 0.7),
+              fontSize: compact ? 11.5 : 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
