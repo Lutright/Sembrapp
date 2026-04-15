@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
+import '../services/alfabetizacion_tts_coach.dart';
 import '../widgets/abecedario_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
 
@@ -46,6 +49,7 @@ class AlfabetizacionLeccionScreen extends StatefulWidget {
 
 class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScreen> {
   final _repo = AlfabetizacionRepository(Supabase.instance.client);
+  final _ttsCoach = AlfabetizacionTtsCoach();
   LeccionData? _leccion;
   TextEditingController? _escrituraController;
   bool? _correcto;
@@ -54,6 +58,10 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   bool _comprobandoAcceso = true;
   bool _accesoPermitido = false;
   String? _textoBloqueo;
+  bool _ttsListo = false;
+  bool _audioAutoYa = false;
+  int _audioAutoPreguntaIndex = -1;
+  bool _narrando = false;
 
   @override
   void initState() {
@@ -63,12 +71,22 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _escrituraController = TextEditingController();
     }
     _verificarAcceso();
+    _inicializarTts();
   }
 
   @override
   void dispose() {
+    unawaited(_ttsCoach.dispose());
     _escrituraController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _inicializarTts() async {
+    try {
+      await _ttsCoach.init();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _ttsListo = _ttsCoach.isReady);
   }
 
   Future<void> _verificarAcceso() async {
@@ -132,6 +150,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     if (pregunta == null) return;
     final correcto = opcion == pregunta.respuestaCorrecta;
     if (correcto) {
+      unawaited(_ttsCoach.interrupt());
+      unawaited(_ttsCoach.speak('¡Muy bien!'));
       _avanzarSiCorresponde();
       return;
     }
@@ -139,6 +159,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _correcto = correcto;
       _completado = true;
     });
+    unawaited(_ttsCoach.interrupt());
+    unawaited(_ttsCoach.speak('Incorrecto. Intenta otra vez.'));
   }
 
   void _responderEscritura(String texto) {
@@ -148,6 +170,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final esperada = (pregunta.respuestaCorrecta ?? '').trim().toUpperCase();
     final correcto = texto.trim().toUpperCase() == esperada;
     if (correcto) {
+      unawaited(_ttsCoach.interrupt());
+      unawaited(_ttsCoach.speak('¡Muy bien!'));
       _avanzarSiCorresponde();
       return;
     }
@@ -155,6 +179,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _correcto = correcto;
       _completado = true;
     });
+    unawaited(_ttsCoach.interrupt());
+    unawaited(_ttsCoach.speak('No es correcto. Revisa e intenta otra vez.'));
   }
 
   void _reintentar() {
@@ -163,6 +189,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _correcto = null;
       _escrituraController?.clear();
     });
+    unawaited(_ttsCoach.interrupt());
+    unawaited(_narrarPreguntaActual(forzar: true));
   }
 
   PreguntaData? get _preguntaActual {
@@ -197,6 +225,7 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
         _preguntaIndex++;
         _escrituraController?.clear();
       });
+      unawaited(_narrarPreguntaActual());
       return;
     }
     setState(() {
@@ -204,6 +233,11 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _completado = true;
     });
     await _guardarProgreso();
+    unawaited(_ttsCoach.interrupt());
+    unawaited(_ttsCoach.speakSequence(const [
+      'Completaste la lección. Muy bien.',
+      'Pulsa volver para regresar al menú.',
+    ]));
   }
 
   Future<void> _guardarProgreso() async {
@@ -289,6 +323,15 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       );
     }
 
+    // Auto-guía por voz (para el resto del módulo).
+    if (_ttsListo && !_audioAutoYa) {
+      _audioAutoYa = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_narrarEntradaLeccion());
+      });
+    }
+
     return Scaffold(
       body: Stack(
         children: [
@@ -308,6 +351,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
                     ),
                     const SizedBox(height: 24),
                     _buildProgresoPregunta(context, leccion),
+                    const SizedBox(height: 12),
+                    _buildAudioCoachBar(context, leccion),
                     const SizedBox(height: 16),
                     if (!_completado) ...[
                       _buildContenido(context, leccion),
@@ -394,7 +439,7 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Escritura · Nivel ${leccion.nivel}',
+                          '${leccion.esLectura ? 'Lectura' : 'Escritura'} · Nivel ${leccion.nivel}',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.75),
@@ -411,6 +456,89 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
         ],
       ),
     );
+  }
+
+  Widget _buildAudioCoachBar(BuildContext context, LeccionData leccion) {
+    final cs = Theme.of(context).colorScheme;
+    final disabled = !_ttsListo || _narrando;
+    return Container(
+      decoration: BoxDecoration(
+        color: _azulHorizonte.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Icon(Icons.headphones_rounded, color: cs.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _ttsListo
+                  ? 'Guía por voz: pulsa para repetir'
+                  : 'Preparando audio…',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton.icon(
+            onPressed: disabled ? null : () => unawaited(_narrarPreguntaActual(forzar: true)),
+            icon: const Icon(Icons.volume_up_rounded),
+            label: const Text('Repetir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _narrarEntradaLeccion() async {
+    final leccion = _leccion;
+    if (leccion == null || !_ttsListo) return;
+    await _ttsCoach.interrupt();
+    await _ttsCoach.speakSequence([
+      'Lección: ${leccion.titulo}.',
+      'Escucha la pregunta y luego responde.',
+      leccion.esLectura
+          ? 'Toca una opción para elegir la respuesta.'
+          : 'Escribe tu respuesta y luego pulsa comprobar.',
+    ]);
+    await _narrarPreguntaActual();
+  }
+
+  Future<void> _narrarPreguntaActual({bool forzar = false}) async {
+    final leccion = _leccion;
+    final pregunta = _preguntaActual;
+    if (leccion == null || pregunta == null || !_ttsListo) return;
+    if (!forzar && _audioAutoPreguntaIndex == _preguntaIndex) return;
+    _audioAutoPreguntaIndex = _preguntaIndex;
+    if (!mounted) return;
+
+    setState(() => _narrando = true);
+    try {
+      await _ttsCoach.interrupt();
+      final total = leccion.preguntas.length;
+      final actual = (_preguntaIndex + 1).clamp(1, total);
+      final partes = <String>[
+        'Pregunta $actual de $total.',
+        pregunta.contenido,
+      ];
+      final opciones = pregunta.opciones;
+      if (leccion.esLectura && opciones != null && opciones.isNotEmpty) {
+        partes.add('Opciones.');
+        // Lee las opciones una por una para mejor claridad.
+        for (final op in opciones) {
+          partes.add(op);
+        }
+        partes.add('Elige la respuesta correcta.');
+      } else if (leccion.esEscritura) {
+        partes.add('Escribe tu respuesta y pulsa comprobar.');
+      }
+      await _ttsCoach.speakSequence(partes);
+    } finally {
+      if (mounted) setState(() => _narrando = false);
+    }
   }
 
   Widget _buildContenido(BuildContext context, LeccionData leccion) {

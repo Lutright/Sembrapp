@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
+import '../services/alfabetizacion_tts_coach.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
@@ -47,13 +50,32 @@ class AlfabetizacionLeccionesListScreen extends StatefulWidget {
 class _AlfabetizacionLeccionesListScreenState
     extends State<AlfabetizacionLeccionesListScreen> {
   final _repo = AlfabetizacionRepository(Supabase.instance.client);
+  final _ttsCoach = AlfabetizacionTtsCoach();
   Set<String> _completadas = {};
   bool _loading = true;
+  bool _ttsListo = false;
+  bool _audioAutoYa = false;
+  bool _narrando = false;
 
   @override
   void initState() {
     super.initState();
     _cargarProgreso();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _ttsCoach.init();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _ttsListo = _ttsCoach.isReady);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_ttsCoach.dispose());
+    super.dispose();
   }
 
   Future<void> _cargarProgreso() async {
@@ -69,9 +91,70 @@ class _AlfabetizacionLeccionesListScreenState
           _completadas = ids;
           _loading = false;
         });
+        _programarAudioAuto();
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _programarAudioAuto() {
+    if (!_ttsListo || _loading || _audioAutoYa) return;
+    _audioAutoYa = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_narrarEntrada());
+    });
+  }
+
+  Future<void> _narrarEntrada() async {
+    if (!_ttsListo || _narrando) return;
+    final tituloModulo =
+        widget.modulo == 'lectura' ? 'Lectura' : 'Escritura';
+    final lecciones = leccionesPorModuloNivel(widget.modulo, widget.nivel);
+    final nivelAbierto = nivelDesbloqueado(widget.modulo, widget.nivel, _completadas);
+    final disponibles = <LeccionData>[];
+    if (nivelAbierto) {
+      for (final l in lecciones) {
+        if (leccionDesbloqueada(l, _completadas)) {
+          disponibles.add(l);
+        }
+      }
+    }
+    setState(() => _narrando = true);
+    try {
+      await _ttsCoach.interrupt();
+      final partes = <String>[
+        'Nivel ${widget.nivel}.',
+        'Módulo de $tituloModulo.',
+        'Aquí eliges una lección.',
+        'Hay ${lecciones.length} lecciones en este nivel.',
+      ];
+      if (!nivelAbierto) {
+        partes.add('Este nivel está cerrado.');
+        partes.add('Para abrirlo, completa todas las lecciones del nivel ${widget.nivel - 1}.');
+        partes.add('Pulsa volver para regresar.');
+      } else {
+        partes.add('Las lecciones se abren una por una.');
+        partes.add('Las lecciones cerradas tienen un candado.');
+        partes.add('Tienes ${disponibles.length} lecciones disponibles ahora.');
+        if (disponibles.isNotEmpty) {
+          final primera = disponibles.first;
+          partes.add('Tu siguiente lección disponible es: ${primera.titulo}.');
+          if (disponibles.length >= 2) {
+            final segunda = disponibles[1];
+            partes.add('También puedes entrar a: ${segunda.titulo}.');
+          }
+          partes.add('Pulsa una lección abierta para empezar.');
+          partes.add('Yo recomiendo empezar por: ${primera.titulo}.');
+        } else {
+          partes.add('Si todas están cerradas, completa la lección anterior para desbloquear.');
+        }
+      }
+      partes.add('Si necesitas ayuda, pulsa repetir.');
+      await _ttsCoach.speakSequence(partes);
+    } finally {
+      if (mounted) setState(() => _narrando = false);
     }
   }
 
@@ -84,6 +167,8 @@ class _AlfabetizacionLeccionesListScreenState
       _completadas,
     );
 
+    _programarAudioAuto();
+
     return Scaffold(
       backgroundColor: _crema,
       body: Stack(
@@ -95,6 +180,12 @@ class _AlfabetizacionLeccionesListScreenState
                     ? ListView(
                         padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
                         children: [
+                          _AudioCoachBar(
+                            listo: _ttsListo,
+                            narrando: _narrando,
+                            onRepeat: () => unawaited(_narrarEntrada()),
+                          ),
+                          const SizedBox(height: 14),
                           _InfoBox(
                             text:
                                 'Este nivel aún está cerrado.\nCompleta todas las lecciones del nivel ${widget.nivel - 1} para abrirlo.',
@@ -133,6 +224,12 @@ class _AlfabetizacionLeccionesListScreenState
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
                           children: [
+                            _AudioCoachBar(
+                              listo: _ttsListo,
+                              narrando: _narrando,
+                              onRepeat: () => unawaited(_narrarEntrada()),
+                            ),
+                            const SizedBox(height: 14),
                             const _InfoBox(
                               text:
                                   'Las lecciones se abren una a una.\nCompleta cada una para desbloquear la siguiente.',
@@ -384,6 +481,52 @@ class _TonalNavCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AudioCoachBar extends StatelessWidget {
+  const _AudioCoachBar({
+    required this.listo,
+    required this.narrando,
+    required this.onRepeat,
+  });
+
+  final bool listo;
+  final bool narrando;
+  final VoidCallback onRepeat;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final disabled = !listo || narrando;
+    return Container(
+      decoration: BoxDecoration(
+        color: _azulHorizonte.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Icon(Icons.headphones_rounded, color: cs.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              listo ? 'Guía por voz: pulsa para repetir' : 'Preparando audio…',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton.icon(
+            onPressed: disabled ? null : onRepeat,
+            icon: const Icon(Icons.volume_up_rounded),
+            label: const Text('Repetir'),
+          ),
+        ],
       ),
     );
   }

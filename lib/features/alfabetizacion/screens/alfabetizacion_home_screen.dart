@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../services/alfabetizacion_tts_coach.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
@@ -25,8 +29,63 @@ final class _OrganicHeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-class AlfabetizacionHomeScreen extends StatelessWidget {
+class AlfabetizacionHomeScreen extends StatefulWidget {
   const AlfabetizacionHomeScreen({super.key});
+
+  @override
+  State<AlfabetizacionHomeScreen> createState() => _AlfabetizacionHomeScreenState();
+}
+
+class _AlfabetizacionHomeScreenState extends State<AlfabetizacionHomeScreen> {
+  final _ttsCoach = AlfabetizacionTtsCoach();
+  bool _ttsListo = false;
+  bool _audioAutoYa = false;
+  bool _narrando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _ttsCoach.init();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _ttsListo = _ttsCoach.isReady);
+    if (_ttsListo && !_audioAutoYa) {
+      _audioAutoYa = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_narrarEntrada());
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_ttsCoach.dispose());
+    super.dispose();
+  }
+
+  Future<void> _narrarEntrada({bool forzar = false}) async {
+    if (!_ttsListo || _narrando) return;
+    setState(() => _narrando = true);
+    try {
+      await _ttsCoach.interrupt();
+      await _ttsCoach.speakSequence(const [
+        'Bienvenido al módulo de alfabetización.',
+        'Aquí te voy a guiar con la voz, paso a paso.',
+        'Si quieres volver a escuchar, pulsa el botón repetir que está arriba.',
+        'Primero elige una opción.',
+        'Pulsa lectura para aprender letras, sílabas y palabras.',
+        'Pulsa escritura para practicar escribir letras y palabras.',
+      ]);
+    } finally {
+      if (mounted) setState(() => _narrando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +98,12 @@ class AlfabetizacionHomeScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 124, 16, 20),
               children: [
+                _AudioCoachBar(
+                  listo: _ttsListo,
+                  narrando: _narrando,
+                  onRepeat: () => unawaited(_narrarEntrada(forzar: true)),
+                ),
+                const SizedBox(height: 14),
                 Padding(
                   padding: const EdgeInsets.only(top: 20, bottom: 12),
                   child: Text(
@@ -55,7 +120,11 @@ class AlfabetizacionHomeScreen extends StatelessWidget {
                   title: 'Lectura',
                   subtitle: 'Letras, sílabas y palabras',
                   buttonLabel: 'Ir a lectura',
-                  onTap: () => context.push('/alfabetizacion/lectura'),
+                  onTap: () async {
+                    await _ttsCoach.interrupt();
+                    if (!context.mounted) return;
+                    await context.push('/alfabetizacion/lectura');
+                  },
                 ),
                 const SizedBox(height: 12),
                 _HeroLearnCard(
@@ -63,7 +132,11 @@ class AlfabetizacionHomeScreen extends StatelessWidget {
                   title: 'Escritura',
                   subtitle: 'Escribir letras y palabras',
                   buttonLabel: 'Ir a escritura',
-                  onTap: () => context.push('/alfabetizacion/escritura'),
+                  onTap: () async {
+                    await _ttsCoach.interrupt();
+                    if (!context.mounted) return;
+                    await context.push('/alfabetizacion/escritura');
+                  },
                 ),
               ],
             ),
@@ -212,6 +285,52 @@ class _HeroLearnCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioCoachBar extends StatelessWidget {
+  const _AudioCoachBar({
+    required this.listo,
+    required this.narrando,
+    required this.onRepeat,
+  });
+
+  final bool listo;
+  final bool narrando;
+  final VoidCallback onRepeat;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final disabled = !listo || narrando;
+    return Container(
+      decoration: BoxDecoration(
+        color: _azulHorizonte.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Icon(Icons.headphones_rounded, color: cs.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              listo ? 'Guía por voz: pulsa para repetir' : 'Preparando audio…',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton.icon(
+            onPressed: disabled ? null : onRepeat,
+            icon: const Icon(Icons.volume_up_rounded),
+            label: const Text('Repetir'),
           ),
         ],
       ),

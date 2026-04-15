@@ -44,3 +44,4 @@ flutter:
   assets:
     - .env
     - assets/alfabetizacion/images/
+    - assets/alfabetizacion/audio/

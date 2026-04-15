@@ -392,7 +392,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              initialValue: _unidad,
+              value: _unidad,
               decoration: const InputDecoration(
                 labelText: 'Unidad',
               ),

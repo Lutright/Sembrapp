@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
+import '../services/alfabetizacion_tts_coach.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
@@ -45,13 +48,32 @@ class AlfabetizacionNivelesScreen extends StatefulWidget {
 class _AlfabetizacionNivelesScreenState
     extends State<AlfabetizacionNivelesScreen> {
   final _repo = AlfabetizacionRepository(Supabase.instance.client);
+  final _ttsCoach = AlfabetizacionTtsCoach();
   Set<String> _completadas = {};
   bool _loading = true;
+  bool _ttsListo = false;
+  bool _audioAutoYa = false;
+  bool _narrando = false;
 
   @override
   void initState() {
     super.initState();
     _cargarProgreso();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _ttsCoach.init();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _ttsListo = _ttsCoach.isReady);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_ttsCoach.dispose());
+    super.dispose();
   }
 
   Future<void> _cargarProgreso() async {
@@ -67,9 +89,59 @@ class _AlfabetizacionNivelesScreenState
           _completadas = ids;
           _loading = false;
         });
+        _programarAudioAuto();
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _programarAudioAuto() {
+    if (!_ttsListo || _loading || _audioAutoYa) return;
+    _audioAutoYa = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_narrarEntrada());
+    });
+  }
+
+  Future<void> _narrarEntrada() async {
+    if (!_ttsListo || _narrando) return;
+    final tituloModulo =
+        widget.modulo == 'lectura' ? 'Lectura' : 'Escritura';
+    final niveles = nivelesDisponibles(widget.modulo);
+    final nivelesAbiertos = niveles
+        .where((n) => nivelDesbloqueado(widget.modulo, n, _completadas))
+        .toList()
+      ..sort();
+    final siguienteNivel = nivelesAbiertos.isEmpty ? null : nivelesAbiertos.first;
+    final ultimoAbierto = nivelesAbiertos.isEmpty ? null : nivelesAbiertos.last;
+    setState(() => _narrando = true);
+    try {
+      await _ttsCoach.interrupt();
+      final partes = <String>[
+        'Estás en el módulo de $tituloModulo.',
+        'Aquí eliges tu nivel.',
+        'Hay ${niveles.length} niveles en total.',
+        'Tienes ${nivelesAbiertos.length} niveles abiertos.',
+        'Los niveles cerrados tienen un candado.',
+      ];
+      if (siguienteNivel != null) {
+        if (ultimoAbierto != null && ultimoAbierto != siguienteNivel) {
+          partes.add('Tienes niveles abiertos hasta el nivel $ultimoAbierto.');
+        }
+        if (siguienteNivel == 1) {
+          partes.add('Si estás empezando, entra al nivel 1.');
+        }
+        partes.add('Tu siguiente nivel recomendado es el nivel $siguienteNivel.');
+        partes.add('Pulsa nivel $siguienteNivel para ver sus lecciones.');
+      } else {
+        partes.add('Si no ves niveles abiertos, primero completa las lecciones anteriores.');
+      }
+      partes.add('Si necesitas ayuda, pulsa repetir.');
+      await _ttsCoach.speakSequence(partes);
+    } finally {
+      if (mounted) setState(() => _narrando = false);
     }
   }
 
@@ -78,6 +150,8 @@ class _AlfabetizacionNivelesScreenState
     final niveles = nivelesDisponibles(widget.modulo);
     final tituloModulo =
         widget.modulo == 'lectura' ? 'Lectura' : 'Escritura';
+
+    _programarAudioAuto();
 
     return Scaffold(
       backgroundColor: _crema,
@@ -91,6 +165,12 @@ class _AlfabetizacionNivelesScreenState
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
                       children: [
+                        _AudioCoachBar(
+                          listo: _ttsListo,
+                          narrando: _narrando,
+                          onRepeat: () => unawaited(_narrarEntrada()),
+                        ),
+                        const SizedBox(height: 14),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -353,6 +433,52 @@ class _TonalNavCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AudioCoachBar extends StatelessWidget {
+  const _AudioCoachBar({
+    required this.listo,
+    required this.narrando,
+    required this.onRepeat,
+  });
+
+  final bool listo;
+  final bool narrando;
+  final VoidCallback onRepeat;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final disabled = !listo || narrando;
+    return Container(
+      decoration: BoxDecoration(
+        color: _azulHorizonte.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Icon(Icons.headphones_rounded, color: cs.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              listo ? 'Guía por voz: pulsa para repetir' : 'Preparando audio…',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton.icon(
+            onPressed: disabled ? null : onRepeat,
+            icon: const Icon(Icons.volume_up_rounded),
+            label: const Text('Repetir'),
+          ),
+        ],
       ),
     );
   }
