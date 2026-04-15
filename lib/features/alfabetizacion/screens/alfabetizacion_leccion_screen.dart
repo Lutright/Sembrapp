@@ -9,6 +9,7 @@ import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
 import '../services/alfabetizacion_tts_coach.dart';
 import '../widgets/abecedario_leccion_flow.dart';
+import '../widgets/lectura_guiada_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
@@ -320,6 +321,14 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       return AbecedarioLeccionFlow(
         leccion: leccion,
         onCompletar: _guardarProgreso,
+      );
+    }
+    final lecturaGuiadaConfig = LecturaGuiadaLeccionFlow.configForLeccion(leccion);
+    if (lecturaGuiadaConfig != null) {
+      return LecturaGuiadaLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+        config: lecturaGuiadaConfig,
       );
     }
 

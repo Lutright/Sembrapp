@@ -4,6 +4,31 @@
 const kFlujoVocalesGuiadoId = 'vocales_guiado';
 /// Flujo multipantalla + TTS usado por la lección [L1-2] Abecedario.
 const kFlujoAbecedarioGuiadoId = 'abecedario_guiado';
+/// Flujos guiados progresivos para Lectura (enseñanza + práctica + actividad).
+const kFlujoSilabasDirectasGuiadoId = 'silabas_directas_guiado';
+const kFlujoSilabasDirectasDosGuiadoId = 'silabas_directas_dos_guiado';
+const kFlujoPalabrasCortasGuiadoId = 'palabras_cortas_guiado';
+const kFlujoPalabrasCampoGuiadoId = 'palabras_campo_guiado';
+const kFlujoFrasesCortasGuiadoId = 'frases_cortas_guiado';
+const kFlujoComprensionBasicaGuiadoId = 'comprension_basica_guiado';
+const kFlujoDiscriminacionLetrasGuiadoId = 'discriminacion_letras_guiado';
+const kFlujoOrdenAlfabeticoBasicoGuiadoId = 'orden_alfabetico_basico_guiado';
+const kFlujoSilabasDirectasTresGuiadoId = 'silabas_directas_tres_guiado';
+const kFlujoSilabasDirectasCuatroGuiadoId = 'silabas_directas_cuatro_guiado';
+const kFlujoSilabasDirectasCincoGuiadoId = 'silabas_directas_cinco_guiado';
+const kFlujoSilabasMezclaGuiadoId = 'silabas_mezcla_guiado';
+const kFlujoPalabraImagenUnoGuiadoId = 'palabra_imagen_uno_guiado';
+const kFlujoPalabraImagenDosGuiadoId = 'palabra_imagen_dos_guiado';
+const kFlujoCompletarPalabraUnoGuiadoId = 'completar_palabra_uno_guiado';
+const kFlujoCompletarPalabraDosGuiadoId = 'completar_palabra_dos_guiado';
+const kFlujoFrasesRutinaUnoGuiadoId = 'frases_rutina_uno_guiado';
+const kFlujoFrasesRutinaDosGuiadoId = 'frases_rutina_dos_guiado';
+const kFlujoOrdenarFraseGuiadoId = 'ordenar_frase_guiado';
+const kFlujoFraseImagenGuiadoId = 'frase_imagen_guiado';
+const kFlujoComprensionQuienQueGuiadoId = 'comprension_quien_que_guiado';
+const kFlujoComprensionDondeGuiadoId = 'comprension_donde_guiado';
+const kFlujoSecuenciaBasicaGuiadoId = 'secuencia_basica_guiado';
+const kFlujoVocabularioContextualGuiadoId = 'vocabulario_contextual_guiado';
 /// Niveles progresivos; cada lección puede ser de tipo lectura o escritura.
 class PreguntaData {
   const PreguntaData({
@@ -78,7 +103,7 @@ class LeccionData {
 
 /// Contenido fijo para el prototipo (RF-A-03, RF-A-04).
 final alfabetizacionLecciones = <LeccionData>[
-  // --- Lectura nivel 1: vocales y abecedario ---
+  // --- Lectura nivel 1: fundamentos ---
   const LeccionData(
     id: 'L1-1',
     modulo: 'lectura',
@@ -133,35 +158,77 @@ final alfabetizacionLecciones = <LeccionData>[
     ],
     puntos: 10,
   ),
-  // --- Lectura nivel 2: sílabas ---
+  const LeccionData(
+    id: 'L1-3',
+    modulo: 'lectura',
+    nivel: 1,
+    titulo: 'Discriminación de letras',
+    contenido: 'Discriminación de letras',
+    flujoId: kFlujoDiscriminacionLetrasGuiadoId,
+    puntos: 10,
+  ),
+  const LeccionData(
+    id: 'L1-4',
+    modulo: 'lectura',
+    nivel: 1,
+    titulo: 'Orden alfabético básico',
+    contenido: 'Orden alfabético básico',
+    flujoId: kFlujoOrdenAlfabeticoBasicoGuiadoId,
+    puntos: 10,
+  ),
+  // --- Lectura nivel 2: sílabas directas ---
   const LeccionData(
     id: 'L2-1',
     modulo: 'lectura',
     nivel: 2,
-    titulo: 'Sílaba MA',
-    contenido: 'MA',
-    opciones: ['MA', 'ME', 'MO'],
-    respuestaCorrecta: 'MA',
+    titulo: 'Sílabas MA-ME-MI-MO-MU',
+    contenido: 'Sílabas directas 1',
+    flujoId: kFlujoSilabasDirectasGuiadoId,
     puntos: 15,
   ),
   const LeccionData(
     id: 'L2-2',
     modulo: 'lectura',
     nivel: 2,
-    titulo: 'Sílaba PA',
-    contenido: 'PA',
-    opciones: ['PA', 'PE', 'PO'],
-    respuestaCorrecta: 'PA',
+    titulo: 'Sílabas PA-PE-PI-PO-PU',
+    contenido: 'Sílabas directas 2',
+    flujoId: kFlujoSilabasDirectasDosGuiadoId,
     puntos: 15,
   ),
   const LeccionData(
     id: 'L2-3',
     modulo: 'lectura',
     nivel: 2,
-    titulo: 'Sílaba LA',
-    contenido: 'LA',
-    opciones: ['LA', 'LE', 'LI'],
-    respuestaCorrecta: 'LA',
+    titulo: 'Sílabas LA-LE-LI-LO-LU',
+    contenido: 'Sílabas directas 3',
+    flujoId: kFlujoSilabasDirectasTresGuiadoId,
+    puntos: 15,
+  ),
+  const LeccionData(
+    id: 'L2-4',
+    modulo: 'lectura',
+    nivel: 2,
+    titulo: 'Sílabas TA-TE-TI-TO-TU',
+    contenido: 'Sílabas directas 4',
+    flujoId: kFlujoSilabasDirectasCuatroGuiadoId,
+    puntos: 15,
+  ),
+  const LeccionData(
+    id: 'L2-5',
+    modulo: 'lectura',
+    nivel: 2,
+    titulo: 'Sílabas SA-SE-SI-SO-SU',
+    contenido: 'Sílabas directas 5',
+    flujoId: kFlujoSilabasDirectasCincoGuiadoId,
+    puntos: 15,
+  ),
+  const LeccionData(
+    id: 'L2-6',
+    modulo: 'lectura',
+    nivel: 2,
+    titulo: 'Mezcla de sílabas',
+    contenido: 'Mezcla de sílabas',
+    flujoId: kFlujoSilabasMezclaGuiadoId,
     puntos: 15,
   ),
   // --- Lectura nivel 3: palabras ---
@@ -169,21 +236,147 @@ final alfabetizacionLecciones = <LeccionData>[
     id: 'L3-1',
     modulo: 'lectura',
     nivel: 3,
-    titulo: 'Palabra: MAMA',
-    contenido: 'MAMA',
-    opciones: ['MAMA', 'PAPA', 'CASA'],
-    respuestaCorrecta: 'MAMA',
+    titulo: 'Palabras cortas',
+    contenido: 'Palabras cortas',
+    flujoId: kFlujoPalabrasCortasGuiadoId,
     puntos: 20,
   ),
   const LeccionData(
     id: 'L3-2',
     modulo: 'lectura',
     nivel: 3,
-    titulo: 'Palabra: PAPA',
-    contenido: 'PAPA',
-    opciones: ['PAPA', 'MAMA', 'PATO'],
-    respuestaCorrecta: 'PAPA',
+    titulo: 'Palabras del campo',
+    contenido: 'Palabras del campo',
+    flujoId: kFlujoPalabrasCampoGuiadoId,
     puntos: 20,
+  ),
+  const LeccionData(
+    id: 'L3-3',
+    modulo: 'lectura',
+    nivel: 3,
+    titulo: 'Asociación palabra-imagen 1',
+    contenido: 'Palabra e imagen 1',
+    flujoId: kFlujoPalabraImagenUnoGuiadoId,
+    puntos: 20,
+  ),
+  const LeccionData(
+    id: 'L3-4',
+    modulo: 'lectura',
+    nivel: 3,
+    titulo: 'Asociación palabra-imagen 2',
+    contenido: 'Palabra e imagen 2',
+    flujoId: kFlujoPalabraImagenDosGuiadoId,
+    puntos: 20,
+  ),
+  const LeccionData(
+    id: 'L3-5',
+    modulo: 'lectura',
+    nivel: 3,
+    titulo: 'Completa palabras MA y PA',
+    contenido: 'Completar palabras 1',
+    flujoId: kFlujoCompletarPalabraUnoGuiadoId,
+    puntos: 20,
+  ),
+  const LeccionData(
+    id: 'L3-6',
+    modulo: 'lectura',
+    nivel: 3,
+    titulo: 'Completa palabras LA y SA',
+    contenido: 'Completar palabras 2',
+    flujoId: kFlujoCompletarPalabraDosGuiadoId,
+    puntos: 20,
+  ),
+  // --- Lectura nivel 4: frases ---
+  const LeccionData(
+    id: 'L4-1',
+    modulo: 'lectura',
+    nivel: 4,
+    titulo: 'Frases cortas',
+    contenido: 'Frases cortas',
+    flujoId: kFlujoFrasesCortasGuiadoId,
+    puntos: 25,
+  ),
+  const LeccionData(
+    id: 'L4-2',
+    modulo: 'lectura',
+    nivel: 4,
+    titulo: 'Frases de rutina agrícola 1',
+    contenido: 'Frases de rutina 1',
+    flujoId: kFlujoFrasesRutinaUnoGuiadoId,
+    puntos: 25,
+  ),
+  const LeccionData(
+    id: 'L4-3',
+    modulo: 'lectura',
+    nivel: 4,
+    titulo: 'Frases de rutina agrícola 2',
+    contenido: 'Frases de rutina 2',
+    flujoId: kFlujoFrasesRutinaDosGuiadoId,
+    puntos: 25,
+  ),
+  const LeccionData(
+    id: 'L4-4',
+    modulo: 'lectura',
+    nivel: 4,
+    titulo: 'Ordenar palabras en frase',
+    contenido: 'Ordenar frase',
+    flujoId: kFlujoOrdenarFraseGuiadoId,
+    puntos: 25,
+  ),
+  const LeccionData(
+    id: 'L4-5',
+    modulo: 'lectura',
+    nivel: 4,
+    titulo: 'Elegir frase según imagen',
+    contenido: 'Frase e imagen',
+    flujoId: kFlujoFraseImagenGuiadoId,
+    puntos: 25,
+  ),
+  // --- Lectura nivel 5: comprensión ---
+  const LeccionData(
+    id: 'L5-1',
+    modulo: 'lectura',
+    nivel: 5,
+    titulo: 'Comprensión básica',
+    contenido: 'Comprensión básica',
+    flujoId: kFlujoComprensionBasicaGuiadoId,
+    puntos: 30,
+  ),
+  const LeccionData(
+    id: 'L5-2',
+    modulo: 'lectura',
+    nivel: 5,
+    titulo: 'Comprensión: quién y qué',
+    contenido: 'Comprensión quién y qué',
+    flujoId: kFlujoComprensionQuienQueGuiadoId,
+    puntos: 30,
+  ),
+  const LeccionData(
+    id: 'L5-3',
+    modulo: 'lectura',
+    nivel: 5,
+    titulo: 'Comprensión: dónde',
+    contenido: 'Comprensión dónde',
+    flujoId: kFlujoComprensionDondeGuiadoId,
+    puntos: 30,
+  ),
+  const LeccionData(
+    id: 'L5-4',
+    modulo: 'lectura',
+    nivel: 5,
+    titulo: 'Secuencia: primero y después',
+    contenido: 'Secuencia básica',
+    flujoId: kFlujoSecuenciaBasicaGuiadoId,
+    puntos: 30,
+  ),
+  const LeccionData(
+    id: 'L5-5',
+    modulo: 'lectura',
+    nivel: 5,
+    titulo: 'Vocabulario contextual',
+    contenido: 'Vocabulario contextual',
+    flujoId: kFlujoVocabularioContextualGuiadoId,
+    puntos: 30,
   ),
   // --- Escritura nivel 1 ---
   const LeccionData(
