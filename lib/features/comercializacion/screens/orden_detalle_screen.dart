@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/widgets/minimal_ui.dart';
 import '../repositories/orden_ayuda_repository.dart';
 import '../repositories/ordenes_repository.dart';
 
@@ -152,7 +151,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           .maybeSingle();
       if (mounted) {
         setState(() {
-          _orden = res as Map<String, dynamic>?;
+          _orden = res;
           _loading = false;
         });
       }
@@ -188,7 +187,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
-      if (mounted) setState(() => _solicitudAyudaReciente = res as Map<String, dynamic>?);
+      if (mounted) setState(() => _solicitudAyudaReciente = res);
     } catch (_) {
       if (mounted) setState(() => _solicitudAyudaReciente = null);
     }
@@ -387,16 +386,6 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     });
   }
 
-  static String _nombreRemitente(Map<String, dynamic> m, String? miId) {
-    if (m['sender_id'] == miId) return 'Tú';
-    final p = m['profiles'];
-    if (p is Map && p['full_name'] != null) return p['full_name'] as String;
-    if (p is List && p.isNotEmpty && p.first is Map) {
-      return (p.first as Map)['full_name'] as String? ?? 'Usuario';
-    }
-    return 'Usuario';
-  }
-
   Future<void> _enviarMensaje() async {
     final texto = _mensajeController.text.trim();
     final estado = (_orden?['estado'] as String? ?? '').toLowerCase();
@@ -414,25 +403,37 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const azul = Color(0xFF1A4463);
+    const rojo = Color(0xFFD34836);
+
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Orden'),
-          leading: MinimalBackButton(onPressed: () => _backFromOrden(context)),
+        body: Column(
+          children: [
+            _headerCompacto(context, 'Pedido', 'Pedido #...'),
+            const Expanded(child: Center(child: CircularProgressIndicator())),
+          ],
         ),
-        body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (_orden == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Orden'),
-          leading: MinimalBackButton(onPressed: () => _backFromOrden(context)),
+        body: Column(
+          children: [
+            _headerCompacto(context, 'Pedido', 'Pedido no encontrado'),
+            const Expanded(child: Center(child: Text('Orden no encontrada'))),
+          ],
         ),
-        body: const Center(child: Text('Orden no encontrada')),
       );
     }
     final estado = _orden!['estado'] as String? ?? 'pendiente';
+    final compradorNombre =
+        (_orden!['comprador_nombre'] as String?)?.trim().isNotEmpty == true
+            ? (_orden!['comprador_nombre'] as String?)!.trim()
+            : (_orden!['buyer_name'] as String?)?.trim().isNotEmpty == true
+                ? (_orden!['buyer_name'] as String?)!.trim()
+                : 'Comprador';
+    final pedidoId = _orden!['id'] as String? ?? widget.ordenId;
     final uid = Supabase.instance.client.auth.currentUser?.id;
     final isCampesinoDeLaOrden = uid == _orden!['campesino_id'];
     final sol = _solicitudAyudaReciente;
@@ -455,89 +456,88 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
         estado.toLowerCase() != 'cancelada' &&
         !ayudaEnCursoOAtendida;
     final chatPedidoHabilitado = estado.toLowerCase() != 'cancelada';
+    final estadoUpper = estado.toUpperCase();
+    final estadoLower = estado.toLowerCase();
+
+    Color estadoBg;
+    Color estadoFg;
+    if (estadoLower == 'cancelada' || estadoLower == 'cancelado') {
+      estadoBg = rojo.withValues(alpha: 0.10);
+      estadoFg = rojo;
+    } else if (estadoLower == 'completado' ||
+        estadoLower == 'completada' ||
+        estadoLower == 'entregado') {
+      estadoBg = Colors.green.withValues(alpha: 0.10);
+      estadoFg = Colors.green.shade700;
+    } else {
+      estadoBg = azul.withValues(alpha: 0.10);
+      estadoFg = azul;
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pedido'),
-        leading: MinimalBackButton(onPressed: () => _backFromOrden(context)),
-      ),
       body: Column(
         children: [
+          _headerCompacto(
+            context,
+            compradorNombre,
+            'Pedido #${pedidoId.length > 8 ? pedidoId.substring(0, 8) : pedidoId}',
+          ),
           Expanded(
-            child: ListView(
-              padding: AppPagePadding.screen,
-              children: [
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                        Text(
-                          'Coordinación del pedido',
-                          style: Theme.of(context).textTheme.titleMedium,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.5),
+                          width: 0.5,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Aquí acuerdan punto de encuentro y detalles.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: estado.toLowerCase() == 'cancelada'
-                                ? Theme.of(context).colorScheme.errorContainer
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Estado: ${estado.toUpperCase()}',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: estado.toLowerCase() == 'cancelada'
-                                      ? Theme.of(context)
-                                          .colorScheme
-                                          .onErrorContainer
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
-                        if (_items.isNotEmpty) ...[
-                          const SizedBox(height: 16),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            'Productos del pedido',
-                            style: Theme.of(context).textTheme.titleSmall,
+                            'Detalle del pedido',
+                            style:
+                                Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: azul,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      fontFamily: 'Montserrat',
+                                    ),
                           ),
-                          const SizedBox(height: 8),
+                          Divider(color: Colors.grey.withValues(alpha: 0.2), height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: estadoBg,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              estadoUpper,
+                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: estadoFg,
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: 'Montserrat',
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           ..._items.map((row) {
-                            final cant =
-                                (row['cantidad'] as num?)?.toDouble() ?? 0;
-                            final pu =
-                                (row['precio_unitario'] as num?)?.toDouble() ?? 0;
+                            final cant = (row['cantidad'] as num?)?.toDouble() ?? 0;
+                            final pu = (row['precio_unitario'] as num?)?.toDouble() ?? 0;
                             final sub = cant * pu;
                             final u = _unidadProducto(row);
                             final unidad = u.isEmpty ? '' : ' $u';
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -545,204 +545,294 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                     child: Text(
                                       '${_nombreProducto(row)} · '
                                       '${cant.toStringAsFixed(cant == cant.roundToDouble() ? 0 : 1)}$unidad',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            fontSize: 14,
+                                            fontFamily: 'Montserrat',
+                                          ),
                                     ),
                                   ),
-                                  Text('${sub.toStringAsFixed(0)} \$'),
+                                  Text(
+                                    '${sub.toStringAsFixed(0)} \$',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          fontSize: 14,
+                                          fontFamily: 'Montserrat',
+                                        ),
+                                  ),
                                 ],
                               ),
                             );
                           }),
-                          const Divider(height: 20),
+                          Divider(color: Colors.grey.withValues(alpha: 0.2)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 'Total',
-                                style: Theme.of(context).textTheme.titleSmall,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'Montserrat',
+                                    ),
                               ),
                               Text(
                                 '${_totalItems(_items).toStringAsFixed(0)} \$',
-                                style: Theme.of(context).textTheme.titleSmall,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontSize: 15,
+                                      color: azul,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'Montserrat',
+                                    ),
                               ),
                             ],
                           ),
-                        ],
-                        if (isCampesinoDeLaOrden) ...[
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: estado.toLowerCase() == 'cancelada'
-                                ? null
-                                : _confirmarCancelarPedido,
-                            icon: const Icon(Icons.cancel_outlined),
-                            label: const Text('Cancelar pedido'),
-                          ),
-                        ],
-                        if (ayudaChatDisponible) ...[
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          FilledButton.icon(
-                            onPressed: () {
-                              final id = sol?['id'] as String?;
-                              if (id != null) {
-                                context.push('/comercializacion/ayuda-chat/$id');
-                              }
-                            },
-                            icon: const Icon(Icons.chat_rounded),
-                            label: const Text('Chat entre productores (ayuda)'),
-                          ),
-                        ],
-                        if (isCampesinoDeLaOrden &&
-                            (ayudaAbiertaPropia || puedeNuevaAyuda)) ...[
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          Text(
-                            'Ayuda en la comunidad',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Marca los productos que no puedes cubrir. Otros productores cercanos verán tu pedido y podrán ayudarte por chat.',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (ayudaAbiertaPropia)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(
-                                      Icons.visibility_rounded,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Expanded(
-                                      child: Text(
-                                        'Tu solicitud está visible en Red comunitaria → Ayuda.',
-                                      ),
-                                    ),
-                                  ],
+                          if (isCampesinoDeLaOrden && estadoLower == 'pendiente') ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _confirmarCancelarPedido,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: rojo,
+                                  side: const BorderSide(color: rojo),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                                TextButton(
-                                  onPressed: _cancelarSolicitudAyuda,
-                                  child: const Text('Retirar de la red'),
+                                icon: const Icon(Icons.cancel_outlined, size: 16),
+                                label: const Text('Cancelar pedido'),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (ayudaChatDisponible) ...[
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () {
+                          final id = sol?['id'] as String?;
+                          if (id != null) {
+                            context.push('/comercializacion/ayuda-chat/$id');
+                          }
+                        },
+                        icon: const Icon(Icons.chat_rounded),
+                        label: const Text('Chat entre productores (ayuda)'),
+                      ),
+                    ],
+                    if (isCampesinoDeLaOrden &&
+                        (ayudaAbiertaPropia || puedeNuevaAyuda)) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: azul.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.people_outline,
+                                  color: azul,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Ayuda en la comunidad',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        color: azul,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                        fontFamily: 'Montserrat',
+                                      ),
                                 ),
                               ],
-                            )
-                          else if (puedeNuevaAyuda)
-                            FilledButton.tonalIcon(
-                              onPressed: _items.any((e) => e['id'] != null)
-                                  ? _mostrarDialogoPedirAyuda
-                                  : null,
-                              icon: const Icon(Icons.volunteer_activism_rounded),
-                              label: const Text('Pedir ayuda con productos'),
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Marca los productos que no puedes cubrir. Otros productores cercanos verán tu pedido y podrán ayudarte por chat.',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontSize: 13,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontFamily: 'Montserrat',
+                                  ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (ayudaAbiertaPropia)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.visibility_rounded, color: azul),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Tu solicitud está visible en Red comunitaria → Ayuda.',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  TextButton(
+                                    onPressed: _cancelarSolicitudAyuda,
+                                    child: const Text('Retirar de la red'),
+                                  ),
+                                ],
+                              )
+                            else if (puedeNuevaAyuda)
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: _items.any((e) => e['id'] != null)
+                                      ? _mostrarDialogoPedirAyuda
+                                      : null,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: rojo,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text('Pedir ayuda con productos'),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.chat_bubble_outline,
+                          color: azul,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Chat con el comprador',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                color: azul,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                fontFamily: 'Montserrat',
+                              ),
+                        ),
+                      ],
+                    ),
+                    Divider(color: Colors.grey.withValues(alpha: 0.2), height: 16),
+                    if (!chatPedidoHabilitado)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'Pedido cancelado — Chat inhabilitado',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBF9F1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        children: [
+                          ..._mensajes.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final m = entry.value;
+                            final miId = Supabase.instance.client.auth.currentUser?.id;
+                            final isMio = m['sender_id'] == miId;
+                            final nombre = isMio ? 'Tú' : compradorNombre;
+                            final prev = i > 0 ? _mensajes[i - 1] : null;
+                            final prevMio = prev != null && prev['sender_id'] == miId;
+                            final mostrarNombre = i == 0 || prevMio != isMio;
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                              child: Column(
+                                crossAxisAlignment: isMio
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
+                                children: [
+                                  if (mostrarNombre)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: Text(
+                                        nombre,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.withValues(alpha: 0.9),
+                                          fontFamily: 'Montserrat',
+                                        ),
+                                      ),
+                                    ),
+                                  Align(
+                                    alignment: isMio
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth:
+                                            MediaQuery.of(context).size.width * 0.76,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isMio ? azul : Colors.white,
+                                          border: isMio
+                                              ? null
+                                              : Border.all(
+                                                  color: Colors.grey.withValues(alpha: 0.5),
+                                                  width: 0.5,
+                                                ),
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(isMio ? 12 : 2),
+                                            topRight: Radius.circular(isMio ? 12 : 12),
+                                            bottomLeft: Radius.circular(isMio ? 12 : 12),
+                                            bottomRight: Radius.circular(isMio ? 2 : 12),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          m['mensaje'] as String? ?? '',
+                                          style:
+                                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                    color: isMio
+                                                        ? Colors.white
+                                                        : const Color(0xFF1A1A1A),
+                                                    fontFamily: 'Montserrat',
+                                                  ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 8),
                         ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-                ),
-              ],
             ),
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    isCampesinoDeLaOrden
-                        ? (chatPedidoHabilitado
-                            ? 'Chat con el comprador'
-                            : 'Pedido cancelado — Chat inhabilitado')
-                        : (chatPedidoHabilitado
-                            ? 'Chat con el productor'
-                            : 'Pedido cancelado — Chat inhabilitado'),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-              ],
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                top: BorderSide(color: Colors.grey.withValues(alpha: 0.2), width: 1),
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _mensajes.length,
-              itemBuilder: (context, i) {
-                final m = _mensajes[i];
-                final uid = Supabase.instance.client.auth.currentUser?.id;
-                final isMio = m['sender_id'] == uid;
-                final nombre = _nombreRemitente(m, uid);
-                return Align(
-                  alignment: isMio ? Alignment.centerRight : Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.8,
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isMio
-                            ? Theme.of(context).colorScheme.primaryContainer
-                            : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            nombre,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                  color: isMio
-                                      ? Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .primary,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            m['mensaje'] as String? ?? '',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
             child: Row(
               children: [
                 Expanded(
@@ -753,26 +843,103 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       hintText: chatPedidoHabilitado
                           ? 'Escribe un mensaje...'
                           : 'Chat inhabilitado',
-                      border: const OutlineInputBorder(),
+                      hintStyle: const TextStyle(fontFamily: 'Montserrat'),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: azul.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(
+                          color: azul,
+                          width: 1.2,
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: azul.withValues(alpha: 0.25),
+                        ),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
+                        horizontal: 16,
+                        vertical: 10,
                       ),
                       isDense: true,
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.send),
-                        onPressed: chatPedidoHabilitado ? _enviarMensaje : null,
-                      ),
                     ),
                     onSubmitted: (_) =>
                         chatPedidoHabilitado ? _enviarMensaje() : null,
                     textInputAction: TextInputAction.send,
                   ),
                 ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: azul,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                    onPressed: chatPedidoHabilitado ? _enviarMensaje : null,
+                  ),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _headerCompacto(BuildContext context, String titulo, String subtitulo) {
+    return Container(
+      color: const Color(0xFF1A4463),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 60,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 4,
+                top: 0,
+                bottom: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  onPressed: () => _backFromOrden(context),
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      titulo,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            fontFamily: 'Montserrat',
+                          ),
+                    ),
+                    Text(
+                      subtitulo,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 12,
+                            fontFamily: 'Montserrat',
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
