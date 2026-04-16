@@ -4,6 +4,8 @@
 const kFlujoVocalesGuiadoId = 'vocales_guiado';
 /// Flujo multipantalla + TTS usado por la lección [L1-2] Abecedario.
 const kFlujoAbecedarioGuiadoId = 'abecedario_guiado';
+/// Flujo multipantalla + trazo guiado para Escritura de vocales.
+const kFlujoEscrituraVocalesGuiadoId = 'escritura_vocales_guiado';
 /// Flujos guiados progresivos para Lectura (enseñanza + práctica + actividad).
 const kFlujoSilabasDirectasGuiadoId = 'silabas_directas_guiado';
 const kFlujoSilabasDirectasDosGuiadoId = 'silabas_directas_dos_guiado';
@@ -383,9 +385,9 @@ final alfabetizacionLecciones = <LeccionData>[
     id: 'E1-1',
     modulo: 'escritura',
     nivel: 1,
-    titulo: 'Escribe la letra A',
-    contenido: 'A',
-    respuestaCorrecta: 'A',
+    titulo: 'Escritura de vocales',
+    contenido: 'A E I O U',
+    flujoId: kFlujoEscrituraVocalesGuiadoId,
     puntos: 10,
   ),
   const LeccionData(
