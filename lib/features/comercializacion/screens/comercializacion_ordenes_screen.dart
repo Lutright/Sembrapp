@@ -276,7 +276,7 @@ class _ComercializacionOrdenesScreenState
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Aquí están tus compras con cada productor. Toca un pedido para ver detalles y coordinar la entrega por chat.',
+                              'Aquí están los pedidos que debes preparar y entregar. Toca uno para ver detalles y coordinar con el comprador por chat.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Color(0xD91A4463),
