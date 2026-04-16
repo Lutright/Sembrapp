@@ -345,7 +345,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('¿Confirmar entrega?'),
         content: const Text(
-          'Esto marcará el pedido como completado. El comprador será notificado.',
+          'Esto marcará el pedido como entregado. El comprador será notificado.',
         ),
         actions: [
           TextButton(
@@ -370,17 +370,23 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     if (ok != true || !mounted) return;
 
     try {
+      const estadoEntregado = 'entregada';
       await Supabase.instance.client
           .from('ordenes')
-          .update({'estado': 'COMPLETADO'})
+          .update({'estado': estadoEntregado})
           .eq('id', widget.ordenId)
           .eq('campesino_id', uid);
+
+      await _notificarEntregaAlComprador(
+        compradorId: orden['comprador_id'] as String?,
+        estado: estadoEntregado,
+      );
 
       if (!mounted) return;
       setState(() {
         _orden = {
           ..._orden!,
-          'estado': 'COMPLETADO',
+          'estado': estadoEntregado,
         };
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -391,6 +397,37 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No se pudo marcar como entregado: $e')),
       );
+    }
+  }
+
+  Future<void> _notificarEntregaAlComprador({
+    required String? compradorId,
+    required String estado,
+  }) async {
+    if (compradorId == null || compradorId.trim().isEmpty) return;
+    final shortId = widget.ordenId.length >= 4
+        ? widget.ordenId.substring(0, 4).toUpperCase()
+        : widget.ordenId.toUpperCase();
+    try {
+      await Supabase.instance.client.functions.invoke(
+        'push-webhook',
+        body: {
+          'type': 'UPDATE',
+          'table': 'ordenes',
+          'record': {
+            'id': widget.ordenId,
+            'comprador_id': compradorId,
+            'estado': estado,
+          },
+          'meta': {
+            'delivery_title': 'Tu pedido fue entregado',
+            'delivery_body':
+                'El productor marcó tu pedido #$shortId como entregado.',
+          },
+        },
+      );
+    } catch (_) {
+      // No bloqueamos el flujo de entrega si falla la notificación push.
     }
   }
 
@@ -551,6 +588,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
       estadoFg = rojo;
     } else if (estadoLower == 'completado' ||
         estadoLower == 'completada' ||
+        estadoLower == 'entregada' ||
         estadoLower == 'entregado') {
       estadoBg = Colors.green.withValues(alpha: 0.10);
       estadoFg = Colors.green.shade700;
