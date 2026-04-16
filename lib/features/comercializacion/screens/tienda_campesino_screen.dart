@@ -12,7 +12,6 @@ import '../repositories/productos_repository.dart';
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _rojoManta = Color(0xFFD34836);
 const Color _crema = Color(0xFFFBF9F1);
-const Color _ocreSuave = Color(0xFFE8D48B);
 
 // ─── OrganicHeaderClipper ────────────────────────────────────────────────────
 final class _OrganicHeaderClipper extends CustomClipper<Path> {
@@ -391,6 +390,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
     final titulo = widget.nombreTienda?.trim().isNotEmpty == true
         ? widget.nombreTienda!.trim()
         : 'Tienda';
+    final nombreProductor = titulo;
 
     return Scaffold(
       backgroundColor: _crema,
@@ -403,7 +403,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
               slivers: [
                 // Espacio para el header
                 SliverToBoxAdapter(
-                  child: SizedBox(height: isDestacado ? 260 : 230),
+                  child: const SizedBox(height: 124),
                 ),
 
                 // Barra de búsqueda
@@ -552,7 +552,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             left: 0,
             right: 0,
             top: 0,
-            height: isDestacado ? 240 : 210,
+            height: 120,
             child: IgnorePointer(
               ignoring: true,
               child: ClipPath(
@@ -583,85 +583,52 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             top: 0,
             child: SafeArea(
               bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Column(
+              child: SizedBox(
+                height: 120,
+                child: Stack(
                   children: [
-                    // Fila superior: botón atrás
-                    Row(
-                      children: [
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded,
-                              color: Colors.white, size: 28),
-                          onPressed: () => context.pop(),
-                        ),
-                        const Spacer(),
-                        // Placeholder para balance visual
-                        const SizedBox(width: 56),
-                      ],
-                    ),
-
-                    // Nombre HERO — protagonista absoluto
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        titulo,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                          shadows: isDestacado
-                              ? [
-                                  Shadow(
-                                    color: _ocreSuave.withValues(alpha: 0.4),
-                                    blurRadius: 20,
-                                  ),
-                                ]
-                              : null,
+                    Positioned(
+                      top: 8,
+                      left: 4,
+                      child: SafeArea(
+                        child: IconButton(
+                          icon: Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 6),
-
-                    // Badge "Productor Estrella" debajo del nombre
-                    if (isDestacado)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _ocreSuave.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _ocreSuave.withValues(alpha: 0.6),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.workspace_premium_rounded,
-                                size: 16, color: _ocreSuave),
-                            SizedBox(width: 6),
-                            Text(
-                              'PRODUCTOR ESTRELLA',
-                              style: TextStyle(
-                                fontFamily: 'Montserrat',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: _ocreSuave,
-                                letterSpacing: 1.2,
-                              ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(height: 8),
+                          Text(
+                            nombreProductor,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Montserrat',
                             ),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Tienda · Productos disponibles',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.75),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),

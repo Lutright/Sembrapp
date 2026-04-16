@@ -40,8 +40,15 @@ class _OrderStatusPill extends StatelessWidget {
     fg = Theme.of(context).colorScheme.onSurfaceVariant;
 
     if (e == 'pendiente' || e == 'creada') {
-      bg = Theme.of(context).colorScheme.tertiaryContainer;
-      fg = Theme.of(context).colorScheme.onTertiaryContainer;
+      bg = const Color(0xFFFFF3CD);
+      fg = const Color(0xFF856404);
+    } else if (e == 'confirmado' ||
+        e == 'confirmada' ||
+        e == 'aceptado' ||
+        e == 'aceptada' ||
+        e == 'ac') {
+      bg = const Color(0xFFD4EDDA);
+      fg = const Color(0xFF155724);
     } else if (e == 'cancelada' || e == 'cancelado') {
       bg = Theme.of(context).colorScheme.errorContainer;
       fg = Theme.of(context).colorScheme.onErrorContainer;
@@ -87,6 +94,8 @@ class ComercializacionOrdenesScreen extends StatefulWidget {
 class _ComercializacionOrdenesScreenState
     extends State<ComercializacionOrdenesScreen> {
   List<Map<String, dynamic>> _ordenes = [];
+  Map<String, String> _nombresProductorPorId = {};
+  Map<String, String> _nombresCompradorPorId = {};
   bool _loading = true;
   RealtimeChannel? _ordenesChannel;
   RealtimeChannel? _ordenesCompradorChannel;
@@ -126,15 +135,62 @@ class _ComercializacionOrdenesScreenState
           .select('*, orden_items(cantidad, precio_unitario)')
           .or('comprador_id.eq.$uid,campesino_id.eq.$uid')
           .order('created_at', ascending: false);
+      final ordenes = List<Map<String, dynamic>>.from(res as List);
+      final idsProductor = ordenes
+          .map((o) => o['campesino_id'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+      final idsComprador = ordenes
+          .map((o) => o['comprador_id'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+      final nombresProductor = await _cargarNombresPerfiles(idsProductor);
+      final nombresComprador = await _cargarNombresPerfiles(idsComprador);
       if (mounted) {
         setState(() {
-          _ordenes = List<Map<String, dynamic>>.from(res as List);
+          _ordenes = ordenes;
+          _nombresProductorPorId = nombresProductor;
+          _nombresCompradorPorId = nombresComprador;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<Map<String, String>> _cargarNombresPerfiles(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    try {
+      final res = await Supabase.instance.client
+          .from('profiles')
+          .select('id, full_name')
+          .inFilter('id', ids);
+      final out = <String, String>{};
+      for (final row in res as List) {
+        final m = row as Map<String, dynamic>;
+        final id = m['id'] as String?;
+        final fullName = m['full_name'] as String?;
+        if (id != null && fullName != null && fullName.trim().isNotEmpty) {
+          out[id] = fullName.trim();
+        }
+      }
+      return out;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  String _inicialesDe(String nombre) {
+    final parts = nombre
+        .split(RegExp(r'\s+'))
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'PR';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }
 
   void _suscribirRealtimeOrdenes() {
@@ -202,14 +258,33 @@ class _ComercializacionOrdenesScreenState
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 180, bottom: 20),
-                    child: Text(
-                      'Revisa el estado de tus compras de campo.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontFamily: 'Montserrat',
-                            color: Colors.black54,
+                    padding: const EdgeInsets.fromLTRB(20, 180, 20, 20),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A4463).withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: Color(0xFF1A4463),
                           ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Aquí están tus compras con cada productor. Toca un pedido para ver detalles y coordinar la entrega por chat.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xD91A4463),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -243,6 +318,11 @@ class _ComercializacionOrdenesScreenState
                           final o = _ordenes[i];
                           final id = o['id'] as String? ?? '';
                           final estado = o['estado'] as String? ?? 'Pendiente';
+                          final uid = Supabase.instance.client.auth.currentUser?.id;
+                          final productorId = o['campesino_id'] as String?;
+                          final compradorId = o['comprador_id'] as String?;
+                          final esVistaProductor =
+                              uid != null && productorId != null && uid == productorId;
 
                           // Manejo de variables con default premium y cálculo dinámico de items
                           double? totalDouble;
@@ -269,13 +349,32 @@ class _ComercializacionOrdenesScreenState
                               ? '\$${totalDouble.toStringAsFixed(0)}'
                               : '\$ --';
 
-                          final rawNombre = o['tienda_nombre']?.toString() ??
+                          final rawNombreProductor = o['tienda_nombre']?.toString() ??
                               o['productor_nombre']?.toString() ??
-                              o['vendedor_nombre']?.toString();
+                              o['vendedor_nombre']?.toString() ??
+                              (productorId != null
+                                  ? _nombresProductorPorId[productorId]
+                                  : null);
+                          final rawNombreComprador = o['comprador_nombre']?.toString() ??
+                              o['buyer_name']?.toString() ??
+                              o['cliente_nombre']?.toString() ??
+                              o['nombre_comprador']?.toString() ??
+                              (compradorId != null
+                                  ? _nombresCompradorPorId[compradorId]
+                                  : null);
+                          final fallbackNombre = esVistaProductor
+                              ? (compradorId != null && compradorId.length >= 4
+                                  ? 'Comprador ${compradorId.substring(compradorId.length - 4)}'
+                                  : 'Comprador')
+                              : (productorId != null && productorId.length >= 4
+                                  ? 'Productor ${productorId.substring(productorId.length - 4)}'
+                                  : 'Productor');
+                          final rawNombre =
+                              esVistaProductor ? rawNombreComprador : rawNombreProductor;
                           final tituloTarjeta =
                               (rawNombre != null && rawNombre.trim().isNotEmpty)
                                   ? rawNombre.trim()
-                                  : 'Productor';
+                                  : fallbackNombre;
 
                           final shortId =
                               id.length >= 8 ? id.substring(0, 8) : id;
@@ -332,11 +431,14 @@ class _ComercializacionOrdenesScreenState
                                       children: [
                                         CircleAvatar(
                                           radius: 28,
-                                          backgroundColor: cs.tertiaryContainer,
-                                          child: Icon(
-                                              Icons.shopping_bag_outlined,
-                                              color: cs.onTertiaryContainer,
-                                              size: 26),
+                                          backgroundColor: const Color(0xFF1A4463),
+                                          child: Text(
+                                            _inicialesDe(tituloTarjeta),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
                                         ),
                                         const SizedBox(width: 16),
                                         Expanded(
@@ -382,8 +484,7 @@ class _ComercializacionOrdenesScreenState
                                                                 'Montserrat',
                                                             fontWeight:
                                                                 FontWeight.bold,
-                                                            color: Colors.green
-                                                                .shade700, // Verde Premium
+                                                            color: const Color(0xFF1A4463),
                                                           ),
                                                     ),
                                                   ),

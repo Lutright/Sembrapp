@@ -438,22 +438,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: cs.surface,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: cs.primary,
-        foregroundColor: cs.onPrimary,
-        elevation: 6,
-        onPressed: () {
-          // Future redirect to Cart
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Carrito proximamente. Ahora añade productos navegando por las granjas.')),
-          );
-        },
-        child: Badge(
-          backgroundColor: cs.error,
-          label: const Text('0'), // Placeholder until state is added
-          child: const Icon(Icons.shopping_cart_rounded),
-        ),
-      ),
       body: Stack(
         children: [
           // Header Orgánico Fijo Superior

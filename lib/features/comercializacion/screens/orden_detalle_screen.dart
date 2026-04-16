@@ -334,6 +334,66 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     }
   }
 
+  Future<void> _marcarComoEntregado() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    final orden = _orden;
+    if (uid == null || orden == null) return;
+    if (uid != orden['campesino_id']) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Confirmar entrega?'),
+        content: const Text(
+          'Esto marcará el pedido como completado. El comprador será notificado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sí, entregar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+
+    try {
+      await Supabase.instance.client
+          .from('ordenes')
+          .update({'estado': 'COMPLETADO'})
+          .eq('id', widget.ordenId)
+          .eq('campesino_id', uid);
+
+      if (!mounted) return;
+      setState(() {
+        _orden = {
+          ..._orden!,
+          'estado': 'COMPLETADO',
+        };
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pedido marcado como entregado ✓')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo marcar como entregado: $e')),
+      );
+    }
+  }
+
   static String _nombreProducto(Map<String, dynamic> row) {
     final p = row['productos'];
     if (p is Map && p['nombre'] != null) return p['nombre'] as String;
@@ -433,9 +493,20 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             : (_orden!['buyer_name'] as String?)?.trim().isNotEmpty == true
                 ? (_orden!['buyer_name'] as String?)!.trim()
                 : 'Comprador';
+    final productorNombre =
+        (_orden!['campesino_nombre'] as String?)?.trim().isNotEmpty == true
+            ? (_orden!['campesino_nombre'] as String?)!.trim()
+            : (_orden!['seller_name'] as String?)?.trim().isNotEmpty == true
+                ? (_orden!['seller_name'] as String?)!.trim()
+                : (_orden!['productor_nombre'] as String?)?.trim().isNotEmpty == true
+                    ? (_orden!['productor_nombre'] as String?)!.trim()
+                    : 'Productor';
     final pedidoId = _orden!['id'] as String? ?? widget.ordenId;
     final uid = Supabase.instance.client.auth.currentUser?.id;
+    final isCompradorDeLaOrden = uid == _orden!['comprador_id'];
     final isCampesinoDeLaOrden = uid == _orden!['campesino_id'];
+    final otroParticipanteNombre =
+        isCompradorDeLaOrden ? productorNombre : compradorNombre;
     final sol = _solicitudAyudaReciente;
     final estadoSol = sol?['estado'] as String?;
     final sid = sol?['solicitante_id'] as String?;
@@ -458,10 +529,24 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     final chatPedidoHabilitado = estado.toLowerCase() != 'cancelada';
     final estadoUpper = estado.toUpperCase();
     final estadoLower = estado.toLowerCase();
+    final puedeMarcarEntregado = isCampesinoDeLaOrden &&
+        (estadoLower == 'pendiente' ||
+            estadoLower == 'confirmado' ||
+            estadoLower == 'confirmada');
 
     Color estadoBg;
     Color estadoFg;
-    if (estadoLower == 'cancelada' || estadoLower == 'cancelado') {
+    if (estadoLower == 'pendiente' || estadoLower == 'creada') {
+      estadoBg = const Color(0xFFFFF3CD);
+      estadoFg = const Color(0xFF856404);
+    } else if (estadoLower == 'confirmado' ||
+        estadoLower == 'confirmada' ||
+        estadoLower == 'aceptado' ||
+        estadoLower == 'aceptada' ||
+        estadoLower == 'ac') {
+      estadoBg = const Color(0xFFD4EDDA);
+      estadoFg = const Color(0xFF155724);
+    } else if (estadoLower == 'cancelada' || estadoLower == 'cancelado') {
       estadoBg = rojo.withValues(alpha: 0.10);
       estadoFg = rojo;
     } else if (estadoLower == 'completado' ||
@@ -600,6 +685,29 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                 ),
                                 icon: const Icon(Icons.cancel_outlined, size: 16),
                                 label: const Text('Cancelar pedido'),
+                              ),
+                            ),
+                          ],
+                          if (puedeMarcarEntregado) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: _marcarComoEntregado,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                                label: const Text('Marcar como entregado'),
                               ),
                             ),
                           ],
@@ -746,7 +854,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                             final m = entry.value;
                             final miId = Supabase.instance.client.auth.currentUser?.id;
                             final isMio = m['sender_id'] == miId;
-                            final nombre = isMio ? 'Tú' : compradorNombre;
+                            final nombre = isMio ? 'Tú' : otroParticipanteNombre;
                             final prev = i > 0 ? _mensajes[i - 1] : null;
                             final prevMio = prev != null && prev['sender_id'] == miId;
                             final mostrarNombre = i == 0 || prevMio != isMio;
