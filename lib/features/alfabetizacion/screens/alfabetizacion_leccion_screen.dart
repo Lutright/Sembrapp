@@ -5,36 +5,18 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
+import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
 import '../services/alfabetizacion_tts_coach.dart';
+import '../widgets/alfabetizacion_lesson_feedback.dart';
+import '../widgets/alfabetizacion_lesson_shell.dart';
 import '../widgets/abecedario_leccion_flow.dart';
 import '../widgets/escritura_vocales_leccion_flow.dart';
 import '../widgets/lectura_guiada_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 class AlfabetizacionLeccionScreen extends StatefulWidget {
   const AlfabetizacionLeccionScreen({
@@ -64,6 +46,9 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   bool _audioAutoYa = false;
   int _audioAutoPreguntaIndex = -1;
   bool _narrando = false;
+  int _narracionGen = 0;
+  bool _mostrarAciertoIntermedio = false;
+  int _aciertoAnimacion = 0;
 
   @override
   void initState() {
@@ -146,53 +131,74 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     }
   }
 
-  void _responderLectura(String opcion) {
+  Future<void> _responderLectura(String opcion) async {
     if (_completado || _leccion == null) return;
     final pregunta = _preguntaActual;
     if (pregunta == null) return;
+    _narracionGen++;
     final correcto = opcion == pregunta.respuestaCorrecta;
     if (correcto) {
-      unawaited(_ttsCoach.interrupt());
-      unawaited(_ttsCoach.speak('¡Muy bien!'));
-      _avanzarSiCorresponde();
+      await _ttsCoach.interrupt();
+      await _ttsCoach.speak(
+        '¡Muy bien!',
+        shouldContinue: () =>
+            mounted && alfabetizacionTtsRouteActive(context),
+      );
+      if (!mounted) return;
+      await _avanzarSiCorresponde();
       return;
     }
     setState(() {
       _correcto = correcto;
       _completado = true;
     });
-    unawaited(_ttsCoach.interrupt());
-    unawaited(_ttsCoach.speak('Incorrecto. Intenta otra vez.'));
+    await _ttsCoach.interrupt();
+    await _ttsCoach.speak(
+      'Incorrecto. Intenta otra vez.',
+      shouldContinue: () =>
+          mounted && alfabetizacionTtsRouteActive(context),
+    );
   }
 
-  void _responderEscritura(String texto) {
+  Future<void> _responderEscritura(String texto) async {
     if (_completado || _leccion == null) return;
     final pregunta = _preguntaActual;
     if (pregunta == null) return;
+    _narracionGen++;
     final esperada = (pregunta.respuestaCorrecta ?? '').trim().toUpperCase();
     final correcto = texto.trim().toUpperCase() == esperada;
     if (correcto) {
-      unawaited(_ttsCoach.interrupt());
-      unawaited(_ttsCoach.speak('¡Muy bien!'));
-      _avanzarSiCorresponde();
+      await _ttsCoach.interrupt();
+      await _ttsCoach.speak(
+        '¡Muy bien!',
+        shouldContinue: () =>
+            mounted && alfabetizacionTtsRouteActive(context),
+      );
+      if (!mounted) return;
+      await _avanzarSiCorresponde();
       return;
     }
     setState(() {
       _correcto = correcto;
       _completado = true;
     });
-    unawaited(_ttsCoach.interrupt());
-    unawaited(_ttsCoach.speak('No es correcto. Revisa e intenta otra vez.'));
+    await _ttsCoach.interrupt();
+    await _ttsCoach.speak(
+      'No es correcto. Revisa e intenta otra vez.',
+      shouldContinue: () =>
+          mounted && alfabetizacionTtsRouteActive(context),
+    );
   }
 
-  void _reintentar() {
+  Future<void> _reintentar() async {
+    _narracionGen++;
     setState(() {
       _completado = false;
       _correcto = null;
       _escrituraController?.clear();
     });
-    unawaited(_ttsCoach.interrupt());
-    unawaited(_narrarPreguntaActual(forzar: true));
+    await _ttsCoach.interrupt();
+    await _narrarPreguntaActual(forzar: true);
   }
 
   PreguntaData? get _preguntaActual {
@@ -224,22 +230,34 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final haySiguiente = _preguntaIndex + 1 < total;
     if (haySiguiente) {
       setState(() {
+        _aciertoAnimacion++;
+        _mostrarAciertoIntermedio = true;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 720));
+      if (!mounted) return;
+      setState(() {
         _preguntaIndex++;
         _escrituraController?.clear();
+        _mostrarAciertoIntermedio = false;
       });
-      unawaited(_narrarPreguntaActual());
+      await _narrarPreguntaActual();
       return;
     }
+    _narracionGen++;
     setState(() {
       _correcto = true;
       _completado = true;
     });
     await _guardarProgreso();
-    unawaited(_ttsCoach.interrupt());
-    unawaited(_ttsCoach.speakSequence(const [
-      'Completaste la lección. Muy bien.',
-      'Pulsa volver para regresar al menú.',
-    ]));
+    await _ttsCoach.interrupt();
+    await _ttsCoach.speakSequence(
+      const [
+        'Completaste la lección. Muy bien.',
+        'Pulsa volver para regresar al menú.',
+      ],
+      shouldContinue: () =>
+          mounted && alfabetizacionTtsRouteActive(context),
+    );
   }
 
   Future<void> _guardarProgreso() async {
@@ -348,127 +366,93 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       });
     }
 
-    return Scaffold(
-      body: Stack(
+    final totalP = leccion.preguntas.length;
+    final progresoLineal = totalP > 0
+        ? ((_completado && _correcto == true)
+            ? 1.0
+            : ((_preguntaIndex + 1) / totalP).clamp(0.0, 1.0))
+        : 0.0;
+    final etiquetaPaso = _completado && _correcto == true
+        ? '¡Lección completada!'
+        : _completado && _correcto == false
+            ? 'Revisa tu respuesta'
+            : 'Avance: ${_preguntaIndex + 1} / $totalP';
+
+    return AlfabetizacionLessonShell(
+      title: leccion.titulo,
+      subtitle:
+          '${leccion.esLectura ? 'Lectura' : 'Escritura'} · Nivel ${leccion.nivel}',
+      progress: progresoLineal,
+      stepLabel: etiquetaPaso,
+      useCloseButton: true,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 124),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Responde todas las preguntas para completar esta lección.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Responde todas las preguntas para completar esta lección.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.45,
                     ),
-                    const SizedBox(height: 24),
-                    _buildProgresoPregunta(context, leccion),
-                    const SizedBox(height: 12),
-                    _buildAudioCoachBar(context, leccion),
-                    const SizedBox(height: 16),
-                    if (!_completado) ...[
-                      _buildContenido(context, leccion),
-                      const SizedBox(height: 32),
-                      if (leccion.esLectura) _buildOpcionesLectura(context, leccion),
-                      if (leccion.esEscritura) _buildEntradaEscritura(context, leccion),
-                    ] else if (_correcto == true) ...[
-                      _buildResumenExito(context, leccion),
-                      const SizedBox(height: 24),
-                      FilledButton(
-                        onPressed: () => context.pop(),
-                        child: const Text('Volver'),
-                      ),
-                    ] else ...[
-                      _buildResumenError(context),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _reintentar,
-                        child: const Text('Reintentar'),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: () => context.pop(),
-                        child: const Text('Salir de la lección'),
-                      ),
-                    ],
-                  ],
+              ),
+              const SizedBox(height: 18),
+              _buildAudioCoachBar(context, leccion),
+              const SizedBox(height: 18),
+              if (!_completado) ...[
+                _buildContenido(context, leccion),
+                const SizedBox(height: 24),
+                if (leccion.esLectura) _buildOpcionesLectura(context, leccion),
+                if (leccion.esEscritura) _buildEntradaEscritura(context, leccion),
+              ] else if (_correcto == true) ...[
+                _buildResumenExito(context, leccion),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () => context.pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(52),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Volver al módulo'),
                 ),
+              ] else ...[
+                _buildResumenError(context),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => _reintentar(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(52),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Reintentar'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => context.pop(),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text('Salir de la lección'),
+                ),
+              ],
+            ],
+          ),
+          if (_mostrarAciertoIntermedio)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AlfabetizacionLessonCorrectBanner(
+                animationTick: _aciertoAnimacion,
               ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        style: IconButton.styleFrom(
-                          minimumSize:
-                              const Size(kMinimalTouchTarget, kMinimalTouchTarget),
-                        ),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          leccion.titulo,
-                          textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontFamily: 'Montserrat',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${leccion.esLectura ? 'Lectura' : 'Escritura'} · Nivel ${leccion.nivel}',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 13,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -479,13 +463,16 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final disabled = !_ttsListo || _narrando;
     return Container(
       decoration: BoxDecoration(
-        color: _azulHorizonte.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(16),
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+        boxShadow: AlfabetizacionLessonTokens.cardShadow,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Icon(Icons.headphones_rounded, color: cs.primary, size: 20),
+          const Icon(Icons.headphones_rounded,
+              color: AlfabetizacionLessonTokens.accentBlue, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -498,10 +485,9 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
                   ),
             ),
           ),
-          const SizedBox(width: 10),
           TextButton.icon(
             onPressed: disabled ? null : () => unawaited(_narrarPreguntaActual(forzar: true)),
-            icon: const Icon(Icons.volume_up_rounded),
+            icon: const Icon(Icons.volume_up_rounded, size: 20),
             label: const Text('Repetir'),
           ),
         ],
@@ -513,13 +499,17 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final leccion = _leccion;
     if (leccion == null || !_ttsListo) return;
     await _ttsCoach.interrupt();
-    await _ttsCoach.speakSequence([
-      'Lección: ${leccion.titulo}.',
-      'Escucha la pregunta y luego responde.',
-      leccion.esLectura
-          ? 'Toca una opción para elegir la respuesta.'
-          : 'Escribe tu respuesta y luego pulsa comprobar.',
-    ]);
+    await _ttsCoach.speakSequence(
+      [
+        'Lección: ${leccion.titulo}.',
+        'Escucha la pregunta y luego responde.',
+        leccion.esLectura
+            ? 'Toca una opción para elegir la respuesta.'
+            : 'Escribe tu respuesta y luego pulsa comprobar.',
+      ],
+      shouldContinue: () =>
+          mounted && alfabetizacionTtsRouteActive(context),
+    );
     await _narrarPreguntaActual();
   }
 
@@ -528,6 +518,8 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     final pregunta = _preguntaActual;
     if (leccion == null || pregunta == null || !_ttsListo) return;
     if (!forzar && _audioAutoPreguntaIndex == _preguntaIndex) return;
+    _narracionGen++;
+    final gen = _narracionGen;
     _audioAutoPreguntaIndex = _preguntaIndex;
     if (!mounted) return;
 
@@ -551,7 +543,13 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       } else if (leccion.esEscritura) {
         partes.add('Escribe tu respuesta y pulsa comprobar.');
       }
-      await _ttsCoach.speakSequence(partes);
+      await _ttsCoach.speakSequence(
+        partes,
+        shouldContinue: () =>
+            mounted &&
+            gen == _narracionGen &&
+            alfabetizacionTtsRouteActive(context),
+      );
     } finally {
       if (mounted) setState(() => _narrando = false);
     }
@@ -573,16 +571,20 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
 
     return Container(
       decoration: BoxDecoration(
-        color: _azulHorizonte.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(20),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+        boxShadow: AlfabetizacionLessonTokens.cardShadow,
       ),
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
       child: Column(
         children: [
-          Text(
+          const Text(
             'Letra modelo',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               color: _azulHorizonte,
               fontWeight: FontWeight.bold,
@@ -606,7 +608,7 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color: _azulHorizonte.withOpacity(0.6),
+                color: _azulHorizonte.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -655,13 +657,13 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.edit, color: _azulHorizonte, size: 16),
-            const SizedBox(width: 6),
+            Icon(Icons.edit, color: _azulHorizonte, size: 16),
+            SizedBox(width: 6),
             Text(
               'Ahora escríbela tú',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: _azulHorizonte,
@@ -697,45 +699,11 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     );
   }
 
-  Widget _buildProgresoPregunta(BuildContext context, LeccionData leccion) {
-    final total = leccion.preguntas.length;
-    final actual = (_preguntaIndex + 1).clamp(1, total);
-    return Text(
-      'Pregunta $actual de $total',
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w700,
-          ),
-      textAlign: TextAlign.center,
-    );
-  }
-
   Widget _buildResumenExito(BuildContext context, LeccionData leccion) {
-    return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Icon(
-              Icons.check_circle_rounded,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '¡Correcto!',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              '+${leccion.puntos} puntos',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ),
-      ),
+    return AlfabetizacionLessonCompletionPanel(
+      headline: '¡Lo lograste!',
+      detail: 'Has completado: ${leccion.titulo}',
+      pointsLabel: '+${leccion.puntos} puntos',
     );
   }
 

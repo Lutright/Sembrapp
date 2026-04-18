@@ -152,7 +152,11 @@ class _AlfabetizacionLeccionesListScreenState
         }
       }
       partes.add('Si necesitas ayuda, pulsa repetir.');
-      await _ttsCoach.speakSequence(partes);
+      await _ttsCoach.speakSequence(
+        partes,
+        shouldContinue: () =>
+            mounted && alfabetizacionTtsRouteActive(context),
+      );
     } finally {
       if (mounted) setState(() => _narrando = false);
     }

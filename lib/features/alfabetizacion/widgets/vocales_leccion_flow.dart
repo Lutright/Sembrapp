@@ -8,7 +8,11 @@ import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
+import '../services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_feedback.dart';
+import 'alfabetizacion_lesson_shell.dart';
 
 /// Flujo en 6 etapas para la lección Vocales: intro → presentación → práctica →
 /// actividad (con retroalimentación) → recompensa. Audio con TTS en español.
@@ -24,27 +28,6 @@ class VocalesLeccionFlow extends StatefulWidget {
 
   @override
   State<VocalesLeccionFlow> createState() => _VocalesLeccionFlowState();
-}
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class _VocalPaso {
@@ -86,12 +69,8 @@ enum _Fase {
   recompensa,
 }
 
-class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
-    with SingleTickerProviderStateMixin {
+class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
   static const Color _azulHorizonte = Color(0xFF1A4463);
-  static const Color _rojoManta = Color(0xFFD34836);
-  static const Color _ocrePremium = Color(0xFFE8D48B);
-  static const Color _ocrePremiumOscuro = Color(0xFF8B6914);
   static const _vocales = <_VocalPaso>[
     _VocalPaso(letra: 'A', deEjemplo: 'A de árbol', emoji: '🌳'),
     _VocalPaso(letra: 'E', deEjemplo: 'E de escoba', emoji: '🧹'),
@@ -133,12 +112,16 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   final stt.SpeechToText _speech = stt.SpeechToText();
 
   bool _ttsListo = false;
+  bool _ttsDisposed = false;
   bool _introAudioYa = false;
   bool _progresoGuardado = false;
 
   /// Invalida audios encolados al cambiar de pantalla / avanzar antes de que termine la voz.
   int _ttsGen = 0;
   Future<void> _ttsQueue = Future.value();
+
+  bool _ttsFlujoOk() =>
+      mounted && !_ttsDisposed && alfabetizacionTtsRouteActive(context);
 
   Future<void> _ttsStopSeguro() async {
     try {
@@ -168,19 +151,11 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   String? _opcionActividadSeleccionada;
   bool? _opcionActividadFueCorrecta;
 
-  late final AnimationController _celebracionCtrl;
-  late final Animation<double> _celebracionScale;
+  int _aciertoAnimacion = 0;
 
   @override
   void initState() {
     super.initState();
-    _celebracionCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _celebracionScale = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _celebracionCtrl, curve: Curves.elasticOut),
-    );
     _inicializarTts();
     _inicializarSpeech();
   }
@@ -250,7 +225,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
 
   /// Ejecuta un bloque de TTS en serie; si el usuario avanza, [miGen] deja de coincidir y se omite.
   Future<void> _ttsEncolar(Future<void> Function(int miGen) accion) async {
-    if (!_ttsListo) return;
+    if (!_ttsListo || _ttsDisposed) return;
     final miGen = _ttsGen;
     final hecho = Completer<void>();
     _ttsQueue = _ttsQueue.then((_) async {
@@ -269,7 +244,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   }
 
   Future<void> _hablar(String texto) async {
-    if (!_ttsListo || texto.isEmpty) return;
+    if (!_ttsListo || texto.isEmpty || !_ttsFlujoOk()) return;
     await _ttsEncolar((miGen) async {
       if (miGen != _ttsGen) return;
       await _tts.setSpeechRate(_ttsRateNormal);
@@ -280,7 +255,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
 
   /// Nombre claro de la vocal (el motor suele fallar o confundir la «E» suelta).
   Future<void> _hablarLetraVocal(String letra) async {
-    if (!_ttsListo || letra.isEmpty) return;
+    if (!_ttsListo || letra.isEmpty || !_ttsFlujoOk()) return;
     final texto = 'Vocal $letra';
     await _ttsEncolar((miGen) async {
       try {
@@ -300,11 +275,11 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     if (_introAudioYa || _fase != _Fase.intro) return;
     _introAudioYa = true;
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted || _fase != _Fase.intro) return;
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
     await _hablar('Vamos a aprender las vocales');
-    if (!mounted || _fase != _Fase.intro) return;
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
     await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted || _fase != _Fase.intro) return;
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
     await _hablar('Pulsa el botón verde para empezar');
   }
 
@@ -316,13 +291,15 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
 
   @override
   void dispose() {
+    _ttsDisposed = true;
+    _ttsGen++;
+    unawaited(_ttsStopSeguro());
     unawaited(_tts.stop());
     if (_speechDisponible) {
       try {
         unawaited(_speech.stop());
       } catch (_) {}
     }
-    _celebracionCtrl.dispose();
     super.dispose();
   }
 
@@ -345,15 +322,15 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   String get _etiquetaPaso {
     switch (_fase) {
       case _Fase.intro:
-        return 'Pantalla 1 · Introducción';
+        return 'Introducción';
       case _Fase.presentacion:
-        return 'Pantalla 2 · Las vocales (${_indicePresentacion + 1} de ${_vocales.length})';
+        return 'Enseñanza · ${_indicePresentacion + 1} de ${_vocales.length}';
       case _Fase.practica:
-        return 'Pantalla 3 · Práctica guiada (${_indicePractica + 1} de ${_vocales.length})';
+        return 'Práctica guiada · ${_indicePractica + 1} de ${_vocales.length}';
       case _Fase.actividad:
-        return 'Pantalla 4 · Actividad (${_indiceEjercicio + 1} de ${_ejercicios.length})';
+        return 'Actividad · ${_indiceEjercicio + 1} de ${_ejercicios.length}';
       case _Fase.recompensa:
-        return 'Pantalla 6 · Recompensa';
+        return '¡Lección completada!';
     }
   }
 
@@ -361,10 +338,10 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     final v = _vocales[_indicePresentacion];
     await _hablar(v.deEjemplo);
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted || _fase != _Fase.presentacion) return;
-    await _hablar('Pulsa el botón blanco para escuchar la vocal');
+    if (!mounted || _fase != _Fase.presentacion || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa Escuchar si quieres oírla de nuevo');
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted || _fase != _Fase.presentacion) return;
+    if (!mounted || _fase != _Fase.presentacion || !_ttsFlujoOk()) return;
     await _hablar('Pulsa el botón verde para continuar');
   }
 
@@ -399,23 +376,23 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
 
   Future<void> _entradaPracticaActual() async {
     // [_siguientePresentacion] / [_siguientePractica] ya llamaron a [_ttsInterrumpir].
-    if (!mounted || _fase != _Fase.practica) return;
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
     await _hablar('Escucha y repite');
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted || _fase != _Fase.practica) return;
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
     await _hablarLetraVocal(_vocales[_indicePractica].letra);
     await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted || _fase != _Fase.practica) return;
-    await _hablar('Pulsa el botón blanco para escuchar de nuevo');
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa Escuchar otra vez cuando quieras repetir');
     if (_speechDisponible) {
       await Future<void>.delayed(const Duration(milliseconds: 400));
-      if (!mounted || _fase != _Fase.practica) return;
+      if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
       await _hablar(
         'Pulsa el botón del micrófono, di la vocal en voz alta y espera un momento',
       );
     }
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted || _fase != _Fase.practica) return;
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
     await _hablar('Pulsa el botón verde para continuar');
   }
 
@@ -481,7 +458,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
   Future<void> _pulsarMicrofonoPractica() async {
     if (!_speechDisponible) {
       await _hablar(
-        'En este aparato no está disponible el micrófono. Pulsa el botón blanco para escuchar.',
+        'En este aparato no está disponible el micrófono. Pulsa Escuchar otra vez para escuchar.',
       );
       return;
     }
@@ -539,7 +516,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     final ej = _ejercicios[_indiceEjercicio];
     await _hablar('Selecciona la respuesta correcta');
     await Future<void>.delayed(const Duration(milliseconds: 350));
-    if (!mounted || _fase != _Fase.actividad) return;
+    if (!mounted || _fase != _Fase.actividad || !_ttsFlujoOk()) return;
     await _hablar(ej.audioInstruccion);
   }
 
@@ -555,6 +532,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
       setState(() {
         _actividadBloqueada = true;
         _mostrarMuyBien = true;
+        _aciertoAnimacion++;
         _opcionActividadSeleccionada = opcion;
         _opcionActividadFueCorrecta = true;
       });
@@ -563,8 +541,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
       } catch (_) {}
       await _hablar('¡Muy bien!');
       if (!mounted) return;
-      await _celebracionCtrl.forward(from: 0);
-      await Future<void>.delayed(const Duration(milliseconds: 1400));
+      await Future<void>.delayed(const Duration(milliseconds: 950));
       if (!mounted) return;
       if (_indiceEjercicio < _ejercicios.length - 1) {
         setState(() {
@@ -615,146 +592,28 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     });
     await _hablar('Completaste la lección. Muy bien.');
     await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
+    if (!mounted || !_ttsFlujoOk()) return;
     await _hablar('Pulsa el botón verde para volver');
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final tituloModulo =
         widget.leccion.modulo == 'lectura' ? 'Lectura' : 'Escritura';
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 124),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        LinearProgressIndicator(
-                          value: _progresoLineal,
-                          borderRadius: BorderRadius.circular(8),
-                          minHeight: 6,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _etiquetaPaso,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: _fase == _Fase.recompensa
-                        ? Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Center(
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 320),
-                                child: KeyedSubtree(
-                                  key: ValueKey(
-                                    (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
-                                  ),
-                                  child: _cuerpoFase(context),
-                                ),
-                              ),
-                            ),
-                          )
-                        : SingleChildScrollView(
-                            padding: const EdgeInsets.all(20),
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 320),
-                              child: KeyedSubtree(
-                                key: ValueKey(
-                                  (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
-                                ),
-                                child: _cuerpoFase(context),
-                              ),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
+    return AlfabetizacionLessonShell(
+      title: widget.leccion.titulo,
+      subtitle: '$tituloModulo · Nivel ${widget.leccion.nivel}',
+      progress: _progresoLineal,
+      stepLabel: _etiquetaPaso,
+      centerChild: _fase == _Fase.recompensa,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        child: KeyedSubtree(
+          key: ValueKey(
+            (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.leccion.titulo,
-                          textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontFamily: 'Montserrat',
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '$tituloModulo · Nivel ${widget.leccion.nivel}',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          child: _cuerpoFase(context),
+        ),
       ),
     );
   }
@@ -779,89 +638,102 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: AspectRatio(
-            aspectRatio: 4 / 3,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    scheme.primaryContainer.withValues(alpha: 0.85),
-                    scheme.tertiaryContainer.withValues(alpha: 0.6),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AlfabetizacionLessonTokens.cardShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primaryContainer.withValues(alpha: 0.92),
+                      scheme.tertiaryContainer.withValues(alpha: 0.65),
+                      scheme.secondaryContainer.withValues(alpha: 0.45),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.record_voice_over_rounded, size: 88, color: scheme.primary),
+                    const SizedBox(height: 14),
+                    Icon(Icons.menu_book_rounded, size: 58, color: scheme.tertiary),
                   ],
                 ),
               ),
-              child: Column(
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        AlfabetizacionLessonSurface(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.agriculture_rounded,
-                    size: 96,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(height: 12),
-                  Icon(
-                    Icons.nature_people_rounded,
-                    size: 72,
-                    color: scheme.tertiary,
+                  const Icon(Icons.headphones_rounded,
+                      color: AlfabetizacionLessonTokens.accentBlue, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Guía por voz',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AlfabetizacionLessonTokens.accentBlue,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.headphones_rounded, color: scheme.primary, size: 28),
-            const SizedBox(width: 8),
-            Text(
-              'Audio',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Vamos a aprender las vocales',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: 14),
+              Text(
+                'Vamos a aprender las vocales',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                    ),
               ),
-        ),
-        const SizedBox(height: 18),
-        OutlinedButton.icon(
-          onPressed: _ttsListo ? _escucharIntroduccion : null,
-          icon: const Icon(Icons.volume_up_rounded),
-          label: const Text('Escuchar introducción'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(52),
-            side: const BorderSide(color: _azulHorizonte, width: 1.5),
-            foregroundColor: _azulHorizonte,
-            textStyle: const TextStyle(fontWeight: FontWeight.w800),
-            shape: const StadiumBorder(),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: _ttsListo ? _escucharIntroduccion : null,
+                icon: const Icon(Icons.volume_up_rounded),
+                label: const Text('Escuchar introducción'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  side: const BorderSide(color: _azulHorizonte, width: 1.5),
+                  foregroundColor: _azulHorizonte,
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: _ttsListo ? _empezarPresentacion : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(52),
+                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Empezar lección'),
+              ),
+              if (!_ttsListo) ...[
+                const SizedBox(height: 18),
+                const Center(child: CircularProgressIndicator()),
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 14),
-        FilledButton(
-          onPressed: _ttsListo ? _empezarPresentacion : null,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(52),
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          child: const Text('Empezar lección'),
-        ),
-        if (!_ttsListo) ...[
-          const SizedBox(height: 16),
-          const Center(child: CircularProgressIndicator()),
-        ],
       ],
     );
   }
@@ -872,37 +744,49 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Vocal ${v.letra}',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: scheme.primary,
-                fontWeight: FontWeight.w800,
+        AlfabetizacionLessonSurface(
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Vocal ${v.letra}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AlfabetizacionLessonTokens.accentBlue,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
               ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          v.letra,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                fontSize: 96,
-                height: 1,
+              const SizedBox(height: 16),
+              Text(
+                v.letra,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 96,
+                      height: 1,
+                      color: scheme.primary,
+                    ),
               ),
+              const SizedBox(height: 8),
+              Text(
+                v.emoji,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 80),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                v.deEjemplo,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          v.emoji,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 88),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          v.deEjemplo,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         OutlinedButton.icon(
           onPressed: _repetirSonidoVocalPresentacion,
           icon: const Icon(Icons.volume_up_rounded),
@@ -914,11 +798,11 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
             shape: const StadiumBorder(),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
         FilledButton(
           onPressed: _siguientePresentacion,
           style: FilledButton.styleFrom(
-            backgroundColor: _rojoManta,
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
             foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(52),
             shape: const StadiumBorder(),
@@ -948,7 +832,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
         ),
         const SizedBox(height: 8),
         Text(
-          'Toca la letra, el botón blanco o el micrófono.',
+          'Toca la letra, el botón Escuchar o el micrófono.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: scheme.onSurfaceVariant,
@@ -1022,7 +906,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
         FilledButton(
           onPressed: _siguientePractica,
           style: FilledButton.styleFrom(
-            backgroundColor: _rojoManta,
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
             foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(52),
             shape: const StadiumBorder(),
@@ -1044,27 +928,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_mostrarMuyBien) ...[
-          ScaleTransition(
-            scale: _celebracionScale,
-            child: Card(
-              color: scheme.primaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Icon(Icons.celebration_rounded, size: 56, color: scheme.primary),
-                    const SizedBox(height: 8),
-                    Text(
-                      '¡Muy bien!',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          AlfabetizacionLessonCorrectBanner(animationTick: _aciertoAnimacion),
           const SizedBox(height: 16),
         ],
         if (_mostrarIntentaDeNuevo) ...[
@@ -1169,73 +1033,21 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: _ocrePremium.withOpacity(0.20),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            children: [
-              const Text('🏆', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 12),
-              Text(
-                'Completaste la lección',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '+${widget.leccion.puntos} puntos',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: _ocrePremiumOscuro,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                    ),
-              ),
-            ],
-          ),
+        AlfabetizacionLessonCompletionPanel(
+          headline: '¡Lo lograste!',
+          detail: 'Lección: ${widget.leccion.titulo}',
+          pointsLabel: '+${widget.leccion.puntos} puntos',
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            color: _azulHorizonte.withOpacity(0.07),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.star_rounded,
-                color: _ocrePremium,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Progreso del módulo: 10%',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 8),
         FilledButton(
           onPressed: () => context.pop(),
           style: FilledButton.styleFrom(
-            backgroundColor: _rojoManta,
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
             foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(56),
             shape: const StadiumBorder(),
           ),
-          child: const Text('Volver'),
+          child: const Text('Volver al módulo'),
         ),
       ],
     );
@@ -1245,7 +1057,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     if (_opcionActividadSeleccionada != opcion) return Colors.white;
     final ok = _opcionActividadFueCorrecta;
     if (ok == true) return Colors.green.shade100;
-    if (ok == false) return _rojoManta.withOpacity(0.10);
+    if (ok == false) return AlfabetizacionUiColors.rojoAcento.withValues(alpha: 0.10);
     return Colors.white;
   }
 
@@ -1253,7 +1065,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
     final ok = _opcionActividadFueCorrecta;
     if (ok == true) return Colors.green.shade700;
-    if (ok == false) return _rojoManta;
+    if (ok == false) return AlfabetizacionUiColors.rojoAcento;
     return _azulHorizonte;
   }
 
@@ -1261,7 +1073,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow>
     if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
     final ok = _opcionActividadFueCorrecta;
     if (ok == true) return Colors.green.shade800;
-    if (ok == false) return _rojoManta;
+    if (ok == false) return AlfabetizacionUiColors.rojoAcento;
     return _azulHorizonte;
   }
 

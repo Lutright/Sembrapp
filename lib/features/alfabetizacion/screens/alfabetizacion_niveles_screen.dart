@@ -139,7 +139,11 @@ class _AlfabetizacionNivelesScreenState
         partes.add('Si no ves niveles abiertos, primero completa las lecciones anteriores.');
       }
       partes.add('Si necesitas ayuda, pulsa repetir.');
-      await _ttsCoach.speakSequence(partes);
+      await _ttsCoach.speakSequence(
+        partes,
+        shouldContinue: () =>
+            mounted && alfabetizacionTtsRouteActive(context),
+      );
     } finally {
       if (mounted) setState(() => _narrando = false);
     }

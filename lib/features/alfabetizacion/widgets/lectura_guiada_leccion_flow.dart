@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_feedback.dart';
+import 'alfabetizacion_lesson_shell.dart';
 
 class LecturaGuiadaLeccionFlow extends StatefulWidget {
   const LecturaGuiadaLeccionFlow({
@@ -25,22 +28,6 @@ class LecturaGuiadaLeccionFlow extends StatefulWidget {
 
   @override
   State<LecturaGuiadaLeccionFlow> createState() => _LecturaGuiadaLeccionFlowState();
-}
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(size.width * 0.5, size.height * 1.06, 0, size.height * 0.78)
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 class LecturaPaso {
@@ -90,32 +77,6 @@ class LecturaGuiadaConfig {
 }
 
 const Map<String?, LecturaGuiadaConfig> _configsPorFlujo = {
-  kFlujoDiscriminacionLetrasGuiadoId: LecturaGuiadaConfig(
-    tituloNarrado: 'Discriminación de letras',
-    nombreUnidad: 'Letra',
-    pasos: [
-      LecturaPaso(texto: 'B', pista: 'B de burro', emoji: '🐴'),
-      LecturaPaso(texto: 'D', pista: 'D de dado', emoji: '🎲'),
-      LecturaPaso(texto: 'M', pista: 'M de maíz', emoji: '🌽'),
-      LecturaPaso(texto: 'N', pista: 'N de nube', emoji: '☁️'),
-    ],
-    ejercicios: [
-      _EjercicioActividad(
-        textoPregunta: 'Selecciona la letra B',
-        audioInstruccion: 'Selecciona la letra B',
-        opciones: ['B', 'D', 'M'],
-        correcta: 'B',
-        emojiIlustracion: '🐴',
-      ),
-      _EjercicioActividad(
-        textoPregunta: '¿Cuál es la letra N?',
-        audioInstruccion: '¿Cuál es la letra N?',
-        opciones: ['M', 'N', 'D'],
-        correcta: 'N',
-        emojiIlustracion: '☁️',
-      ),
-    ],
-  ),
   kFlujoOrdenAlfabeticoBasicoGuiadoId: LecturaGuiadaConfig(
     tituloNarrado: 'Orden alfabético básico',
     nombreUnidad: 'Grupo',
@@ -709,12 +670,8 @@ const Map<String?, LecturaGuiadaConfig> _configsPorFlujo = {
 
 enum _Fase { intro, presentacion, practica, actividad, recompensa }
 
-class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
-    with SingleTickerProviderStateMixin {
+class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
   static const Color _azulHorizonte = Color(0xFF1A4463);
-  static const Color _rojoManta = Color(0xFFD34836);
-  static const Color _ocrePremium = Color(0xFFE8D48B);
-  static const Color _ocrePremiumOscuro = Color(0xFF8B6914);
 
   final _tts = AlfabetizacionTtsCoach();
   bool _ttsListo = false;
@@ -730,19 +687,11 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
   bool _mostrarMuyBien = false;
   bool _mostrarIntentaDeNuevo = false;
 
-  late final AnimationController _celebracionCtrl;
-  late final Animation<double> _celebracionScale;
+  int _aciertoAnimacion = 0;
 
   @override
   void initState() {
     super.initState();
-    _celebracionCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _celebracionScale = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _celebracionCtrl, curve: Curves.elasticOut),
-    );
     _initTts();
   }
 
@@ -758,9 +707,14 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
   @override
   void dispose() {
     unawaited(_tts.dispose());
-    _celebracionCtrl.dispose();
     super.dispose();
   }
+
+  bool _ttsFlujoOk() =>
+      mounted && alfabetizacionTtsRouteActive(context);
+
+  Future<void> _ttsDecir(String text, {bool slow = false}) =>
+      _tts.speak(text, slow: slow, shouldContinue: _ttsFlujoOk);
 
   double get _progresoLineal {
     switch (_fase) {
@@ -781,15 +735,15 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
   String get _etiquetaPaso {
     switch (_fase) {
       case _Fase.intro:
-        return 'Pantalla 1 · Introducción';
+        return 'Introducción';
       case _Fase.presentacion:
-        return 'Pantalla 2 · Enseñanza (${_indicePresentacion + 1} de ${widget.config.pasos.length})';
+        return 'Enseñanza · ${_indicePresentacion + 1} de ${widget.config.pasos.length}';
       case _Fase.practica:
-        return 'Pantalla 3 · Práctica (${_indicePractica + 1} de ${widget.config.pasos.length})';
+        return 'Práctica · ${_indicePractica + 1} de ${widget.config.pasos.length}';
       case _Fase.actividad:
-        return 'Pantalla 4 · Actividad (${_indiceEjercicio + 1} de ${widget.config.ejercicios.length})';
+        return 'Actividad · ${_indiceEjercicio + 1} de ${widget.config.ejercicios.length}';
       case _Fase.recompensa:
-        return 'Pantalla 6 · Recompensa';
+        return '¡Lección completada!';
     }
   }
 
@@ -797,17 +751,17 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
     if (_introAudioYa || _fase != _Fase.intro || !_ttsListo) return;
     _introAudioYa = true;
     await Future<void>.delayed(const Duration(milliseconds: 380));
-    if (!mounted || _fase != _Fase.intro) return;
-    await _tts.speak('Vamos a aprender ${widget.config.tituloNarrado}');
-    if (!mounted || _fase != _Fase.intro) return;
-    await _tts.speak('Primero enseñanza y luego práctica');
-    if (!mounted || _fase != _Fase.intro) return;
-    await _tts.speak('Pulsa el botón verde para empezar');
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
+    await _ttsDecir('Vamos a aprender ${widget.config.tituloNarrado}');
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
+    await _ttsDecir('Primero enseñanza y luego práctica');
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
+    await _ttsDecir('Pulsa el botón verde para empezar');
   }
 
   Future<void> _escucharIntroduccion() async {
     await _tts.interrupt();
-    await _tts.speak('Vamos a aprender ${widget.config.tituloNarrado}');
+    await _ttsDecir('Vamos a aprender ${widget.config.tituloNarrado}');
   }
 
   Future<void> _empezarPresentacion() async {
@@ -822,13 +776,13 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
 
   Future<void> _anunciarInstruccionesPresentacion() async {
     final p = widget.config.pasos[_indicePresentacion];
-    await _tts.speak(p.pista);
-    await _tts.speak('Pulsa el botón blanco para escuchar de nuevo');
-    await _tts.speak('Pulsa el botón verde para continuar');
+    await _ttsDecir(p.pista);
+    await _ttsDecir('Pulsa Escuchar si quieres oírla de nuevo');
+    await _ttsDecir('Pulsa el botón verde para continuar');
   }
 
   Future<void> _repetirSonidoUnidadPresentacion() async {
-    await _tts.speak(widget.config.pasos[_indicePresentacion].texto, slow: true);
+    await _ttsDecir(widget.config.pasos[_indicePresentacion].texto, slow: true);
   }
 
   Future<void> _siguientePresentacion() async {
@@ -847,16 +801,16 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
   }
 
   Future<void> _entradaPracticaActual() async {
-    if (!mounted || _fase != _Fase.practica) return;
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
     final p = widget.config.pasos[_indicePractica];
-    await _tts.speak('Escucha y repite');
-    await _tts.speak(p.texto, slow: true);
-    await _tts.speak('Pulsa el botón blanco o toca el recuadro para escuchar otra vez');
-    await _tts.speak('Pulsa el botón verde para continuar');
+    await _ttsDecir('Escucha y repite');
+    await _ttsDecir(p.texto, slow: true);
+    await _ttsDecir('Toca el recuadro o pulsa Escuchar otra vez');
+    await _ttsDecir('Pulsa el botón verde para continuar');
   }
 
   Future<void> _repetirPractica() async {
-    await _tts.speak(widget.config.pasos[_indicePractica].texto, slow: true);
+    await _ttsDecir(widget.config.pasos[_indicePractica].texto, slow: true);
   }
 
   Future<void> _siguientePractica() async {
@@ -878,8 +832,8 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
 
   Future<void> _hablarInstruccionEjercicio() async {
     final ej = widget.config.ejercicios[_indiceEjercicio];
-    await _tts.speak('Selecciona la respuesta correcta');
-    await _tts.speak(ej.audioInstruccion);
+    await _ttsDecir('Selecciona la respuesta correcta');
+    await _ttsDecir(ej.audioInstruccion);
   }
 
   Future<void> _elegirOpcionActividad(String opcion) async {
@@ -889,14 +843,14 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
       setState(() {
         _actividadBloqueada = true;
         _mostrarMuyBien = true;
+        _aciertoAnimacion++;
       });
       try {
         SystemSound.play(SystemSoundType.click);
       } catch (_) {}
-      await _tts.speak('¡Muy bien!');
+      await _ttsDecir('¡Muy bien!');
       if (!mounted) return;
-      await _celebracionCtrl.forward(from: 0);
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      await Future<void>.delayed(const Duration(milliseconds: 950));
       if (!mounted) return;
       if (_indiceEjercicio < widget.config.ejercicios.length - 1) {
         setState(() {
@@ -912,7 +866,7 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
       setState(() {
         _mostrarIntentaDeNuevo = true;
       });
-      await _tts.speak('Intenta de nuevo');
+      await _ttsDecir('Intenta de nuevo');
       await _hablarInstruccionEjercicio();
       if (mounted) {
         setState(() {
@@ -933,120 +887,24 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
       _mostrarMuyBien = false;
       _actividadBloqueada = false;
     });
-    await _tts.speak('Completaste la lección. Muy bien.');
-    await _tts.speak('Pulsa volver para regresar');
+    await _ttsDecir('Completaste la lección. Muy bien.');
+    await _ttsDecir('Pulsa volver para regresar');
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 124),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        LinearProgressIndicator(
-                          value: _progresoLineal,
-                          borderRadius: BorderRadius.circular(8),
-                          minHeight: 6,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _etiquetaPaso,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 320),
-                        child: KeyedSubtree(
-                          key: ValueKey((_fase, _indicePresentacion, _indicePractica, _indiceEjercicio)),
-                          child: _cuerpoFase(context),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 28),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.leccion.titulo,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Lectura · Nivel ${widget.leccion.nivel}',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+    return AlfabetizacionLessonShell(
+      title: widget.leccion.titulo,
+      subtitle: 'Lectura · Nivel ${widget.leccion.nivel}',
+      progress: _progresoLineal,
+      stepLabel: _etiquetaPaso,
+      centerChild: _fase == _Fase.recompensa,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        child: KeyedSubtree(
+          key: ValueKey((_fase, _indicePresentacion, _indicePractica, _indiceEjercicio)),
+          child: _cuerpoFase(context),
+        ),
       ),
     );
   }
@@ -1071,54 +929,87 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: AspectRatio(
-            aspectRatio: 4 / 3,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    scheme.primaryContainer.withValues(alpha: 0.85),
-                    scheme.tertiaryContainer.withValues(alpha: 0.6),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AlfabetizacionLessonTokens.cardShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primaryContainer.withValues(alpha: 0.92),
+                      scheme.tertiaryContainer.withValues(alpha: 0.65),
+                      scheme.secondaryContainer.withValues(alpha: 0.45),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.menu_book_rounded, size: 88, color: scheme.primary),
+                    const SizedBox(height: 14),
+                    Icon(Icons.record_voice_over_rounded, size: 58, color: scheme.tertiary),
                   ],
                 ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.menu_book_rounded, size: 96, color: scheme.primary),
-                  const SizedBox(height: 12),
-                  Icon(Icons.record_voice_over_rounded, size: 72, color: scheme.tertiary),
-                ],
               ),
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        Text(
-          'Aprendizaje guiado',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Primero aprendemos y luego practicamos.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 18),
-        OutlinedButton.icon(
-          onPressed: _ttsListo ? _escucharIntroduccion : null,
-          icon: const Icon(Icons.volume_up_rounded),
-          label: const Text('Escuchar introducción'),
-        ),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: _ttsListo ? _empezarPresentacion : null,
-          child: const Text('Empezar lección'),
+        const SizedBox(height: 20),
+        AlfabetizacionLessonSurface(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Aprendizaje guiado',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Primero aprendemos y luego practicamos.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: _ttsListo ? _escucharIntroduccion : null,
+                icon: const Icon(Icons.volume_up_rounded),
+                label: const Text('Escuchar introducción'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  side: const BorderSide(color: _azulHorizonte, width: 1.5),
+                  foregroundColor: _azulHorizonte,
+                  shape: const StadiumBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: _ttsListo ? _empezarPresentacion : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(52),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Empezar lección'),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1126,37 +1017,69 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
 
   Widget _buildPresentacion(BuildContext context) {
     final p = widget.config.pasos[_indicePresentacion];
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '${widget.config.nombreUnidad} ${_indicePresentacion + 1}',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        AlfabetizacionLessonSurface(
+          padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '${widget.config.nombreUnidad} ${_indicePresentacion + 1}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AlfabetizacionLessonTokens.accentBlue,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                p.texto,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 88,
+                      height: 1.05,
+                      color: scheme.primary,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(p.emoji, textAlign: TextAlign.center, style: const TextStyle(fontSize: 76)),
+              const SizedBox(height: 10),
+              Text(
+                p.pista,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 18),
-        Text(
-          p.texto,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                fontSize: 92,
-              ),
-        ),
-        const SizedBox(height: 6),
-        Text(p.emoji, textAlign: TextAlign.center, style: const TextStyle(fontSize: 82)),
-        const SizedBox(height: 8),
-        Text(p.pista, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 22),
         OutlinedButton.icon(
           onPressed: _repetirSonidoUnidadPresentacion,
           icon: const Icon(Icons.volume_up_rounded),
           label: const Text('Escuchar'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            shape: const StadiumBorder(),
+          ),
         ),
         const SizedBox(height: 14),
         FilledButton(
           onPressed: _siguientePresentacion,
-          style: FilledButton.styleFrom(backgroundColor: _rojoManta, foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
           child: Text(_indicePresentacion < widget.config.pasos.length - 1 ? 'Siguiente' : 'Ir a la práctica'),
         ),
       ],
@@ -1198,11 +1121,22 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
           onPressed: _repetirPractica,
           icon: const Icon(Icons.replay_rounded),
           label: const Text('Escuchar otra vez'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            shape: const StadiumBorder(),
+          ),
         ),
         const SizedBox(height: 12),
         FilledButton(
           onPressed: _siguientePractica,
-          style: FilledButton.styleFrom(backgroundColor: _rojoManta, foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
           child: Text(_indicePractica < widget.config.pasos.length - 1 ? 'Siguiente' : 'Ir a la actividad'),
         ),
       ],
@@ -1215,21 +1149,7 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_mostrarMuyBien) ...[
-          ScaleTransition(
-            scale: _celebracionScale,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-                    Icon(Icons.celebration_rounded, size: 52, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(height: 8),
-                    Text('¡Muy bien!', style: Theme.of(context).textTheme.headlineSmall),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          AlfabetizacionLessonCorrectBanner(animationTick: _aciertoAnimacion),
           const SizedBox(height: 12),
         ],
         if (_mostrarIntentaDeNuevo) ...[
@@ -1277,38 +1197,21 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _ocrePremium.withValues(alpha: 0.20),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            children: [
-              const Text('🏆', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 12),
-              Text(
-                'Completaste la lección',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '+${widget.leccion.puntos} puntos',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: _ocrePremiumOscuro,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ],
-          ),
+        AlfabetizacionLessonCompletionPanel(
+          headline: '¡Lo lograste!',
+          detail: 'Lección: ${widget.leccion.titulo}',
+          pointsLabel: '+${widget.leccion.puntos} puntos',
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
         FilledButton(
           onPressed: () => context.pop(),
-          style: FilledButton.styleFrom(backgroundColor: _rojoManta, foregroundColor: Colors.white),
-          child: const Text('Volver'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Volver al módulo'),
         ),
       ],
     );

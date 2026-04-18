@@ -4,8 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_feedback.dart';
+import 'alfabetizacion_lesson_shell.dart';
 
 enum _FaseEscritura {
   intro,
@@ -93,6 +96,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   int _actividadIndex = 0;
   String _actividadRespuesta = '';
   List<Offset> _puntos = <Offset>[];
+  int _aciertoFeedbackTick = 0;
 
   @override
   void initState() {
@@ -106,6 +110,12 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     super.dispose();
   }
 
+  bool _ttsFlujoOk() =>
+      mounted && alfabetizacionTtsRouteActive(context);
+
+  Future<void> _ttsDecir(String text) =>
+      _tts.speak(text, shouldContinue: _ttsFlujoOk);
+
   _VocalItem get _vocalActual => _vocales[_indiceVocal];
 
   Future<void> _initTts() async {
@@ -114,14 +124,14 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     } catch (_) {}
     if (!mounted) return;
     setState(() => _ttsListo = _tts.isReady);
-    await _tts.speak('Vamos a aprender a escribir las vocales');
+    await _ttsDecir('Vamos a aprender a escribir las vocales');
   }
 
   Future<void> _irADemo() async {
     setState(() => _fase = _FaseEscritura.demo);
     await _tts.interrupt();
-    await _tts.speak('Así se escribe la ${_vocalActual.letra}');
-    await _tts.speak('Sube... baja... cruza');
+    await _ttsDecir('Así se escribe la ${_vocalActual.letra}');
+    await _ttsDecir('Sube... baja... cruza');
   }
 
   Future<void> _irAGuiada() async {
@@ -130,10 +140,10 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       _puntos = [];
     });
     await _tts.interrupt();
-    await _tts.speak('Ahora hazlo tú');
-    await _tts.speak('Sube');
-    await _tts.speak('Baja');
-    await _tts.speak('Cruza');
+    await _ttsDecir('Ahora hazlo tú');
+    await _ttsDecir('Sube');
+    await _ttsDecir('Baja');
+    await _ttsDecir('Cruza');
   }
 
   Future<void> _irALibre() async {
@@ -142,7 +152,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       _puntos = [];
     });
     await _tts.interrupt();
-    await _tts.speak('Escribe la ${_vocalActual.letra}');
+    await _ttsDecir('Escribe la ${_vocalActual.letra}');
   }
 
   Future<void> _evaluarGuiada() async {
@@ -151,9 +161,10 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
       _mensajeFeedback = ok ? 'Bien' : 'Intenta otra vez';
+      if (ok) _aciertoFeedbackTick++;
     });
     await _tts.interrupt();
-    await _tts.speak(_mensajeFeedback);
+    await _ttsDecir(_mensajeFeedback);
   }
 
   Future<void> _evaluarLibre() async {
@@ -162,9 +173,10 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
       _mensajeFeedback = ok ? 'Muy bien' : 'Intenta de nuevo';
+      if (ok) _aciertoFeedbackTick++;
     });
     await _tts.interrupt();
-    await _tts.speak(_mensajeFeedback);
+    await _ttsDecir(_mensajeFeedback);
   }
 
   bool _trazoAproximado(List<Offset> raw, List<Offset> objetivo) {
@@ -203,7 +215,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         _fase = _FaseEscritura.guiada;
         _puntos = [];
       });
-      await _tts.speak('Volvamos a la guía');
+      await _ttsDecir('Volvamos a la guía');
       return;
     }
     if (_indiceVocal < _vocales.length - 1) {
@@ -212,8 +224,8 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         _fase = _FaseEscritura.demo;
         _puntos = [];
       });
-      await _tts.speak('Ahora sigue la vocal ${_vocalActual.letra}');
-      await _tts.speak(_vocalActual.ejemplo);
+      await _ttsDecir('Ahora sigue la vocal ${_vocalActual.letra}');
+      await _ttsDecir(_vocalActual.ejemplo);
       return;
     }
     setState(() {
@@ -221,8 +233,8 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       _actividadIndex = 0;
       _actividadRespuesta = '';
     });
-    await _tts.speak('Actividad interactiva');
-    await _tts.speak('Selecciona la A bien escrita');
+    await _ttsDecir('Actividad interactiva');
+    await _ttsDecir('Selecciona la A bien escrita');
   }
 
   Future<void> _evaluarActividad() async {
@@ -238,14 +250,15 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
       _mensajeFeedback = ok ? 'Muy bien' : 'Intenta de nuevo';
+      if (ok) _aciertoFeedbackTick++;
     });
-    await _tts.speak(_mensajeFeedback);
+    await _ttsDecir(_mensajeFeedback);
   }
 
   Future<void> _continuarActividadDesdeFeedback() async {
     if (!_fueCorrecto) {
       setState(() => _fase = _FaseEscritura.actividad);
-      await _tts.speak('Escucha y vuelve a intentarlo');
+      await _ttsDecir('Escucha y vuelve a intentarlo');
       return;
     }
     if (_actividadIndex < 2) {
@@ -255,9 +268,9 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         _actividadRespuesta = '';
       });
       if (_actividadIndex == 1) {
-        await _tts.speak('Escribe la letra con la que empieza uva');
+        await _ttsDecir('Escribe la letra con la que empieza uva');
       } else {
-        await _tts.speak('Ooooo. Escribe la vocal que escuchas');
+        await _ttsDecir('Ooooo. Escribe la vocal que escuchas');
       }
       return;
     }
@@ -266,51 +279,39 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       await widget.onCompletar();
     }
     setState(() => _fase = _FaseEscritura.recompensa);
-    await _tts.speak('Muy bien. Ya sabes escribir las vocales');
+    await _ttsDecir('Muy bien. Ya sabes escribir las vocales');
   }
 
   @override
   Widget build(BuildContext context) {
     const totalEtapas = 7;
     final progreso = (_fase.index + 1) / totalEtapas;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.leccion.titulo),
-        backgroundColor: _azulHorizonte,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            LinearProgressIndicator(value: progreso),
-            const SizedBox(height: 8),
-            Text(_tituloPantalla(), textAlign: TextAlign.center),
-            const SizedBox(height: 14),
-            Expanded(child: _buildFase()),
-          ],
-        ),
-      ),
+    return AlfabetizacionLessonShell(
+      title: widget.leccion.titulo,
+      subtitle: 'Escritura · Nivel ${widget.leccion.nivel}',
+      progress: progreso,
+      stepLabel: _tituloPantalla(),
+      expandBody: true,
+      child: _buildFase(),
     );
   }
 
   String _tituloPantalla() {
     switch (_fase) {
       case _FaseEscritura.intro:
-        return 'Pantalla 1 · Introducción';
+        return 'Introducción';
       case _FaseEscritura.demo:
-        return 'Pantalla 2 · Trazo guiado';
+        return 'Trazo de ejemplo';
       case _FaseEscritura.guiada:
-        return 'Pantalla 3 · Escritura guiada';
+        return 'Escritura guiada';
       case _FaseEscritura.libre:
-        return 'Pantalla 4 · Escritura libre';
+        return 'Escritura libre';
       case _FaseEscritura.actividad:
-        return 'Pantalla 5 · Actividad';
+        return 'Actividad final';
       case _FaseEscritura.feedback:
-        return 'Pantalla 6 · Retroalimentación';
+        return 'Retroalimentación';
       case _FaseEscritura.recompensa:
-        return 'Pantalla 7 · Recompensa';
+        return '¡Lección completada!';
     }
   }
 
@@ -503,12 +504,17 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(
-          _fueCorrecto ? Icons.celebration_rounded : Icons.refresh_rounded,
-          size: 90,
-          color: _fueCorrecto ? Colors.green : _rojoManta,
-        ),
-        const SizedBox(height: 12),
+        if (_fueCorrecto) ...[
+          AlfabetizacionLessonCorrectBanner(animationTick: _aciertoFeedbackTick),
+          const SizedBox(height: 16),
+        ] else ...[
+          const Icon(
+            Icons.refresh_rounded,
+            size: 90,
+            color: _rojoManta,
+          ),
+          const SizedBox(height: 12),
+        ],
         Text(
           _mensajeFeedback,
           textAlign: TextAlign.center,
@@ -530,26 +536,21 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('🏆', textAlign: TextAlign.center, style: TextStyle(fontSize: 80)),
-        const SizedBox(height: 8),
-        const Text(
-          'Completaste la escritura de vocales',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '+10 puntos',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.bold, fontSize: 22),
+        AlfabetizacionLessonCompletionPanel(
+          headline: '¡Lo lograste!',
+          detail: 'Lección: ${widget.leccion.titulo}',
+          pointsLabel: '+${widget.leccion.puntos} puntos',
         ),
         const SizedBox(height: 8),
-        const Text('⭐ Progreso: 10%', textAlign: TextAlign.center),
-        const SizedBox(height: 18),
         FilledButton(
           onPressed: () => context.pop(),
-          style: FilledButton.styleFrom(backgroundColor: _rojoManta),
-          child: const Text('Volver'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Volver al módulo'),
         ),
       ],
     );

@@ -13,7 +13,6 @@ const kFlujoPalabrasCortasGuiadoId = 'palabras_cortas_guiado';
 const kFlujoPalabrasCampoGuiadoId = 'palabras_campo_guiado';
 const kFlujoFrasesCortasGuiadoId = 'frases_cortas_guiado';
 const kFlujoComprensionBasicaGuiadoId = 'comprension_basica_guiado';
-const kFlujoDiscriminacionLetrasGuiadoId = 'discriminacion_letras_guiado';
 const kFlujoOrdenAlfabeticoBasicoGuiadoId = 'orden_alfabetico_basico_guiado';
 const kFlujoSilabasDirectasTresGuiadoId = 'silabas_directas_tres_guiado';
 const kFlujoSilabasDirectasCuatroGuiadoId = 'silabas_directas_cuatro_guiado';
@@ -158,15 +157,6 @@ final alfabetizacionLecciones = <LeccionData>[
         ],
       ),
     ],
-    puntos: 10,
-  ),
-  const LeccionData(
-    id: 'L1-3',
-    modulo: 'lectura',
-    nivel: 1,
-    titulo: 'Discriminación de letras',
-    contenido: 'Discriminación de letras',
-    flujoId: kFlujoDiscriminacionLetrasGuiadoId,
     puntos: 10,
   ),
   const LeccionData(

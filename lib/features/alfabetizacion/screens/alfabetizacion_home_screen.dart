@@ -74,14 +74,18 @@ class _AlfabetizacionHomeScreenState extends State<AlfabetizacionHomeScreen> {
     setState(() => _narrando = true);
     try {
       await _ttsCoach.interrupt();
-      await _ttsCoach.speakSequence(const [
-        'Bienvenido al módulo de alfabetización.',
-        'Aquí te voy a guiar con la voz, paso a paso.',
-        'Si quieres volver a escuchar, pulsa el botón repetir que está arriba.',
-        'Primero elige una opción.',
-        'Pulsa lectura para aprender letras, sílabas y palabras.',
-        'Pulsa escritura para practicar escribir letras y palabras.',
-      ]);
+      await _ttsCoach.speakSequence(
+        const [
+          'Bienvenido al módulo de alfabetización.',
+          'Aquí te voy a guiar con la voz, paso a paso.',
+          'Si quieres volver a escuchar, pulsa el botón repetir que está arriba.',
+          'Primero elige una opción.',
+          'Pulsa lectura para aprender letras, sílabas y palabras.',
+          'Pulsa escritura para practicar escribir letras y palabras.',
+        ],
+        shouldContinue: () =>
+            mounted && alfabetizacionTtsRouteActive(context),
+      );
     } finally {
       if (mounted) setState(() => _narrando = false);
     }
