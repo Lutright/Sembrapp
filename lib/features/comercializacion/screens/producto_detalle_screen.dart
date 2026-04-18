@@ -7,6 +7,7 @@ import '../models/producto.dart';
 import '../navigation/tienda_campesino_extra.dart';
 import '../repositories/ordenes_repository.dart';
 import '../repositories/productos_repository.dart';
+import '../widgets/producto_imagen_de_url.dart';
 
 class ProductoDetalleScreen extends StatelessWidget {
   const ProductoDetalleScreen({
@@ -192,6 +193,25 @@ class _ProductoDetalleBodyState extends State<_ProductoDetalleBody> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (p.imagenUrl != null && p.imagenUrl!.trim().isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: LayoutBuilder(
+                    builder: (context, c) {
+                      return ProductoImagenDeUrl(
+                        url: p.imagenUrl,
+                        width: c.maxWidth,
+                        height: c.maxHeight,
+                        borderRadius: BorderRadius.zero,
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),

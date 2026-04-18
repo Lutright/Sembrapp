@@ -29,12 +29,14 @@ class Producto {
   });
 
   factory Producto.fromMap(Map<String, dynamic> map) {
+    final imagen =
+        (map['imagen_url'] as String?) ?? (map['imagen'] as String?);
     return Producto(
       id: map['id'] as String,
       campesinoId: map['campesino_id'] as String,
       campesinoNombre: _campesinoNombreFromMap(map['profiles']),
       nombre: map['nombre'] as String,
-      imagenUrl: map['imagen_url'] as String?,
+      imagenUrl: imagen,
       descripcion: map['descripcion'] as String?,
       precio: (map['precio'] as num).toDouble(),
       cantidadDisponible: map['cantidad_disponible'] != null

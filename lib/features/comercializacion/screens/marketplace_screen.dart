@@ -10,6 +10,7 @@ import '../models/tienda_resumen.dart';
 import '../navigation/tienda_campesino_extra.dart';
 import '../repositories/beneficios_repository.dart';
 import '../repositories/productos_repository.dart';
+import '../widgets/producto_imagen_de_url.dart';
 
 final class _OrganicHeaderClipper extends CustomClipper<Path> {
   @override
@@ -305,11 +306,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Container(
-                      color: const Color(0xFFE8F5E9),
-                      child: Icon(Icons.image_outlined, color: Colors.green.shade300, size: 36),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: LayoutBuilder(
+                        builder: (context, c) {
+                          return ProductoImagenDeUrl(
+                            url: p.imagenUrl,
+                            width: c.maxWidth,
+                            height: c.maxHeight,
+                            borderRadius: BorderRadius.zero,
+                          );
+                        },
+                      ),
                     ),
                   ),
                   Expanded(

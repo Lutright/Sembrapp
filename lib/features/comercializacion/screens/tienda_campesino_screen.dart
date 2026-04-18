@@ -7,6 +7,7 @@ import '../../../core/services/location_service.dart';
 import '../models/producto.dart';
 import '../repositories/ordenes_repository.dart';
 import '../repositories/productos_repository.dart';
+import '../widgets/producto_imagen_de_url.dart';
 
 // ─── Paleta Sembrapp ─────────────────────────────────────────────────────────
 const Color _azulHorizonte = Color(0xFF1A4463);
@@ -797,20 +798,13 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
   Widget _buildProductImage(Producto p, bool esNuevo) {
     return Stack(
       children: [
-        Container(
+        ProductoImagenDeUrl(
+          url: p.imagenUrl,
           width: 85,
           height: 85,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F7F2), // verde tenue natural
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Icon(
-              Icons.eco_rounded,
-              size: 36,
-              color: Colors.green.shade300,
-            ),
-          ),
+          borderRadius: BorderRadius.circular(14),
+          placeholderColor: const Color(0xFFF2F7F2),
+          placeholderIcon: Icons.eco_rounded,
         ),
         // Badge "Nuevo"
         if (esNuevo)

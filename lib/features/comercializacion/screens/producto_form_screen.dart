@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -156,6 +156,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   bool _saving = false;
   XFile? _imagenSeleccionada;
 
+  static const _bucketProductos = 'productos';
+
   @override
   void initState() {
     super.initState();
@@ -177,6 +179,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -200,50 +203,88 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       String? imagenUrl = widget.producto?.imagenUrl;
       if (widget.producto != null) {
         if (_imagenSeleccionada != null) {
-          imagenUrl = await _subirImagenProducto(
-            userId: user.id,
-            productoId: widget.producto!.id,
-            imagen: _imagenSeleccionada!,
-          );
+          try {
+            imagenUrl = await _subirImagenProducto(
+              userId: user.id,
+              productoId: widget.producto!.id,
+              imagen: _imagenSeleccionada!,
+              imagenAnteriorUrl: widget.producto?.imagenUrl,
+            );
+          } catch (e) {
+            throw Exception('Fallo al subir imagen en edición: $e');
+          }
         }
-        await repo.actualizarProducto(
-          widget.producto!.id,
-          {
-            'nombre': _nombreController.text.trim(),
-            'descripcion': _descripcionController.text.trim().isEmpty
-                ? null
-                : _descripcionController.text.trim(),
-            'precio': precio,
-            'unidad': _unidad,
-            'lat': lat,
-            'lng': lng,
-            'imagen_url': imagenUrl,
-          },
-        );
-      } else {
-        final productoId = await repo.crearProducto(
-          Producto(
-            id: '',
-            campesinoId: user.id,
+        try {
+          await _actualizarProductoConCompatImagen(
+            repo: repo,
+            productoId: widget.producto!.id,
             nombre: _nombreController.text.trim(),
-            imagenUrl: null,
             descripcion: _descripcionController.text.trim().isEmpty
                 ? null
                 : _descripcionController.text.trim(),
             precio: precio,
-            cantidadDisponible: null,
             unidad: _unidad,
             lat: lat,
             lng: lng,
-          ),
-        );
-        if (_imagenSeleccionada != null) {
-          final nuevaUrl = await _subirImagenProducto(
-            userId: user.id,
-            productoId: productoId,
-            imagen: _imagenSeleccionada!,
+            imagenUrl: imagenUrl,
           );
-          await repo.actualizarProducto(productoId, {'imagen_url': nuevaUrl});
+        } catch (e) {
+          throw Exception('Fallo al actualizar producto editado: $e');
+        }
+      } else {
+        String productoId = '';
+        try {
+          productoId = await repo.crearProducto(
+            Producto(
+              id: '',
+              campesinoId: user.id,
+              nombre: _nombreController.text.trim(),
+              imagenUrl: null,
+              descripcion: _descripcionController.text.trim().isEmpty
+                  ? null
+                  : _descripcionController.text.trim(),
+              precio: precio,
+              cantidadDisponible: null,
+              unidad: _unidad,
+              lat: lat,
+              lng: lng,
+            ),
+          );
+        } catch (e) {
+          throw Exception('Fallo al crear producto: $e');
+        }
+        if (_imagenSeleccionada != null) {
+          try {
+            final nuevaUrl = await _subirImagenProducto(
+              userId: user.id,
+              productoId: productoId,
+              imagen: _imagenSeleccionada!,
+              imagenAnteriorUrl: null,
+            );
+            try {
+              await _actualizarProductoConCompatImagen(
+                repo: repo,
+                productoId: productoId,
+                nombre: _nombreController.text.trim(),
+                descripcion: _descripcionController.text.trim().isEmpty
+                    ? null
+                    : _descripcionController.text.trim(),
+                precio: precio,
+                unidad: _unidad,
+                lat: lat,
+                lng: lng,
+                imagenUrl: nuevaUrl,
+              );
+            } catch (e) {
+              throw Exception('Fallo al guardar URL de imagen en producto nuevo: $e');
+            }
+          } catch (_) {
+            // Evita dejar productos "huérfanos" cuando falla solo el upload.
+            try {
+              await repo.eliminarProducto(productoId);
+            } catch (_) {}
+            rethrow;
+          }
         }
       }
       if (mounted) {
@@ -252,10 +293,14 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
           const SnackBar(content: Text('Guardado')),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Error guardando producto: $e');
+      debugPrintStack(stackTrace: st);
+      final msg = _mensajeErrorAmigable(e);
       if (mounted) {
+        final detalleDebug = kDebugMode ? ' ($e)' : '';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al guardar producto')),
+          SnackBar(content: Text('$msg$detalleDebug')),
         );
       }
     } finally {
@@ -273,23 +318,129 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
     } catch (_) {}
   }
 
+  Future<void> _actualizarProductoConCompatImagen({
+    required ProductosRepository repo,
+    required String productoId,
+    required String nombre,
+    required String? descripcion,
+    required double precio,
+    required String unidad,
+    required double lat,
+    required double lng,
+    required String? imagenUrl,
+  }) async {
+    final base = <String, dynamic>{
+      'nombre': nombre,
+      'descripcion': descripcion,
+      'precio': precio,
+      'unidad': unidad,
+      'lat': lat,
+      'lng': lng,
+    };
+    try {
+      await repo.actualizarProducto(
+        productoId,
+        {
+          ...base,
+          'imagen_url': imagenUrl,
+        },
+      );
+    } catch (e) {
+      final raw = e.toString().toLowerCase();
+      if (!raw.contains("could not find the 'imagen_url'")) rethrow;
+      await repo.actualizarProducto(
+        productoId,
+        {
+          ...base,
+          'imagen': imagenUrl,
+        },
+      );
+    }
+  }
+
   Future<String> _subirImagenProducto({
     required String userId,
     required String productoId,
     required XFile imagen,
+    String? imagenAnteriorUrl,
   }) async {
     final bytes = await imagen.readAsBytes();
-    final path = '$userId/$productoId.jpg';
-    final storage = Supabase.instance.client.storage.from('productos');
+    final ext = _extensionSegura(imagen.name);
+    final path =
+        '$userId/${productoId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final storage = Supabase.instance.client.storage.from(_bucketProductos);
     await storage.uploadBinary(
       path,
       bytes,
-      fileOptions: const FileOptions(
-        upsert: true,
-        contentType: 'image/jpeg',
+      fileOptions: FileOptions(
+        upsert: false,
+        contentType: _contentTypePorExtension(ext),
       ),
     );
+    if (imagenAnteriorUrl != null && imagenAnteriorUrl.isNotEmpty) {
+      final oldPath = _storagePathDesdePublicUrl(imagenAnteriorUrl);
+      if (oldPath != null && oldPath != path) {
+        try {
+          await storage.remove([oldPath]);
+        } catch (_) {
+          // Si falla el borrado no bloquea el guardado del producto.
+        }
+      }
+    }
     return storage.getPublicUrl(path);
+  }
+
+  String _extensionSegura(String fileName) {
+    final name = fileName.trim().toLowerCase();
+    final dot = name.lastIndexOf('.');
+    if (dot < 0 || dot == name.length - 1) return 'jpg';
+    final ext = name.substring(dot + 1);
+    switch (ext) {
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+      case 'webp':
+        return ext == 'jpeg' ? 'jpg' : ext;
+      default:
+        return 'jpg';
+    }
+  }
+
+  String _contentTypePorExtension(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  String? _storagePathDesdePublicUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    final idx = uri.pathSegments.indexOf(_bucketProductos);
+    if (idx < 0 || idx == uri.pathSegments.length - 1) return null;
+    return uri.pathSegments.sublist(idx + 1).join('/');
+  }
+
+  String _mensajeErrorAmigable(Object error) {
+    final raw = error.toString().toLowerCase();
+    if (raw.contains('storage') ||
+        raw.contains('bucket') ||
+        raw.contains('object') ||
+        raw.contains('objects') ||
+        raw.contains('permission') ||
+        raw.contains('unauthorized') ||
+        raw.contains('forbidden') ||
+        raw.contains('row-level') ||
+        raw.contains('rls') ||
+        raw.contains('403') ||
+        raw.contains('401')) {
+      return 'No se pudo subir la imagen del producto. Intenta de nuevo en unos segundos.';
+    }
+    return 'No se pudo guardar el producto. Intenta nuevamente.';
   }
 
   @override
