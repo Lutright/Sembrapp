@@ -96,7 +96,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
 
   /// Elimina tildes/acentos para búsqueda insensible.
   static String _normalizar(String s) {
-    const conAcento =  'áàäâãéèëêíìïîóòöôõúùüûñÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑ';
+    const conAcento = 'áàäâãéèëêíìïîóòöôõúùüûñÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑ';
     const sinAcento = 'aaaaaeeeeiiiiooooouuuunAAAAAEEEEIIIIOOOOOUUUUN';
     var out = s;
     for (var i = 0; i < conAcento.length; i++) {
@@ -111,9 +111,8 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
       setState(() => _productosFiltrados = List.from(_productos));
     } else {
       setState(() {
-        _productosFiltrados = _productos
-            .where((p) => _normalizar(p.nombre).contains(q))
-            .toList();
+        _productosFiltrados =
+            _productos.where((p) => _normalizar(p.nombre).contains(q)).toList();
       });
     }
   }
@@ -255,8 +254,8 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
         .toList();
 
     try {
-      final ordenId = await OrdenesRepository(Supabase.instance.client)
-          .crearOrden(
+      final ordenId =
+          await OrdenesRepository(Supabase.instance.client).crearOrden(
         compradorId: user.id,
         campesinoId: widget.campesinoId,
         items: items,
@@ -483,8 +482,9 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                 // Contenido principal
                 if (_loading)
                   const SliverFillRemaining(
-                    child:
-                        Center(child: CircularProgressIndicator(color: _azulHorizonte)),
+                    child: Center(
+                        child:
+                            CircularProgressIndicator(color: _azulHorizonte)),
                   )
                 else if (_productos.isEmpty)
                   SliverFillRemaining(
@@ -527,23 +527,23 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                           ),
                         )
                       : SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) {
-                          // Separador de 12px entre tarjetas
-                          if (i.isOdd) {
-                            return const SizedBox(height: 12);
-                          }
-                          final idx = i ~/ 2;
-                          final p = _productosFiltrados[idx];
-                          final enCarrito = _carrito[p.id];
-                          return _buildProductCard(context, p, enCarrito);
-                        },
-                        childCount: _productosFiltrados.length * 2 - 1,
-                      ),
-                    ),
-                  ),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) {
+                                // Separador de 12px entre tarjetas
+                                if (i.isOdd) {
+                                  return const SizedBox(height: 12);
+                                }
+                                final idx = i ~/ 2;
+                                final p = _productosFiltrados[idx];
+                                final enCarrito = _carrito[p.id];
+                                return _buildProductCard(context, p, enCarrito);
+                              },
+                              childCount: _productosFiltrados.length * 2 - 1,
+                            ),
+                          ),
+                        ),
               ],
             ),
           ),
@@ -670,7 +670,6 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             ),
     );
   }
-
 
   // ─── Tarjeta de Producto Premium ───────────────────────────────────────────
 
@@ -837,8 +836,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
 
   Widget _buildQuantityControls(Producto p, _CarritoLinea? enCarrito) {
     final base = enCarrito?.cantidad ?? 0;
-    final cantidadTexto =
-        base <= 0 ? '0' : base.toStringAsFixed(1);
+    final cantidadTexto = base <= 0 ? '0' : base.toStringAsFixed(1);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),

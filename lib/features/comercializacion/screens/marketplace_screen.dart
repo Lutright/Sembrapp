@@ -28,6 +28,7 @@ final class _OrganicHeaderClipper extends CustomClipper<Path> {
       ..close();
     return path;
   }
+
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
@@ -36,7 +37,8 @@ class _HeaderAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _HeaderAction({required this.icon, required this.label, required this.onTap});
+  const _HeaderAction(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +52,9 @@ class _HeaderAction extends StatelessWidget {
           children: [
             Icon(icon, size: 36, color: cs.onPrimary),
             const SizedBox(height: 6),
-            Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onPrimary, fontWeight: FontWeight.bold)),
+            Text(label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.onPrimary, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -84,6 +88,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final _searchController = TextEditingController();
   double? _buyerLat;
   double? _buyerLng;
+
   /// 0 = productos, 1 = tiendas
   int _seccion = 0;
 
@@ -150,7 +155,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   void _anadirAlCarritoEIrATienda(Producto p) {
     if (p.limiteSuperiorPedido < 0.5) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este producto no tiene stock suficiente')),
+        const SnackBar(
+            content: Text('Este producto no tiene stock suficiente')),
       );
       return;
     }
@@ -193,7 +199,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         maxDistanceKm: _selectedDistanceKm.toDouble(),
       );
 
-      final destacados = await _beneficiosRepo.getCampesinosConBeneficioVigente();
+      final destacados =
+          await _beneficiosRepo.getCampesinosConBeneficioVigente();
 
       if (mounted) {
         setState(() {
@@ -222,7 +229,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         buyerLng: _buyerLng!,
         maxDistanceKm: _selectedDistanceKm.toDouble(),
       );
-      final destacados = await _beneficiosRepo.getCampesinosConBeneficioVigente();
+      final destacados =
+          await _beneficiosRepo.getCampesinosConBeneficioVigente();
 
       if (mounted) {
         setState(() {
@@ -271,25 +279,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildListaProductos(BuildContext context) {
-    if (_locationError != null) return _emptyMarketplace(context, _locationError!);
+    if (_locationError != null)
+      return _emptyMarketplace(context, _locationError!);
     final list = _productosFiltrados();
     if (_productosCercanos.isEmpty) {
       return _emptyMarketplace(
         context,
-        _query.isEmpty ? 'No hay productos en tu radio' : 'Ningún producto coincide',
+        _query.isEmpty
+            ? 'No hay productos en tu radio'
+            : 'Ningún producto coincide',
       );
     }
-    if (list.isEmpty) return _emptyMarketplace(context, 'Ningún producto coincide');
+    if (list.isEmpty)
+      return _emptyMarketplace(context, 'Ningún producto coincide');
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 0.58,
-        ),
+            crossAxisCount: 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 0.55),
         delegate: SliverChildBuilderDelegate(
           (context, i) {
             final p = list[i];
@@ -302,14 +313,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               elevation: 4,
               shadowColor: cs.shadow.withValues(alpha: 0.2),
               clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
                     child: AspectRatio(
-                      aspectRatio: 16 / 9,
+                      aspectRatio: 4 / 3,
                       child: LayoutBuilder(
                         builder: (context, c) {
                           return ProductoImagenDeUrl(
@@ -333,8 +346,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             children: [
                               if (esDestacado) ...[
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 4, top: 2),
-                                  child: Icon(Icons.star_rounded, size: 16, color: cs.tertiary),
+                                  padding:
+                                      const EdgeInsets.only(right: 4, top: 2),
+                                  child: Icon(Icons.star_rounded,
+                                      size: 16, color: cs.tertiary),
                                 ),
                               ],
                               Expanded(
@@ -342,7 +357,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   p.nombre,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
@@ -350,7 +368,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           const SizedBox(height: 4),
                           Text(
                             '${p.precio.toStringAsFixed(0)} \$ / ${p.unidad}',
-                            style: TextStyle(color: cs.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                            style: TextStyle(
+                                color: cs.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
                           ),
                           Expanded(
                             child: Padding(
@@ -360,7 +381,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 '${esDestacado ? '⭐ Tienda destacada · ' : ''}$prod',
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(height: 1.2),
                               ),
                             ),
                           ),
@@ -392,11 +416,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildListaTiendas(BuildContext context) {
-    if (_locationError != null) return _emptyMarketplace(context, _locationError!);
+    if (_locationError != null)
+      return _emptyMarketplace(context, _locationError!);
     if (_tiendas.isEmpty) {
       return _emptyMarketplace(
         context,
-        _query.isEmpty ? 'No hay tiendas en tu radio' : 'Ninguna tienda tiene ese producto',
+        _query.isEmpty
+            ? 'No hay tiendas en tu radio'
+            : 'Ninguna tienda tiene ese producto',
       );
     }
     return SliverPadding(
@@ -409,16 +436,21 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 tileColor: cs.surfaceTint.withValues(alpha: 0.05),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: CircleAvatar(
                   radius: 28,
                   backgroundColor: cs.primaryContainer,
-                  child: Icon(Icons.storefront_rounded, color: cs.onPrimaryContainer, size: 28),
+                  child: Icon(Icons.storefront_rounded,
+                      color: cs.onPrimaryContainer, size: 28),
                 ),
                 title: Text(
-                  t.nombre?.trim().isNotEmpty == true ? t.nombre!.trim() : 'Productor',
+                  t.nombre?.trim().isNotEmpty == true
+                      ? t.nombre!.trim()
+                      : 'Productor',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
@@ -476,7 +508,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         _HeaderAction(
                           icon: Icons.receipt_long_rounded,
                           label: 'Órdenes',
-                          onTap: () => context.push('/comercializacion/ordenes'),
+                          onTap: () =>
+                              context.push('/comercializacion/ordenes'),
                         ),
                         _HeaderAction(
                           icon: Icons.person_rounded,
@@ -501,7 +534,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     child: Card(
                       elevation: 4,
                       shadowColor: cs.shadow.withValues(alpha: 0.15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
                       color: cs.surface,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -522,16 +556,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 ),
                               ],
                               selected: {_seccion},
-                              onSelectionChanged: (s) => setState(() => _seccion = s.first),
+                              onSelectionChanged: (s) =>
+                                  setState(() => _seccion = s.first),
                             ),
                             const SizedBox(height: 16),
                             SearchBar(
                               controller: _searchController,
                               elevation: const WidgetStatePropertyAll(0),
-                              backgroundColor: WidgetStatePropertyAll(cs.surfaceContainerHighest.withValues(alpha: 0.4)),
-                              hintText: _seccion == 0 ? 'Buscar producto' : 'Buscar (filtra prod. en tienda)',
+                              backgroundColor: WidgetStatePropertyAll(cs
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.4)),
+                              hintText: _seccion == 0
+                                  ? 'Buscar producto'
+                                  : 'Buscar (filtra prod. en tienda)',
                               leading: const Icon(Icons.search_rounded),
-                              padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
+                              padding: const WidgetStatePropertyAll(
+                                  EdgeInsets.symmetric(horizontal: 16)),
                               onChanged: (v) {
                                 setState(() {
                                   _query = v;
@@ -549,7 +589,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 ),
                                 Text(
                                   '$_selectedDistanceKm km',
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
@@ -558,9 +601,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               max: 50,
                               divisions: 9, // Salto táctil de 5km
                               activeColor: cs.primary,
-                              value: _selectedDistanceKm.toDouble().clamp(5.0, 50.0),
+                              value: _selectedDistanceKm
+                                  .toDouble()
+                                  .clamp(5.0, 50.0),
                               label: '$_selectedDistanceKm km',
-                              onChanged: (v) => setState(() => _selectedDistanceKm = v.round()),
+                              onChanged: (v) => setState(
+                                  () => _selectedDistanceKm = v.round()),
                               onChangeEnd: (v) async {
                                 await _saveDistance(v.round());
                                 await _reloadSoloDistancia();
@@ -577,13 +623,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
                     child: Center(
                       child: Text(
-                        _seccion == 0 ? 'Productos Disponibles' : 'Productores Locales',
+                        _seccion == 0
+                            ? 'Productos Disponibles'
+                            : 'Productores Locales',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: cs.onSurface,
-                              letterSpacing: -0.5,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: cs.onSurface,
+                                  letterSpacing: -0.5,
+                                ),
                       ),
                     ),
                   ),
@@ -593,7 +642,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     child: Center(child: CircularProgressIndicator()),
                   )
                 else
-                  _seccion == 0 ? _buildListaProductos(context) : _buildListaTiendas(context),
+                  _seccion == 0
+                      ? _buildListaProductos(context)
+                      : _buildListaTiendas(context),
               ],
             ),
           ),
