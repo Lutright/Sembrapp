@@ -1,0 +1,1105 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:go_router/go_router.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+
+import '../alfabetizacion_ui_colors.dart';
+import '../data/lecciones_data.dart';
+import '../services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_feedback.dart';
+import 'alfabetizacion_lesson_shell.dart';
+
+/// Flujo en 6 etapas para la lección Vocales: intro → presentación → práctica →
+/// actividad (con retroalimentación) → recompensa. Audio con TTS en español.
+class VocalesLeccionFlow extends StatefulWidget {
+  const VocalesLeccionFlow({
+    super.key,
+    required this.leccion,
+    required this.onCompletar,
+  });
+
+  final LeccionData leccion;
+  final Future<void> Function() onCompletar;
+
+  @override
+  State<VocalesLeccionFlow> createState() => _VocalesLeccionFlowState();
+}
+
+class _VocalPaso {
+  const _VocalPaso({
+    required this.letra,
+    required this.deEjemplo,
+    required this.emoji,
+  });
+
+  final String letra;
+  final String deEjemplo;
+  final String emoji;
+}
+
+class _EjercicioActividad {
+  const _EjercicioActividad({
+    required this.textoPregunta,
+    required this.audioInstruccion,
+    required this.opciones,
+    required this.correcta,
+    required this.emojiIlustracion,
+  });
+
+  /// Texto que ve el usuario (pregunta clara).
+  final String textoPregunta;
+
+  /// Lo que dice la voz al presentar y al repetir tras un fallo.
+  final String audioInstruccion;
+  final List<String> opciones;
+  final String correcta;
+  final String emojiIlustracion;
+}
+
+enum _Fase {
+  intro,
+  presentacion,
+  practica,
+  actividad,
+  recompensa,
+}
+
+class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
+  static const Color _azulHorizonte = Color(0xFF1A4463);
+  static const _vocales = <_VocalPaso>[
+    _VocalPaso(letra: 'A', deEjemplo: 'A de árbol', emoji: '🌳'),
+    _VocalPaso(letra: 'E', deEjemplo: 'E de escoba', emoji: '🧹'),
+    _VocalPaso(letra: 'I', deEjemplo: 'I de iguana', emoji: '🦎'),
+    _VocalPaso(letra: 'O', deEjemplo: 'O de oveja', emoji: '🐑'),
+    _VocalPaso(letra: 'U', deEjemplo: 'U de uva', emoji: '🍇'),
+  ];
+
+  static const _ejercicios = <_EjercicioActividad>[
+    _EjercicioActividad(
+      textoPregunta: 'Selecciona la letra A',
+      audioInstruccion: 'Selecciona la letra A',
+      opciones: ['A', 'E', 'O'],
+      correcta: 'A',
+      emojiIlustracion: '🌳',
+    ),
+    _EjercicioActividad(
+      textoPregunta: '¿Cuál es la letra O?',
+      audioInstruccion: '¿Cuál es la O?',
+      opciones: ['U', 'O', 'I'],
+      correcta: 'O',
+      emojiIlustracion: '🐑',
+    ),
+    _EjercicioActividad(
+      textoPregunta: '¿Con qué letra empieza esta palabra?',
+      audioInstruccion: '¿Con qué letra empieza la palabra oveja?',
+      opciones: ['A', 'O', 'E'],
+      correcta: 'O',
+      emojiIlustracion: '🐑',
+    ),
+  ];
+
+  static const double _ttsRateNormal = 0.42;
+  static const double _ttsRateLetra = 0.26;
+  static const Duration _ttsStopTimeout = Duration(milliseconds: 900);
+  static const Duration _ttsSpeakTimeout = Duration(seconds: 7);
+
+  final FlutterTts _tts = FlutterTts();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+
+  bool _ttsListo = false;
+  bool _ttsDisposed = false;
+  bool _introAudioYa = false;
+  bool _progresoGuardado = false;
+
+  /// Invalida audios encolados al cambiar de pantalla / avanzar antes de que termine la voz.
+  int _ttsGen = 0;
+  Future<void> _ttsQueue = Future.value();
+
+  bool _ttsFlujoOk() =>
+      mounted && !_ttsDisposed && alfabetizacionTtsRouteActive(context);
+
+  Future<void> _ttsStopSeguro() async {
+    try {
+      await _tts.stop().timeout(_ttsStopTimeout);
+    } catch (_) {}
+  }
+
+  Future<void> _ttsSpeakSeguro(String texto) async {
+    try {
+      await _tts.speak(texto).timeout(_ttsSpeakTimeout);
+    } catch (_) {}
+  }
+
+  bool _speechDisponible = false;
+  bool _escuchandoVoz = false;
+  String? _localeIdVoz;
+  String _ultimoReconocido = '';
+
+  _Fase _fase = _Fase.intro;
+  int _indicePresentacion = 0;
+  int _indicePractica = 0;
+  int _indiceEjercicio = 0;
+
+  bool _actividadBloqueada = false;
+  bool _mostrarMuyBien = false;
+  bool _mostrarIntentaDeNuevo = false;
+  String? _opcionActividadSeleccionada;
+  bool? _opcionActividadFueCorrecta;
+
+  int _aciertoAnimacion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _inicializarTts();
+    _inicializarSpeech();
+  }
+
+  Future<void> _inicializarSpeech() async {
+    if (kIsWeb) return;
+    try {
+      final ok = await _speech.initialize(
+        onStatus: (status) {
+          if (status == stt.SpeechToText.doneStatus ||
+              status == stt.SpeechToText.notListeningStatus) {
+            if (mounted) setState(() => _escuchandoVoz = false);
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _escuchandoVoz = false);
+        },
+      );
+      if (!ok || !mounted) return;
+      final locales = await _speech.locales();
+      setState(() {
+        _speechDisponible = true;
+        _localeIdVoz = _elegirLocaleEspanol(locales);
+      });
+    } catch (_) {
+      if (mounted) setState(() => _speechDisponible = false);
+    }
+  }
+
+  String? _elegirLocaleEspanol(List<stt.LocaleName> locales) {
+    final es = locales
+        .where((l) => l.localeId.toLowerCase().startsWith('es'))
+        .toList();
+    if (es.isEmpty) return null;
+    const preferidos = ['es_ES', 'es_MX', 'es_AR', 'es_CO'];
+    for (final id in preferidos) {
+      for (final l in es) {
+        if (l.localeId == id) return l.localeId;
+      }
+    }
+    return es.first.localeId;
+  }
+
+  Future<void> _inicializarTts() async {
+    try {
+      await _tts.awaitSpeakCompletion(true);
+      await _tts.setLanguage('es-ES');
+      await _tts.setSpeechRate(_ttsRateNormal);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+    } catch (_) {
+      try {
+        await _tts.setLanguage('es-MX');
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() => _ttsListo = true);
+    await _reproducirIntroSiCorresponde();
+  }
+
+  /// Para el motor TTS y deja un margen antes del siguiente [speak] (evita audios en silencio en Android).
+  Future<void> _ttsInterrumpir() async {
+    _ttsGen++;
+    await _ttsStopSeguro();
+    await Future<void>.delayed(const Duration(milliseconds: 130));
+  }
+
+  /// Ejecuta un bloque de TTS en serie; si el usuario avanza, [miGen] deja de coincidir y se omite.
+  Future<void> _ttsEncolar(Future<void> Function(int miGen) accion) async {
+    if (!_ttsListo || _ttsDisposed) return;
+    final miGen = _ttsGen;
+    final hecho = Completer<void>();
+    _ttsQueue = _ttsQueue.then((_) async {
+      try {
+        if (miGen != _ttsGen) return;
+        await _ttsStopSeguro();
+        await Future<void>.delayed(const Duration(milliseconds: 115));
+        if (miGen != _ttsGen) return;
+        await accion(miGen);
+      } catch (_) {
+      } finally {
+        if (!hecho.isCompleted) hecho.complete();
+      }
+    });
+    await hecho.future;
+  }
+
+  Future<void> _hablar(String texto) async {
+    if (!_ttsListo || texto.isEmpty || !_ttsFlujoOk()) return;
+    await _ttsEncolar((miGen) async {
+      if (miGen != _ttsGen) return;
+      await _tts.setSpeechRate(_ttsRateNormal);
+      if (miGen != _ttsGen) return;
+      await _ttsSpeakSeguro(texto);
+    });
+  }
+
+  /// Nombre claro de la vocal (el motor suele fallar o confundir la «E» suelta).
+  Future<void> _hablarLetraVocal(String letra) async {
+    if (!_ttsListo || letra.isEmpty || !_ttsFlujoOk()) return;
+    final texto = 'Vocal $letra';
+    await _ttsEncolar((miGen) async {
+      try {
+        if (miGen != _ttsGen) return;
+        await _tts.setSpeechRate(_ttsRateLetra);
+        if (miGen != _ttsGen) return;
+        await _ttsSpeakSeguro(texto);
+      } finally {
+        try {
+          await _tts.setSpeechRate(_ttsRateNormal);
+        } catch (_) {}
+      }
+    });
+  }
+
+  Future<void> _reproducirIntroSiCorresponde() async {
+    if (_introAudioYa || _fase != _Fase.intro) return;
+    _introAudioYa = true;
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
+    await _hablar('Vamos a aprender las vocales');
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!mounted || _fase != _Fase.intro || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa el botón verde para empezar');
+  }
+
+  Future<void> _escucharIntroduccion() async {
+    if (!_ttsListo) return;
+    await _ttsInterrumpir();
+    await _hablar('Vamos a aprender las vocales');
+  }
+
+  @override
+  void dispose() {
+    _ttsDisposed = true;
+    _ttsGen++;
+    unawaited(_ttsStopSeguro());
+    unawaited(_tts.stop());
+    if (_speechDisponible) {
+      try {
+        unawaited(_speech.stop());
+      } catch (_) {}
+    }
+    super.dispose();
+  }
+
+  double get _progresoLineal {
+    switch (_fase) {
+      case _Fase.intro:
+        return 1 / 6;
+      case _Fase.presentacion:
+        return 2 / 6;
+      case _Fase.practica:
+        return 3 / 6;
+      case _Fase.actividad:
+        final fraccion = (_indiceEjercicio + 1) / _ejercicios.length;
+        return 4 / 6 + fraccion * (1 / 6);
+      case _Fase.recompensa:
+        return 1;
+    }
+  }
+
+  String get _etiquetaPaso {
+    switch (_fase) {
+      case _Fase.intro:
+        return 'Introducción';
+      case _Fase.presentacion:
+        return 'Enseñanza · ${_indicePresentacion + 1} de ${_vocales.length}';
+      case _Fase.practica:
+        return 'Práctica guiada · ${_indicePractica + 1} de ${_vocales.length}';
+      case _Fase.actividad:
+        return 'Actividad · ${_indiceEjercicio + 1} de ${_ejercicios.length}';
+      case _Fase.recompensa:
+        return '¡Lección completada!';
+    }
+  }
+
+  Future<void> _anunciarInstruccionesPresentacion() async {
+    final v = _vocales[_indicePresentacion];
+    await _hablar(v.deEjemplo);
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _fase != _Fase.presentacion || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa Escuchar si quieres oírla de nuevo');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _fase != _Fase.presentacion || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa el botón verde para continuar');
+  }
+
+  Future<void> _empezarPresentacion() async {
+    await _ttsInterrumpir();
+    if (!mounted) return;
+    setState(() {
+      _fase = _Fase.presentacion;
+      _indicePresentacion = 0;
+    });
+    await _anunciarInstruccionesPresentacion();
+  }
+
+  Future<void> _repetirSonidoVocalPresentacion() async {
+    await _hablarLetraVocal(_vocales[_indicePresentacion].letra);
+  }
+
+  Future<void> _siguientePresentacion() async {
+    await _ttsInterrumpir();
+    if (!mounted) return;
+    if (_indicePresentacion < _vocales.length - 1) {
+      setState(() => _indicePresentacion++);
+      await _anunciarInstruccionesPresentacion();
+    } else {
+      setState(() {
+        _fase = _Fase.practica;
+        _indicePractica = 0;
+      });
+      await _entradaPracticaActual();
+    }
+  }
+
+  Future<void> _entradaPracticaActual() async {
+    // [_siguientePresentacion] / [_siguientePractica] ya llamaron a [_ttsInterrumpir].
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
+    await _hablar('Escucha y repite');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
+    await _hablarLetraVocal(_vocales[_indicePractica].letra);
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa Escuchar otra vez cuando quieras repetir');
+    if (_speechDisponible) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
+      await _hablar(
+        'Pulsa el botón del micrófono, di la vocal en voz alta y espera un momento',
+      );
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa el botón verde para continuar');
+  }
+
+  Future<void> _repetirPractica() async {
+    await _hablarLetraVocal(_vocales[_indicePractica].letra);
+  }
+
+  Future<void> _tocarLetraPractica() async {
+    await _hablarLetraVocal(_vocales[_indicePractica].letra);
+  }
+
+  bool _textoCoincideConVocal(String reconocido, String letra) {
+    final L = letra.toUpperCase().trim();
+    if (L.isEmpty) return false;
+    var t = reconocido.toUpperCase().trim();
+    t = t.replaceAll(RegExp('[^A-ZÁÉÍÓÚÑ\\s]'), '');
+    if (t.isEmpty) return false;
+    if (t == L) return true;
+    final partes = t.split(RegExp('\\s+'));
+    if (partes.any((p) => p == L)) return true;
+    if (partes.contains('VOCAL') && partes.any((p) => p == L)) return true;
+    if (t.length == 1 && t == L) return true;
+    return false;
+  }
+
+  void _onResultadoVozPractica(SpeechRecognitionResult result) {
+    if (!result.finalResult) {
+      if (mounted) {
+        setState(() => _ultimoReconocido = result.recognizedWords);
+      }
+      return;
+    }
+    unawaited(_evaluarVozPractica(result.recognizedWords));
+  }
+
+  Future<void> _evaluarVozPractica(String palabras) async {
+    if (!mounted) return;
+    setState(() {
+      _escuchandoVoz = false;
+      _ultimoReconocido = palabras;
+    });
+    try {
+      await _speech.stop();
+    } catch (_) {}
+    if (palabras.trim().isEmpty) {
+      await _hablar('No te escuché bien. Intenta otra vez.');
+      return;
+    }
+    final letra = _vocales[_indicePractica].letra;
+    if (_textoCoincideConVocal(palabras, letra)) {
+      try {
+        SystemSound.play(SystemSoundType.click);
+      } catch (_) {}
+      await _hablar('¡Muy bien!');
+    } else {
+      await _hablar('Intenta otra vez. Di la vocal $letra.');
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!mounted || _fase != _Fase.practica) return;
+      await _hablarLetraVocal(letra);
+    }
+  }
+
+  Future<void> _pulsarMicrofonoPractica() async {
+    if (!_speechDisponible) {
+      await _hablar(
+        'En este aparato no está disponible el micrófono. Pulsa Escuchar otra vez para escuchar.',
+      );
+      return;
+    }
+    if (_speech.isListening) {
+      try {
+        await _speech.stop();
+      } catch (_) {}
+      return;
+    }
+    await _ttsInterrumpir();
+    setState(() {
+      _escuchandoVoz = true;
+      _ultimoReconocido = '';
+    });
+    try {
+      await _speech.listen(
+        onResult: _onResultadoVozPractica,
+        listenFor: const Duration(seconds: 20),
+        pauseFor: const Duration(seconds: 3),
+        localeId: _localeIdVoz,
+        listenOptions: stt.SpeechListenOptions(
+          listenMode: stt.ListenMode.confirmation,
+          partialResults: true,
+          cancelOnError: true,
+        ),
+      );
+    } catch (_) {
+      if (mounted) setState(() => _escuchandoVoz = false);
+      await _hablar('No se pudo usar el micrófono. Intenta de nuevo.');
+    }
+  }
+
+  Future<void> _siguientePractica() async {
+    await _ttsInterrumpir();
+    try {
+      if (_speech.isListening) await _speech.stop();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _escuchandoVoz = false);
+    if (_indicePractica < _vocales.length - 1) {
+      setState(() => _indicePractica++);
+      await _entradaPracticaActual();
+    } else {
+      setState(() {
+        _fase = _Fase.actividad;
+        _indiceEjercicio = 0;
+        _actividadBloqueada = false;
+        _mostrarMuyBien = false;
+      });
+      await _hablarInstruccionEjercicio();
+    }
+  }
+
+  Future<void> _hablarInstruccionEjercicio() async {
+    final ej = _ejercicios[_indiceEjercicio];
+    await _hablar('Selecciona la respuesta correcta');
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted || _fase != _Fase.actividad || !_ttsFlujoOk()) return;
+    await _hablar(ej.audioInstruccion);
+  }
+
+  /// Repite consigna completa tras un fallo (voz automática).
+  Future<void> _repetirPreguntaActividadPorVoz() async {
+    await _hablarInstruccionEjercicio();
+  }
+
+  Future<void> _elegirOpcionActividad(String opcion) async {
+    if (_actividadBloqueada || _fase != _Fase.actividad) return;
+    final ej = _ejercicios[_indiceEjercicio];
+    if (opcion == ej.correcta) {
+      setState(() {
+        _actividadBloqueada = true;
+        _mostrarMuyBien = true;
+        _aciertoAnimacion++;
+        _opcionActividadSeleccionada = opcion;
+        _opcionActividadFueCorrecta = true;
+      });
+      try {
+        SystemSound.play(SystemSoundType.click);
+      } catch (_) {}
+      await _hablar('¡Muy bien!');
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 950));
+      if (!mounted) return;
+      if (_indiceEjercicio < _ejercicios.length - 1) {
+        setState(() {
+          _indiceEjercicio++;
+          _actividadBloqueada = false;
+          _mostrarMuyBien = false;
+          _opcionActividadSeleccionada = null;
+          _opcionActividadFueCorrecta = null;
+        });
+        await _hablarInstruccionEjercicio();
+      } else {
+        await _finalizarConRecompensa();
+      }
+    } else {
+      setState(() {
+        _mostrarIntentaDeNuevo = true;
+        _opcionActividadSeleccionada = opcion;
+        _opcionActividadFueCorrecta = false;
+      });
+      await _hablar('Intenta de nuevo');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted || _fase != _Fase.actividad) return;
+      await _repetirPreguntaActividadPorVoz();
+      if (mounted) {
+        setState(() {
+          _mostrarIntentaDeNuevo = false;
+          _opcionActividadSeleccionada = null;
+          _opcionActividadFueCorrecta = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _repetirAudioEjercicio() async {
+    await _repetirPreguntaActividadPorVoz();
+  }
+
+  Future<void> _finalizarConRecompensa() async {
+    if (!_progresoGuardado) {
+      _progresoGuardado = true;
+      await widget.onCompletar();
+    }
+    if (!mounted) return;
+    setState(() {
+      _fase = _Fase.recompensa;
+      _mostrarMuyBien = false;
+      _actividadBloqueada = false;
+    });
+    await _hablar('Completaste la lección. Muy bien.');
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || !_ttsFlujoOk()) return;
+    await _hablar('Pulsa el botón verde para volver');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tituloModulo =
+        widget.leccion.modulo == 'lectura' ? 'Lectura' : 'Escritura';
+    return AlfabetizacionLessonShell(
+      title: widget.leccion.titulo,
+      subtitle: '$tituloModulo · Nivel ${widget.leccion.nivel}',
+      progress: _progresoLineal,
+      stepLabel: _etiquetaPaso,
+      centerChild: _fase == _Fase.recompensa,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        child: KeyedSubtree(
+          key: ValueKey(
+            (_fase, _indicePresentacion, _indicePractica, _indiceEjercicio),
+          ),
+          child: _cuerpoFase(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _cuerpoFase(BuildContext context) {
+    switch (_fase) {
+      case _Fase.intro:
+        return _buildIntro(context);
+      case _Fase.presentacion:
+        return _buildPresentacion(context);
+      case _Fase.practica:
+        return _buildPractica(context);
+      case _Fase.actividad:
+        return _buildActividad(context);
+      case _Fase.recompensa:
+        return _buildRecompensa(context);
+    }
+  }
+
+  Widget _buildIntro(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AlfabetizacionLessonTokens.cardShadow,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.primaryContainer.withValues(alpha: 0.92),
+                      scheme.tertiaryContainer.withValues(alpha: 0.65),
+                      scheme.secondaryContainer.withValues(alpha: 0.45),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.record_voice_over_rounded, size: 88, color: scheme.primary),
+                    const SizedBox(height: 14),
+                    Icon(Icons.menu_book_rounded, size: 58, color: scheme.tertiary),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        AlfabetizacionLessonSurface(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.headphones_rounded,
+                      color: AlfabetizacionLessonTokens.accentBlue, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Guía por voz',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AlfabetizacionLessonTokens.accentBlue,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Vamos a aprender las vocales',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                    ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: _ttsListo ? _escucharIntroduccion : null,
+                icon: const Icon(Icons.volume_up_rounded),
+                label: const Text('Escuchar introducción'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  side: const BorderSide(color: _azulHorizonte, width: 1.5),
+                  foregroundColor: _azulHorizonte,
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: _ttsListo ? _empezarPresentacion : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(52),
+                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Empezar lección'),
+              ),
+              if (!_ttsListo) ...[
+                const SizedBox(height: 18),
+                const Center(child: CircularProgressIndicator()),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPresentacion(BuildContext context) {
+    final v = _vocales[_indicePresentacion];
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AlfabetizacionLessonSurface(
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Vocal ${v.letra}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AlfabetizacionLessonTokens.accentBlue,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                v.letra,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 96,
+                      height: 1,
+                      color: scheme.primary,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                v.emoji,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 80),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                v.deEjemplo,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: _repetirSonidoVocalPresentacion,
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Escuchar'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            shape: const StadiumBorder(),
+          ),
+        ),
+        const SizedBox(height: 14),
+        FilledButton(
+          onPressed: _siguientePresentacion,
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
+          child: Text(
+            _indicePresentacion < _vocales.length - 1
+                ? 'Siguiente'
+                : 'Ir a la práctica',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPractica(BuildContext context) {
+    final v = _vocales[_indicePractica];
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Escucha y repite',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Toca la letra, el botón Escuchar o el micrófono.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 28),
+        Material(
+          color: scheme.primaryContainer.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: _tocarLetraPractica,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 36),
+              child: Text(
+                v.letra,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 110,
+                    ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_speechDisponible && !kIsWeb) ...[
+          Center(
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: IconButton(
+                onPressed: _pulsarMicrofonoPractica,
+                style: IconButton.styleFrom(
+                  backgroundColor: _azulHorizonte,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                ),
+                icon: Icon(
+                  _escuchandoVoz ? Icons.mic_rounded : Icons.mic_none_rounded,
+                  size: 30,
+                ),
+              ),
+            ),
+          ),
+          if (_ultimoReconocido.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Escuché: $_ultimoReconocido',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
+        OutlinedButton.icon(
+          onPressed: _repetirPractica,
+          icon: const Icon(Icons.replay_rounded),
+          label: const Text('Escuchar otra vez'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            side: const BorderSide(color: _azulHorizonte, width: 1.5),
+            foregroundColor: _azulHorizonte,
+            shape: const StadiumBorder(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: _siguientePractica,
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
+          child: Text(
+            _indicePractica < _vocales.length - 1
+                ? 'Siguiente'
+                : 'Ir a la actividad',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActividad(BuildContext context) {
+    final ej = _ejercicios[_indiceEjercicio];
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_mostrarMuyBien) ...[
+          AlfabetizacionLessonCorrectBanner(animationTick: _aciertoAnimacion),
+          const SizedBox(height: 16),
+        ],
+        if (_mostrarIntentaDeNuevo) ...[
+          Card(
+            color: scheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: scheme.error),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Intenta de nuevo',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: scheme.onErrorContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        Text(
+          'Selecciona la respuesta correcta',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 0,
+          color: scheme.surfaceContainerHighest,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              children: [
+                Text(
+                  ej.emojiIlustracion,
+                  style: const TextStyle(fontSize: 96),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  ej.textoPregunta,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            for (var i = 0; i < ej.opciones.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _actividadBloqueada
+                      ? null
+                      : () => _elegirOpcionActividad(ej.opciones[i]),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(64),
+                    side: BorderSide(
+                      color: _colorBordeOpcionActividad(ej.opciones[i]),
+                      width: 1.5,
+                    ),
+                    backgroundColor: _colorFondoOpcionActividad(ej.opciones[i]),
+                    foregroundColor: _colorTextoOpcionActividad(ej.opciones[i]),
+                    textStyle: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  child: _buildLabelOpcionActividad(ej.opciones[i]),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 20),
+        TextButton.icon(
+          onPressed: _actividadBloqueada ? null : _repetirAudioEjercicio,
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Repetir la pregunta con voz'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecompensa(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AlfabetizacionLessonCompletionPanel(
+          headline: '¡Lo lograste!',
+          detail: 'Lección: ${widget.leccion.titulo}',
+          pointsLabel: '+${widget.leccion.puntos} puntos',
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          onPressed: () => context.pop(),
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(56),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Volver al módulo'),
+        ),
+      ],
+    );
+  }
+
+  Color _colorFondoOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return Colors.white;
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) return Colors.green.shade100;
+    if (ok == false) return AlfabetizacionUiColors.rojoAcento.withValues(alpha: 0.10);
+    return Colors.white;
+  }
+
+  Color _colorBordeOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) return Colors.green.shade700;
+    if (ok == false) return AlfabetizacionUiColors.rojoAcento;
+    return _azulHorizonte;
+  }
+
+  Color _colorTextoOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) return Colors.green.shade800;
+    if (ok == false) return AlfabetizacionUiColors.rojoAcento;
+    return _azulHorizonte;
+  }
+
+  Widget _buildLabelOpcionActividad(String opcion) {
+    if (_opcionActividadSeleccionada != opcion) return Text(opcion);
+    final ok = _opcionActividadFueCorrecta;
+    if (ok == true) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.check_circle, size: 20),
+          const SizedBox(width: 6),
+          Text(opcion),
+        ],
+      );
+    }
+    if (ok == false) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.cancel, size: 20),
+          const SizedBox(width: 6),
+          Text(opcion),
+        ],
+      );
+    }
+    return Text(opcion);
+  }
+}

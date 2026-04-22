@@ -17,6 +17,22 @@ class AlfabetizacionRepository {
     return total;
   }
 
+  /// IDs de lecciones aprobadas (completadas con éxito) en un módulo.
+  Future<Set<String>> getLeccionesCompletadasIds(
+    String userId,
+    String modulo,
+  ) async {
+    final res = await _client
+        .from('alfabetizacion_progreso')
+        .select('leccion_id')
+        .eq('user_id', userId)
+        .eq('modulo', modulo);
+    if (res.isEmpty) return {};
+    return (res as List)
+        .map((row) => row['leccion_id'] as String)
+        .toSet();
+  }
+
   Future<Map<String, dynamic>> getProgresoLeccion(
     String userId,
     String modulo,

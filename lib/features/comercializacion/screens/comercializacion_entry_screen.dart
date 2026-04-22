@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/widgets/schedule_cold_start_deep_link.dart';
 import 'comercializacion_home_screen.dart';
 import 'marketplace_screen.dart';
 
@@ -14,9 +15,10 @@ class ComercializacionEntryScreen extends StatelessWidget {
         as String?;
     final isComprador = role == 'comprador';
 
-    if (isComprador) {
-      return const MarketplaceScreen();
-    }
-    return const ComercializacionHomeScreen();
+    return ScheduleColdStartDeepLink(
+      child: isComprador
+          ? const MarketplaceScreen()
+          : const ComercializacionHomeScreen(),
+    );
   }
 }

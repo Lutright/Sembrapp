@@ -1,0 +1,3 @@
+# Webhooks de base de datos no envían JWT de sesión; la función valida PUSH_WEBHOOK_SECRET.
+[functions.push-webhook]
+verify_jwt = false

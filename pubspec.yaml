@@ -11,15 +11,37 @@ dependencies:
     sdk: flutter
   flutter_dotenv: ^5.1.0
   supabase_flutter: ^2.8.0
-  go_router: ^14.2.0
+  go_router: ^15.1.2
   equatable: ^2.0.5
+  geolocator: ^13.0.2
+  shared_preferences: ^2.3.3
+  flutter_tts: ^4.2.5
+  speech_to_text: ^7.3.0
+  google_fonts: ^6.2.1
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  image_path: assets/alfabetizacion/images/logo_app.png
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/alfabetizacion/images/logo_app.png
 
 flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/alfabetizacion/images/
+    - assets/alfabetizacion/audio/

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/geo_utils.dart';
 import '../models/producto.dart';
 
 class ProductosRepository {
@@ -20,12 +21,42 @@ class ProductosRepository {
         .toList();
   }
 
+  Future<List<Producto>> listarProductosCercanos({
+    required double buyerLat,
+    required double buyerLng,
+    double maxDistanceKm = 25,
+    String? busqueda,
+  }) async {
+    final all = await listarProductos(busqueda: busqueda);
+    return all.where((p) {
+      if (p.lat == null || p.lng == null) return false;
+      final d = distanceKm(
+        lat1: buyerLat,
+        lng1: buyerLng,
+        lat2: p.lat!,
+        lng2: p.lng!,
+      );
+      return d <= maxDistanceKm;
+    }).toList();
+  }
+
   Future<List<Producto>> misProductos(String campesinoId) async {
-    final res = await _client
+    return productosPorCampesino(campesinoId);
+  }
+
+  /// Productos publicados por un campesino (vista tienda).
+  Future<List<Producto>> productosPorCampesino(
+    String campesinoId, {
+    String? busqueda,
+  }) async {
+    var query = _client
         .from('productos')
         .select('*, profiles(full_name)')
-        .eq('campesino_id', campesinoId)
-        .order('created_at', ascending: false);
+        .eq('campesino_id', campesinoId);
+    if (busqueda != null && busqueda.trim().isNotEmpty) {
+      query = query.ilike('nombre', '%${busqueda.trim()}%');
+    }
+    final res = await query.order('created_at', ascending: false);
     return (res as List)
         .map((e) => Producto.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -38,11 +69,16 @@ class ProductosRepository {
         .eq('id', id)
         .maybeSingle();
     if (res == null) return null;
-    return Producto.fromMap(res as Map<String, dynamic>);
+    return Producto.fromMap(res);
   }
 
-  Future<void> crearProducto(Producto p) async {
-    await _client.from('productos').insert(p.toMap());
+  Future<String> crearProducto(Producto p) async {
+    final res = await _client
+        .from('productos')
+        .insert(p.toMap())
+        .select('id')
+        .single();
+    return res['id'] as String;
   }
 
   Future<void> actualizarProducto(String id, Map<String, dynamic> data) async {
