@@ -97,6 +97,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   String _actividadRespuesta = '';
   List<Offset> _puntos = <Offset>[];
   int _aciertoFeedbackTick = 0;
+  final GlobalKey _lienzoTrazoKey = GlobalKey();
 
   @override
   void initState() {
@@ -180,18 +181,70 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   }
 
   bool _trazoAproximado(List<Offset> raw, List<Offset> objetivo) {
-    if (raw.length < 10) return false;
-    final box = _bounds(raw);
+    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
+    if (puntosValidos.length < 10) return false;
+    final box = _bounds(puntosValidos);
     if (box.width < 35 || box.height < 35) return false;
-    final normalizados = raw
-        .map((p) => Offset((p.dx - box.left) / box.width, (p.dy - box.top) / box.height))
+    final normalizados = _normalizarTrazado(puntosValidos);
+    final objetivoNormalizado = _normalizarTrazado(objetivo);
+
+    // Verifica que la forma escrita cubra suficientemente el modelo
+    // y también que no se desvíe demasiado del contorno esperado.
+    final coberturaModelo = _ratioCercaniaAContorno(
+      muestra: objetivoNormalizado,
+      contorno: normalizados,
+      umbral: 0.2,
+    );
+    final precisionTrazo = _ratioCercaniaAContorno(
+      muestra: normalizados,
+      contorno: objetivoNormalizado,
+      umbral: 0.24,
+    );
+
+    return coberturaModelo >= 0.62 && precisionTrazo >= 0.52;
+  }
+
+  List<Offset> _normalizarTrazado(List<Offset> pts) {
+    final box = _bounds(pts);
+    final ancho = math.max(box.width, 1.0);
+    final alto = math.max(box.height, 1.0);
+    return pts
+        .map((p) => Offset((p.dx - box.left) / ancho, (p.dy - box.top) / alto))
         .toList();
-    var idxObjetivo = 0;
-    for (final p in normalizados) {
-      if (idxObjetivo >= objetivo.length) break;
-      if ((p - objetivo[idxObjetivo]).distance <= 0.22) idxObjetivo++;
+  }
+
+  double _ratioCercaniaAContorno({
+    required List<Offset> muestra,
+    required List<Offset> contorno,
+    required double umbral,
+  }) {
+    if (muestra.isEmpty || contorno.length < 2) return 0;
+    var cercanos = 0;
+    for (final p in muestra) {
+      final d = _distanciaMinimaAContorno(p, contorno);
+      if (d <= umbral) cercanos++;
     }
-    return idxObjetivo >= math.max(3, (objetivo.length * 0.75).round());
+    return cercanos / muestra.length;
+  }
+
+  double _distanciaMinimaAContorno(Offset p, List<Offset> contorno) {
+    var minimo = double.infinity;
+    for (var i = 1; i < contorno.length; i++) {
+      final d = _distanciaPuntoASegmento(p, contorno[i - 1], contorno[i]);
+      if (d < minimo) minimo = d;
+    }
+    return minimo;
+  }
+
+  double _distanciaPuntoASegmento(Offset p, Offset a, Offset b) {
+    final ab = b - a;
+    final ap = p - a;
+    final ab2 = (ab.dx * ab.dx) + (ab.dy * ab.dy);
+    if (ab2 <= 1e-9) return (p - a).distance;
+    final t = ((ap.dx * ab.dx) + (ap.dy * ab.dy)) / ab2;
+    final tc = t.clamp(0.0, 1.0);
+    final proyeccion = Offset(a.dx + ab.dx * tc, a.dy + ab.dy * tc);
+    return (p - proyeccion).distance;
   }
 
   Rect _bounds(List<Offset> pts) {
@@ -405,11 +458,17 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         const SizedBox(height: 10),
         Expanded(
           child: GestureDetector(
+            key: _lienzoTrazoKey,
+            onPanStart: (d) {
+              final p = _normalizarPuntoAlLienzo(d.localPosition);
+              setState(() => _puntos = [..._puntos, p]);
+            },
             onPanUpdate: (d) {
-              final box = context.findRenderObject() as RenderBox?;
-              if (box == null) return;
-              final local = box.globalToLocal(d.globalPosition);
-              setState(() => _puntos = [..._puntos, local]);
+              final p = _normalizarPuntoAlLienzo(d.localPosition);
+              setState(() => _puntos = [..._puntos, p]);
+            },
+            onPanEnd: (_) {
+              setState(() => _puntos = [..._puntos, const Offset(double.nan, double.nan)]);
             },
             child: Container(
               decoration: BoxDecoration(
@@ -496,6 +555,16 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         const Spacer(),
         FilledButton(onPressed: _evaluarActividad, child: const Text('Validar')),
       ],
+    );
+  }
+
+  Offset _normalizarPuntoAlLienzo(Offset localPosition) {
+    final box = _lienzoTrazoKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return localPosition;
+    final size = box.size;
+    return Offset(
+      localPosition.dx.clamp(0.0, size.width),
+      localPosition.dy.clamp(0.0, size.height),
     );
   }
 
@@ -609,6 +678,8 @@ class _TrazoPainter extends CustomPainter {
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
     for (var i = 1; i < puntos.length; i++) {
+      if (!puntos[i - 1].dx.isFinite || !puntos[i - 1].dy.isFinite) continue;
+      if (!puntos[i].dx.isFinite || !puntos[i].dy.isFinite) continue;
       canvas.drawLine(puntos[i - 1], puntos[i], paint);
     }
   }
