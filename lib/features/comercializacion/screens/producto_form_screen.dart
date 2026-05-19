@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/tutorial/models/tutorial_step.dart';
 import '../../../core/tutorial/tutorial_runner.dart';
+import '../../../core/tutorial/tutorial_service.dart';
 import '../../../core/tutorial/widgets/tutorial_help_button.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
@@ -39,7 +40,7 @@ final class _OrganicHeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-class ProductoFormScreen extends StatelessWidget {
+class ProductoFormScreen extends StatefulWidget {
   const ProductoFormScreen({
     super.key,
     this.producto,
@@ -48,8 +49,15 @@ class ProductoFormScreen extends StatelessWidget {
   final Producto? producto;
 
   @override
+  State<ProductoFormScreen> createState() => _ProductoFormScreenState();
+}
+
+class _ProductoFormScreenState extends State<ProductoFormScreen> {
+  final _formBodyKey = GlobalKey<_ProductoFormBodyState>();
+
+  @override
   Widget build(BuildContext context) {
-    final isEdit = producto != null;
+    final isEdit = widget.producto != null;
     final titulo = isEdit ? 'Editar producto' : 'Añadir producto';
     return Scaffold(
       backgroundColor: _crema,
@@ -59,7 +67,8 @@ class ProductoFormScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(top: 124),
               child: _ProductoFormBody(
-                producto: producto,
+                key: _formBodyKey,
+                producto: widget.producto,
                 onSaved: () => context.pop(),
               ),
             ),
@@ -137,6 +146,10 @@ class ProductoFormScreen extends StatelessWidget {
                         child: TutorialHelpButton(
                           phrases: productoFormHelpPhrases,
                           tooltip: 'Ayuda',
+                          onReplayWalkthrough: isEdit
+                              ? null
+                              : () => _formBodyKey.currentState
+                                  ?.replayTutorial(),
                         ),
                       ),
                     ),
@@ -152,6 +165,7 @@ class ProductoFormScreen extends StatelessWidget {
 
 class _ProductoFormBody extends StatefulWidget {
   const _ProductoFormBody({
+    super.key,
     this.producto,
     required this.onSaved,
   });
@@ -197,9 +211,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
   }
 
-  void _tryStartTutorial() {
-    if (!mounted || widget.producto != null) return;
-    final allSteps = buildProductoPublicacionTutorialSteps(
+  List<TutorialStep> _buildProductoTutorialSteps() {
+    return buildProductoPublicacionTutorialSteps(
       infoKey: _tutorialInfo,
       fotoKey: _tutorialFoto,
       nombreKey: _tutorialNombre,
@@ -208,12 +221,25 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       unidadKey: _tutorialUnidad,
       guardarKey: _tutorialGuardar,
     );
+  }
+
+  void _tryStartTutorial() {
+    if (!mounted || widget.producto != null) return;
     final pending = TutorialRunner.filterPendingSteps(
       flowId: kTutorialProductoFormFlowId,
-      steps: allSteps,
+      steps: _buildProductoTutorialSteps(),
     );
     if (pending.isEmpty) return;
     setState(() => _tutorialSteps = pending);
+  }
+
+  Future<void> replayTutorial() async {
+    if (widget.producto != null) return;
+    await TutorialService.instance.resetFlow(
+      stepIdPrefix: kTutorialProductoFormFlowId,
+    );
+    if (!mounted) return;
+    setState(() => _tutorialSteps = _buildProductoTutorialSteps());
   }
 
   @override
@@ -537,32 +563,37 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              'Foto del producto',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-            ),
-            const SizedBox(height: 8),
             KeyedSubtree(
               key: _tutorialFoto,
-              child: GestureDetector(
-                onTap: _seleccionarImagen,
-                child: Container(
-                  height: 160,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A4463).withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF1A4463).withValues(alpha: 0.20),
-                      width: 1.5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Foto del producto',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _seleccionarImagen,
+                    child: Container(
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A4463).withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF1A4463).withValues(alpha: 0.20),
+                          width: 1.5,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _buildImagenPreview(imagenActual),
                     ),
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _buildImagenPreview(imagenActual),
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 16),

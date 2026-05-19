@@ -229,12 +229,24 @@ class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
   }
 
   Rect? _holeRectAdjusted() {
-    final ctx = _step.targetKey.currentContext;
-    if (ctx == null) return null;
-    final ro = ctx.findRenderObject();
-    if (ro is! RenderBox || !ro.hasSize) return null;
-    final topLeft = ro.localToGlobal(Offset.zero);
-    final base = topLeft & ro.size;
+    final targetCtx = _step.targetKey.currentContext;
+    if (targetCtx == null) return null;
+    final targetBox = targetCtx.findRenderObject();
+    if (targetBox is! RenderBox || !targetBox.hasSize) return null;
+
+    // El overlay y los targets suelen ser hermanos en un Stack (no ancestro).
+    // Restamos el origen global del overlay para obtener coords locales al recorte.
+    final overlayBox = context.findRenderObject();
+    if (overlayBox is! RenderBox || !overlayBox.hasSize) return null;
+
+    final targetTopLeft = targetBox.localToGlobal(Offset.zero);
+    final targetBottomRight = targetBox.localToGlobal(
+      Offset(targetBox.size.width, targetBox.size.height),
+    );
+    final overlayOrigin = overlayBox.localToGlobal(Offset.zero);
+    final topLeft = targetTopLeft - overlayOrigin;
+    final bottomRight = targetBottomRight - overlayOrigin;
+    final base = Rect.fromPoints(topLeft, bottomRight);
     final p = _step.padding;
     final r = Rect.fromLTRB(
       base.left - p.left,
@@ -258,6 +270,18 @@ class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
         return;
       }
       setState(() => _index++);
+      await _prepareCurrentStep();
+    } finally {
+      _advancing = false;
+    }
+  }
+
+  Future<void> _anterior() async {
+    if (_advancing || _index <= 0) return;
+    _advancing = true;
+    try {
+      await TutorialService.instance.interruptTts();
+      setState(() => _index--);
       await _prepareCurrentStep();
     } finally {
       _advancing = false;
@@ -301,8 +325,10 @@ class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
                     speaking: _speaking,
                     advancing: _advancing,
                     isLast: isLast,
+                    canGoBack: _index > 0,
                     onOmitir: () => unawaited(_omitirTodo()),
                     onRepetir: () => unawaited(_speakCurrent()),
+                    onAtras: () => unawaited(_anterior()),
                     onSiguiente: () => unawaited(_siguiente()),
                   ),
                 ),
@@ -323,8 +349,10 @@ class _TutorialControlPanel extends StatelessWidget {
     required this.speaking,
     required this.advancing,
     required this.isLast,
+    required this.canGoBack,
     required this.onOmitir,
     required this.onRepetir,
+    required this.onAtras,
     required this.onSiguiente,
   });
 
@@ -334,8 +362,10 @@ class _TutorialControlPanel extends StatelessWidget {
   final bool speaking;
   final bool advancing;
   final bool isLast;
+  final bool canGoBack;
   final VoidCallback onOmitir;
   final VoidCallback onRepetir;
+  final VoidCallback onAtras;
   final VoidCallback onSiguiente;
 
   static const Color _azul = Color(0xFF1A4463);
@@ -398,24 +428,54 @@ class _TutorialControlPanel extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 14),
-            FilledButton(
-              onPressed: advancing ? null : onSiguiente,
-              style: FilledButton.styleFrom(
-                backgroundColor: _azul,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed:
+                        (advancing || !canGoBack) ? null : onAtras,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _azul,
+                      side: const BorderSide(color: _azul, width: 1.5),
+                      minimumSize: const Size(0, 52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Atrás',
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                isLast ? 'Listo' : 'Siguiente',
-                style: const TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: advancing ? null : onSiguiente,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _azul,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      isLast ? 'Listo' : 'Siguiente',
+                      style: const TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(

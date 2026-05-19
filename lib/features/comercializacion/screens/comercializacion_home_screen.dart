@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/tutorial/models/tutorial_step.dart';
 import '../../../core/tutorial/tutorial_runner.dart';
+import '../../../core/tutorial/tutorial_service.dart';
 import '../../../core/tutorial/widgets/tutorial_help_button.dart';
 import '../tutorial/comercializacion_tutorial_keys.dart';
 import '../tutorial/productor_mercado_menu_tutorial.dart';
@@ -56,13 +59,8 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
   }
 
-  void _tryStartTutorial() {
-    if (!mounted) return;
-    final user = Supabase.instance.client.auth.currentUser;
-    final role = user?.userMetadata?['role'] as String? ?? 'campesino';
-    if (role != 'campesino') return;
-
-    final allSteps = buildProductorMercadoMenuTutorialSteps(
+  List<TutorialStep> _buildMercadoTutorialSteps() {
+    return buildProductorMercadoMenuTutorialSteps(
       infoKey: _tutorialInfo,
       misProductosKey: _tutorialMisProductos,
       misPedidosKey: _tutorialMisPedidos,
@@ -70,12 +68,28 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
       beneficiosKey: _tutorialBeneficios,
       indicadoresKey: _tutorialIndicadores,
     );
+  }
+
+  void _tryStartTutorial() {
+    if (!mounted) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    final role = user?.userMetadata?['role'] as String? ?? 'campesino';
+    if (role != 'campesino') return;
+
     final pending = TutorialRunner.filterPendingSteps(
       flowId: kTutorialProductorMercadoFlowId,
-      steps: allSteps,
+      steps: _buildMercadoTutorialSteps(),
     );
     if (pending.isEmpty) return;
     setState(() => _tutorialSteps = pending);
+  }
+
+  Future<void> _replayTutorial() async {
+    await TutorialService.instance.resetFlow(
+      stepIdPrefix: kTutorialProductorMercadoFlowId,
+    );
+    if (!mounted) return;
+    setState(() => _tutorialSteps = _buildMercadoTutorialSteps());
   }
 
   @override
@@ -280,6 +294,8 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                         child: TutorialHelpButton(
                           phrases: productorMercadoMenuHelpPhrases,
                           tooltip: 'Ayuda',
+                          onReplayWalkthrough: () =>
+                              unawaited(_replayTutorial()),
                         ),
                       ),
                     ),
