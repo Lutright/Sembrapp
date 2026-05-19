@@ -7,8 +7,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/location_service.dart';
+import '../../../core/tutorial/models/tutorial_step.dart';
+import '../../../core/tutorial/tutorial_runner.dart';
+import '../../../core/tutorial/widgets/tutorial_help_button.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
+import '../tutorial/producto_publicacion_tutorial.dart';
+import '../tutorial/comercializacion_tutorial_keys.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
@@ -123,6 +128,18 @@ class ProductoFormScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (!isEdit)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: IconTheme(
+                        data: const IconThemeData(color: Colors.white),
+                        child: TutorialHelpButton(
+                          phrases: productoFormHelpPhrases,
+                          tooltip: 'Ayuda',
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -148,6 +165,14 @@ class _ProductoFormBody extends StatefulWidget {
 
 class _ProductoFormBodyState extends State<_ProductoFormBody> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _tutorialInfo = GlobalKey();
+  final _tutorialFoto = GlobalKey();
+  final _tutorialNombre = GlobalKey();
+  final _tutorialDescripcion = GlobalKey();
+  final _tutorialPrecio = GlobalKey();
+  final _tutorialUnidad = GlobalKey();
+  final _tutorialGuardar = GlobalKey();
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _precioController = TextEditingController();
@@ -155,6 +180,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   String _unidad = 'kg';
   bool _saving = false;
   XFile? _imagenSeleccionada;
+  List<TutorialStep>? _tutorialSteps;
 
   static const _bucketProductos = 'productos';
 
@@ -168,10 +194,31 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       _precioController.text = p.precio.toString();
       _unidad = p.unidad;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
+  }
+
+  void _tryStartTutorial() {
+    if (!mounted || widget.producto != null) return;
+    final allSteps = buildProductoPublicacionTutorialSteps(
+      infoKey: _tutorialInfo,
+      fotoKey: _tutorialFoto,
+      nombreKey: _tutorialNombre,
+      descripcionKey: _tutorialDescripcion,
+      precioKey: _tutorialPrecio,
+      unidadKey: _tutorialUnidad,
+      guardarKey: _tutorialGuardar,
+    );
+    final pending = TutorialRunner.filterPendingSteps(
+      flowId: kTutorialProductoFormFlowId,
+      steps: allSteps,
+    );
+    if (pending.isEmpty) return;
+    setState(() => _tutorialSteps = pending);
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _nombreController.dispose();
     _descripcionController.dispose();
     _precioController.dispose();
@@ -446,40 +493,47 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   @override
   Widget build(BuildContext context) {
     final imagenActual = widget.producto?.imagenUrl;
-    return SingleChildScrollView(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A4463).withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: Color(0xFF1A4463),
-                    size: 20,
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'La cantidad disponible varía día a día y '
-                      'se coordina directamente con el comprador.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF1A4463),
-                        height: 1.5,
+            KeyedSubtree(
+              key: _tutorialInfo,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A4463).withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Color(0xFF1A4463),
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'La cantidad disponible varía día a día y '
+                        'se coordina directamente con el comprador.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF1A4463),
+                          height: 1.5,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -492,82 +546,112 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                   ),
             ),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _seleccionarImagen,
-              child: Container(
-                height: 160,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A4463).withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF1A4463).withValues(alpha: 0.20),
-                    width: 1.5,
+            KeyedSubtree(
+              key: _tutorialFoto,
+              child: GestureDetector(
+                onTap: _seleccionarImagen,
+                child: Container(
+                  height: 160,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A4463).withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF1A4463).withValues(alpha: 0.20),
+                      width: 1.5,
+                    ),
                   ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _buildImagenPreview(imagenActual),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: _buildImagenPreview(imagenActual),
               ),
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _nombreController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre',
-                prefixIcon: Icon(Icons.shopping_basket),
+            KeyedSubtree(
+              key: _tutorialNombre,
+              child: TextFormField(
+                controller: _nombreController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  prefixIcon: Icon(Icons.shopping_basket),
+                ),
+                validator: (v) =>
+                    v?.trim().isEmpty == true ? 'Requerido' : null,
               ),
-              validator: (v) =>
-                  v?.trim().isEmpty == true ? 'Requerido' : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _descripcionController,
-              decoration: const InputDecoration(
-                labelText: 'Descripción corta',
-                prefixIcon: Icon(Icons.description),
+            KeyedSubtree(
+              key: _tutorialDescripcion,
+              child: TextFormField(
+                controller: _descripcionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción corta',
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 2,
               ),
-              maxLines: 2,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _precioController,
-              decoration: const InputDecoration(
-                labelText: 'Precio',
-                prefixIcon: Icon(Icons.attach_money),
+            KeyedSubtree(
+              key: _tutorialPrecio,
+              child: TextFormField(
+                controller: _precioController,
+                decoration: const InputDecoration(
+                  labelText: 'Precio',
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Requerido';
+                  if (double.tryParse(v) == null) return 'Número válido';
+                  return null;
+                },
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Requerido';
-                if (double.tryParse(v) == null) return 'Número válido';
-                return null;
-              },
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _unidad,
-              decoration: const InputDecoration(
-                labelText: 'Unidad',
+            KeyedSubtree(
+              key: _tutorialUnidad,
+              child: DropdownButtonFormField<String>(
+                value: _unidad,
+                decoration: const InputDecoration(
+                  labelText: 'Unidad',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'kg', child: Text('kg')),
+                  DropdownMenuItem(value: 'lb', child: Text('lb')),
+                  DropdownMenuItem(value: 'unidad', child: Text('unidad')),
+                ],
+                onChanged: (v) => setState(() => _unidad = v ?? 'kg'),
               ),
-              items: const [
-                DropdownMenuItem(value: 'kg', child: Text('kg')),
-                DropdownMenuItem(value: 'lb', child: Text('lb')),
-                DropdownMenuItem(value: 'unidad', child: Text('unidad')),
-              ],
-              onChanged: (v) => setState(() => _unidad = v ?? 'kg'),
             ),
             const SizedBox(height: 32),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Guardar'),
+            KeyedSubtree(
+              key: _tutorialGuardar,
+              child: FilledButton(
+                onPressed: _saving ? null : _submit,
+                child: _saving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Guardar'),
+              ),
             ),
           ],
         ),
       ),
+    ),
+        if (_tutorialSteps != null)
+          TutorialWalkthroughLayer(
+            anchorContext: context,
+            flowId: kTutorialProductoFormFlowId,
+            steps: _tutorialSteps!,
+            scrollController: _scrollController,
+            onClose: () {
+              if (mounted) setState(() => _tutorialSteps = null);
+            },
+          ),
+      ],
     );
   }
 

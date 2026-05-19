@@ -10,7 +10,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
-import '../services/alfabetizacion_tts_coach.dart';
+import '../../../core/services/alfabetizacion_tts_coach.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
 

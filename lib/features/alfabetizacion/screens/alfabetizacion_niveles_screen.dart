@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
-import '../services/alfabetizacion_tts_coach.dart';
+import '../../../core/services/alfabetizacion_tts_coach.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);

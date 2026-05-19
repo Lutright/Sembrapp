@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../services/alfabetizacion_tts_coach.dart';
+import '../../../core/services/alfabetizacion_tts_coach.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
