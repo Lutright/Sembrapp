@@ -51,6 +51,7 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
   final _tutorialRed = GlobalKey();
   final _tutorialBeneficios = GlobalKey();
   final _tutorialIndicadores = GlobalKey();
+  final _tutorialAyuda = GlobalKey();
   List<TutorialStep>? _tutorialSteps;
 
   @override
@@ -67,6 +68,7 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
       redKey: _tutorialRed,
       beneficiosKey: _tutorialBeneficios,
       indicadoresKey: _tutorialIndicadores,
+      ayudaKey: _tutorialAyuda,
     );
   }
 
@@ -289,13 +291,16 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                     Positioned(
                       right: 4,
                       top: 4,
-                      child: IconTheme(
-                        data: const IconThemeData(color: Colors.white),
-                        child: TutorialHelpButton(
-                          phrases: productorMercadoMenuHelpPhrases,
-                          tooltip: 'Ayuda',
-                          onReplayWalkthrough: () =>
-                              unawaited(_replayTutorial()),
+                      child: KeyedSubtree(
+                        key: _tutorialAyuda,
+                        child: IconTheme(
+                          data: const IconThemeData(color: Colors.white),
+                          child: TutorialHelpButton(
+                            phrases: productorMercadoMenuHelpPhrases,
+                            tooltip: 'Ayuda',
+                            onReplayWalkthrough: () =>
+                                unawaited(_replayTutorial()),
+                          ),
                         ),
                       ),
                     ),

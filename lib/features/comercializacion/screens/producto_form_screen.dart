@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
@@ -53,7 +54,62 @@ class ProductoFormScreen extends StatefulWidget {
 }
 
 class _ProductoFormScreenState extends State<ProductoFormScreen> {
-  final _formBodyKey = GlobalKey<_ProductoFormBodyState>();
+  final _scrollController = ScrollController();
+  final _tutorialInfo = GlobalKey();
+  final _tutorialFoto = GlobalKey();
+  final _tutorialNombre = GlobalKey();
+  final _tutorialDescripcion = GlobalKey();
+  final _tutorialPrecio = GlobalKey();
+  final _tutorialUnidad = GlobalKey();
+  final _tutorialGuardar = GlobalKey();
+  final _tutorialAyuda = GlobalKey();
+  List<TutorialStep>? _tutorialSteps;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.producto == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  List<TutorialStep> _buildProductoTutorialSteps() {
+    return buildProductoPublicacionTutorialSteps(
+      infoKey: _tutorialInfo,
+      fotoKey: _tutorialFoto,
+      nombreKey: _tutorialNombre,
+      descripcionKey: _tutorialDescripcion,
+      precioKey: _tutorialPrecio,
+      unidadKey: _tutorialUnidad,
+      guardarKey: _tutorialGuardar,
+      ayudaKey: _tutorialAyuda,
+    );
+  }
+
+  void _tryStartTutorial() {
+    if (!mounted || widget.producto != null) return;
+    final pending = TutorialRunner.filterPendingSteps(
+      flowId: kTutorialProductoFormFlowId,
+      steps: _buildProductoTutorialSteps(),
+    );
+    if (pending.isEmpty) return;
+    setState(() => _tutorialSteps = pending);
+  }
+
+  Future<void> _replayTutorial() async {
+    if (widget.producto != null) return;
+    await TutorialService.instance.resetFlow(
+      stepIdPrefix: kTutorialProductoFormFlowId,
+    );
+    if (!mounted) return;
+    setState(() => _tutorialSteps = _buildProductoTutorialSteps());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +123,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
             child: Padding(
               padding: const EdgeInsets.only(top: 124),
               child: _ProductoFormBody(
-                key: _formBodyKey,
                 producto: widget.producto,
                 onSaved: () => context.pop(),
+                scrollController: _scrollController,
+                tutorialInfoKey: _tutorialInfo,
+                tutorialFotoKey: _tutorialFoto,
+                tutorialNombreKey: _tutorialNombre,
+                tutorialDescripcionKey: _tutorialDescripcion,
+                tutorialPrecioKey: _tutorialPrecio,
+                tutorialUnidadKey: _tutorialUnidad,
+                tutorialGuardarKey: _tutorialGuardar,
               ),
             ),
           ),
@@ -141,15 +204,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                     Positioned(
                       right: 4,
                       top: 4,
-                      child: IconTheme(
-                        data: const IconThemeData(color: Colors.white),
-                        child: TutorialHelpButton(
-                          phrases: productoFormHelpPhrases,
-                          tooltip: 'Ayuda',
-                          onReplayWalkthrough: isEdit
-                              ? null
-                              : () => _formBodyKey.currentState
-                                  ?.replayTutorial(),
+                      child: KeyedSubtree(
+                        key: _tutorialAyuda,
+                        child: IconTheme(
+                          data: const IconThemeData(color: Colors.white),
+                          child: TutorialHelpButton(
+                            phrases: productoFormHelpPhrases,
+                            tooltip: 'Ayuda',
+                            onReplayWalkthrough: () =>
+                                unawaited(_replayTutorial()),
+                          ),
                         ),
                       ),
                     ),
@@ -157,6 +221,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
               ),
             ),
           ),
+          if (_tutorialSteps != null)
+            TutorialWalkthroughLayer(
+              anchorContext: context,
+              flowId: kTutorialProductoFormFlowId,
+              steps: _tutorialSteps!,
+              scrollController: _scrollController,
+              onClose: () {
+                if (mounted) setState(() => _tutorialSteps = null);
+              },
+            ),
         ],
       ),
     );
@@ -165,13 +239,28 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
 class _ProductoFormBody extends StatefulWidget {
   const _ProductoFormBody({
-    super.key,
     this.producto,
     required this.onSaved,
+    required this.scrollController,
+    required this.tutorialInfoKey,
+    required this.tutorialFotoKey,
+    required this.tutorialNombreKey,
+    required this.tutorialDescripcionKey,
+    required this.tutorialPrecioKey,
+    required this.tutorialUnidadKey,
+    required this.tutorialGuardarKey,
   });
 
   final Producto? producto;
   final VoidCallback onSaved;
+  final ScrollController scrollController;
+  final GlobalKey tutorialInfoKey;
+  final GlobalKey tutorialFotoKey;
+  final GlobalKey tutorialNombreKey;
+  final GlobalKey tutorialDescripcionKey;
+  final GlobalKey tutorialPrecioKey;
+  final GlobalKey tutorialUnidadKey;
+  final GlobalKey tutorialGuardarKey;
 
   @override
   State<_ProductoFormBody> createState() => _ProductoFormBodyState();
@@ -179,14 +268,6 @@ class _ProductoFormBody extends StatefulWidget {
 
 class _ProductoFormBodyState extends State<_ProductoFormBody> {
   final _formKey = GlobalKey<FormState>();
-  final _scrollController = ScrollController();
-  final _tutorialInfo = GlobalKey();
-  final _tutorialFoto = GlobalKey();
-  final _tutorialNombre = GlobalKey();
-  final _tutorialDescripcion = GlobalKey();
-  final _tutorialPrecio = GlobalKey();
-  final _tutorialUnidad = GlobalKey();
-  final _tutorialGuardar = GlobalKey();
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _precioController = TextEditingController();
@@ -194,8 +275,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   String _unidad = 'kg';
   bool _saving = false;
   XFile? _imagenSeleccionada;
-  List<TutorialStep>? _tutorialSteps;
-
   static const _bucketProductos = 'productos';
 
   @override
@@ -208,43 +287,10 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       _precioController.text = p.precio.toString();
       _unidad = p.unidad;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
-  }
-
-  List<TutorialStep> _buildProductoTutorialSteps() {
-    return buildProductoPublicacionTutorialSteps(
-      infoKey: _tutorialInfo,
-      fotoKey: _tutorialFoto,
-      nombreKey: _tutorialNombre,
-      descripcionKey: _tutorialDescripcion,
-      precioKey: _tutorialPrecio,
-      unidadKey: _tutorialUnidad,
-      guardarKey: _tutorialGuardar,
-    );
-  }
-
-  void _tryStartTutorial() {
-    if (!mounted || widget.producto != null) return;
-    final pending = TutorialRunner.filterPendingSteps(
-      flowId: kTutorialProductoFormFlowId,
-      steps: _buildProductoTutorialSteps(),
-    );
-    if (pending.isEmpty) return;
-    setState(() => _tutorialSteps = pending);
-  }
-
-  Future<void> replayTutorial() async {
-    if (widget.producto != null) return;
-    await TutorialService.instance.resetFlow(
-      stepIdPrefix: kTutorialProductoFormFlowId,
-    );
-    if (!mounted) return;
-    setState(() => _tutorialSteps = _buildProductoTutorialSteps());
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _nombreController.dispose();
     _descripcionController.dispose();
     _precioController.dispose();
@@ -519,11 +565,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
   @override
   Widget build(BuildContext context) {
     final imagenActual = widget.producto?.imagenUrl;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        SingleChildScrollView(
-      controller: _scrollController,
+    return SingleChildScrollView(
+      controller: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Form(
         key: _formKey,
@@ -531,7 +574,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             KeyedSubtree(
-              key: _tutorialInfo,
+              key: widget.tutorialInfoKey,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -564,7 +607,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 24),
             KeyedSubtree(
-              key: _tutorialFoto,
+              key: widget.tutorialFotoKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -598,7 +641,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 16),
             KeyedSubtree(
-              key: _tutorialNombre,
+              key: widget.tutorialNombreKey,
               child: TextFormField(
                 controller: _nombreController,
                 decoration: const InputDecoration(
@@ -611,7 +654,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 16),
             KeyedSubtree(
-              key: _tutorialDescripcion,
+              key: widget.tutorialDescripcionKey,
               child: TextFormField(
                 controller: _descripcionController,
                 decoration: const InputDecoration(
@@ -623,7 +666,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 16),
             KeyedSubtree(
-              key: _tutorialPrecio,
+              key: widget.tutorialPrecioKey,
               child: TextFormField(
                 controller: _precioController,
                 decoration: const InputDecoration(
@@ -640,7 +683,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 16),
             KeyedSubtree(
-              key: _tutorialUnidad,
+              key: widget.tutorialUnidadKey,
               child: DropdownButtonFormField<String>(
                 value: _unidad,
                 decoration: const InputDecoration(
@@ -656,7 +699,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             ),
             const SizedBox(height: 32),
             KeyedSubtree(
-              key: _tutorialGuardar,
+              key: widget.tutorialGuardarKey,
               child: FilledButton(
                 onPressed: _saving ? null : _submit,
                 child: _saving
@@ -671,18 +714,6 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
           ],
         ),
       ),
-    ),
-        if (_tutorialSteps != null)
-          TutorialWalkthroughLayer(
-            anchorContext: context,
-            flowId: kTutorialProductoFormFlowId,
-            steps: _tutorialSteps!,
-            scrollController: _scrollController,
-            onClose: () {
-              if (mounted) setState(() => _tutorialSteps = null);
-            },
-          ),
-      ],
     );
   }
 

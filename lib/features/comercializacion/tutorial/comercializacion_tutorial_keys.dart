@@ -25,3 +25,7 @@ const String kTutorialProductorMercadoStepBeneficios =
     'tutorial.productor_mercado.v1.beneficios';
 const String kTutorialProductorMercadoStepIndicadores =
     'tutorial.productor_mercado.v1.indicadores';
+const String kTutorialProductorMercadoStepAyuda =
+    'tutorial.productor_mercado.v1.ayuda';
+
+const String kTutorialProductoFormStepAyuda = 'tutorial.producto_form.v1.ayuda';

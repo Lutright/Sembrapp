@@ -158,19 +158,24 @@ class _TutorialWalkthroughView extends StatefulWidget {
       _TutorialWalkthroughViewState();
 }
 
+enum _TutorialPanelEdge { top, bottom }
+
 class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
   int _index = 0;
   bool _speaking = false;
   bool _scrollRebuildScheduled = false;
   bool _advancing = false;
+  final _panelKey = GlobalKey();
+  double? _panelHeight;
 
   @override
   void initState() {
     super.initState();
     widget.scrollController?.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => unawaited(_prepareCurrentStep()),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_prepareCurrentStep());
+      _scheduleMeasurePanel();
+    });
   }
 
   @override
@@ -202,9 +207,10 @@ class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
     final target = _step.targetKey.currentContext;
     if (target != null) {
       try {
+        final alignment = _scrollAlignmentForTarget(target);
         await Scrollable.ensureVisible(
           target,
-          alignment: 0.32,
+          alignment: alignment,
           duration: const Duration(milliseconds: 280),
           curve: Curves.easeInOut,
         );
@@ -212,7 +218,86 @@ class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
     }
     if (!mounted) return;
     setState(() {});
+    _scheduleMeasurePanel();
     unawaited(_speakCurrent());
+  }
+
+  double _scrollAlignmentForTarget(BuildContext target) {
+    final targetBox = target.findRenderObject();
+    final overlayBox = context.findRenderObject();
+    if (targetBox is! RenderBox ||
+        !targetBox.hasSize ||
+        overlayBox is! RenderBox ||
+        !overlayBox.hasSize) {
+      return 0.32;
+    }
+    final targetTop = targetBox.localToGlobal(Offset.zero);
+    final overlayOrigin = overlayBox.localToGlobal(Offset.zero);
+    final y = targetTop.dy - overlayOrigin.dy;
+    final h = overlayBox.size.height;
+    if (h <= 0) return 0.32;
+    return y > h * 0.52 ? 0.18 : 0.38;
+  }
+
+  void _scheduleMeasurePanel() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _panelKey.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final h = box.size.height;
+      if (_panelHeight == null || (h - _panelHeight!).abs() > 2) {
+        setState(() => _panelHeight = h);
+      }
+    });
+  }
+
+  _TutorialPanelEdge _resolvePanelEdge({
+    required Rect? hole,
+    required Size overlaySize,
+    required EdgeInsets safePadding,
+    required double panelHeight,
+  }) {
+    const horizontalPad = 16.0;
+    const verticalPad = 16.0;
+    const gap = 10.0;
+
+    Rect panelRectAtBottom() {
+      final top = overlaySize.height -
+          safePadding.bottom -
+          verticalPad -
+          panelHeight;
+      return Rect.fromLTWH(
+        horizontalPad,
+        top,
+        overlaySize.width - horizontalPad * 2,
+        panelHeight,
+      );
+    }
+
+    Rect panelRectAtTop() {
+      final top = safePadding.top + verticalPad;
+      return Rect.fromLTWH(
+        horizontalPad,
+        top,
+        overlaySize.width - horizontalPad * 2,
+        panelHeight,
+      );
+    }
+
+    bool overlaps(Rect panel, Rect target) =>
+        panel.overlaps(target.inflate(gap));
+
+    if (hole == null) return _TutorialPanelEdge.bottom;
+
+    final bottomRect = panelRectAtBottom();
+    if (!overlaps(bottomRect, hole)) return _TutorialPanelEdge.bottom;
+
+    final topRect = panelRectAtTop();
+    if (!overlaps(topRect, hole)) return _TutorialPanelEdge.top;
+
+    return hole.center.dy > overlaySize.height * 0.45
+        ? _TutorialPanelEdge.top
+        : _TutorialPanelEdge.bottom;
   }
 
   Future<void> _speakCurrent() async {
@@ -298,45 +383,72 @@ class _TutorialWalkthroughViewState extends State<_TutorialWalkthroughView> {
   Widget build(BuildContext context) {
     final hole = _holeRectAdjusted();
     final isLast = _index + 1 >= widget.steps.length;
+    final panel = KeyedSubtree(
+      key: _panelKey,
+      child: _TutorialControlPanel(
+        stepIndex: _index,
+        stepCount: widget.steps.length,
+        hintText: _step.hintText,
+        speaking: _speaking,
+        advancing: _advancing,
+        isLast: isLast,
+        canGoBack: _index > 0,
+        onOmitir: () => unawaited(_omitirTodo()),
+        onRepetir: () => unawaited(_speakCurrent()),
+        onAtras: () => unawaited(_anterior()),
+        onSiguiente: () => unawaited(_siguiente()),
+      ),
+    );
 
-    return SizedBox.expand(
-      child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          fit: StackFit.expand,
-          clipBehavior: Clip.none,
-          children: [
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size.infinite,
-                painter: TutorialSpotlightPainter(holeRect: hole),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: _TutorialControlPanel(
-                    stepIndex: _index,
-                    stepCount: widget.steps.length,
-                    hintText: _step.hintText,
-                    speaking: _speaking,
-                    advancing: _advancing,
-                    isLast: isLast,
-                    canGoBack: _index > 0,
-                    onOmitir: () => unawaited(_omitirTodo()),
-                    onRepetir: () => unawaited(_speakCurrent()),
-                    onAtras: () => unawaited(_anterior()),
-                    onSiguiente: () => unawaited(_siguiente()),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final overlaySize = Size(constraints.maxWidth, constraints.maxHeight);
+        final safe = MediaQuery.paddingOf(context);
+        final panelH = _panelHeight ?? 232;
+        final edge = _resolvePanelEdge(
+          hole: hole,
+          overlaySize: overlaySize,
+          safePadding: safe,
+          panelHeight: panelH,
+        );
+        final atTop = edge == _TutorialPanelEdge.top;
+
+        return SizedBox.expand(
+          child: Material(
+            type: MaterialType.transparency,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                IgnorePointer(
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    painter: TutorialSpotlightPainter(holeRect: hole),
                   ),
                 ),
-              ),
+                Align(
+                  alignment: atTop
+                      ? Alignment.topCenter
+                      : Alignment.bottomCenter,
+                  child: SafeArea(
+                    top: atTop,
+                    bottom: !atTop,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        atTop ? 12 : 0,
+                        16,
+                        atTop ? 0 : 16,
+                      ),
+                      child: panel,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

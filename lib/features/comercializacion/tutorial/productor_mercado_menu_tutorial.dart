@@ -10,6 +10,7 @@ List<TutorialStep> buildProductorMercadoMenuTutorialSteps({
   required GlobalKey redKey,
   required GlobalKey beneficiosKey,
   required GlobalKey indicadoresKey,
+  required GlobalKey ayudaKey,
 }) {
   return [
     TutorialStep(
@@ -53,6 +54,14 @@ List<TutorialStep> buildProductorMercadoMenuTutorialSteps({
       ttsPhrase:
           'Precios de referencia te muestra datos para orientar tus precios al mercado.',
       hintText: 'Precios de referencia',
+    ),
+    TutorialStep(
+      id: kTutorialProductorMercadoStepAyuda,
+      targetKey: ayudaKey,
+      ttsPhrase:
+          'Si quieres ver esta guía otra vez, toca el signo de pregunta arriba a la derecha y elige Ver tutorial de nuevo.',
+      hintText: '¿ Necesitas la guía otra vez?',
+      padding: const EdgeInsets.all(10),
     ),
   ];
 }

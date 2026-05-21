@@ -12,6 +12,7 @@ List<TutorialStep> buildProductoPublicacionTutorialSteps({
   required GlobalKey precioKey,
   required GlobalKey unidadKey,
   required GlobalKey guardarKey,
+  required GlobalKey ayudaKey,
 }) {
   return [
     TutorialStep(
@@ -58,6 +59,14 @@ List<TutorialStep> buildProductoPublicacionTutorialSteps({
       ttsPhrase:
           'Cuando termines, pulsa Guardar. Necesitas ubicación encendida para publicar.',
       hintText: 'Guardar',
+    ),
+    TutorialStep(
+      id: kTutorialProductoFormStepAyuda,
+      targetKey: ayudaKey,
+      ttsPhrase:
+          'Para repetir esta guía después, toca el signo de pregunta arriba a la derecha y elige Ver tutorial de nuevo.',
+      hintText: '¿ Ver la guía otra vez?',
+      padding: const EdgeInsets.all(10),
     ),
   ];
 }
