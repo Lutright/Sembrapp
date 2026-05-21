@@ -12,6 +12,7 @@ import '../services/alfabetizacion_tts_coach.dart';
 import '../widgets/alfabetizacion_lesson_feedback.dart';
 import '../widgets/alfabetizacion_lesson_shell.dart';
 import '../widgets/abecedario_leccion_flow.dart';
+import '../widgets/escritura_teclado_vocales_leccion_flow.dart';
 import '../widgets/escritura_vocales_leccion_flow.dart';
 import '../widgets/lectura_guiada_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
@@ -344,6 +345,12 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     }
     if (leccion.flujoId == kFlujoEscrituraVocalesGuiadoId) {
       return EscrituraVocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoEscrituraTecladoVocalesGuiadoId) {
+      return EscrituraTecladoVocalesLeccionFlow(
         leccion: leccion,
         onCompletar: _guardarProgreso,
       );

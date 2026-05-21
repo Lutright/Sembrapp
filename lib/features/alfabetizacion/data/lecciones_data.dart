@@ -6,6 +6,8 @@ const kFlujoVocalesGuiadoId = 'vocales_guiado';
 const kFlujoAbecedarioGuiadoId = 'abecedario_guiado';
 /// Flujo multipantalla + trazo guiado para Escritura de vocales.
 const kFlujoEscrituraVocalesGuiadoId = 'escritura_vocales_guiado';
+/// Flujo teclado: animación de vocal resaltada + práctica de escritura.
+const kFlujoEscrituraTecladoVocalesGuiadoId = 'escritura_teclado_vocales_guiado';
 /// Flujos guiados progresivos para Lectura (enseñanza + práctica + actividad).
 const kFlujoSilabasDirectasGuiadoId = 'silabas_directas_guiado';
 const kFlujoSilabasDirectasDosGuiadoId = 'silabas_directas_dos_guiado';
@@ -378,6 +380,15 @@ final alfabetizacionLecciones = <LeccionData>[
     titulo: 'Escritura de vocales',
     contenido: 'A E I O U',
     flujoId: kFlujoEscrituraVocalesGuiadoId,
+    puntos: 10,
+  ),
+  const LeccionData(
+    id: 'E1-2',
+    modulo: 'escritura',
+    nivel: 1,
+    titulo: 'Teclado y vocales',
+    contenido: 'A E I O U',
+    flujoId: kFlujoEscrituraTecladoVocalesGuiadoId,
     puntos: 10,
   ),
 ];
