@@ -8,7 +8,7 @@ import '../../../core/widgets/minimal_ui.dart';
 import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
-import '../services/alfabetizacion_tts_coach.dart';
+import '../../../core/services/alfabetizacion_tts_coach.dart';
 import '../widgets/alfabetizacion_lesson_feedback.dart';
 import '../widgets/alfabetizacion_lesson_shell.dart';
 import '../widgets/abecedario_leccion_flow.dart';

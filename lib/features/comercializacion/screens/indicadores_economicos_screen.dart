@@ -45,6 +45,8 @@ class _IndicadoresEconomicosScreenState
   bool _syncing = false;
   String? _error;
   String _searchQuery = '';
+  int _paginaActual = 0;
+  static const int _porPagina = 20;
 
   String _safePrecio(IndicadorEconomico ind) {
     try {
@@ -259,6 +261,10 @@ class _IndicadoresEconomicosScreenState
               (ind) => (ind.productoTipo).toLowerCase().contains(query),
             )
             .toList();
+    final totalPaginas = (filtrados.length / _porPagina).ceil();
+    final inicio = _paginaActual * _porPagina;
+    final fin = (inicio + _porPagina).clamp(0, filtrados.length);
+    final paginados = filtrados.sublist(inicio, fin);
 
     return CustomScrollView(
       slivers: [
@@ -269,7 +275,10 @@ class _IndicadoresEconomicosScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
-                  onChanged: (value) => setState(() => _searchQuery = value),
+                  onChanged: (value) => setState(() {
+                    _searchQuery = value;
+                    _paginaActual = 0;
+                  }),
                   decoration: InputDecoration(
                     hintText: 'Buscar producto...',
                     prefixIcon: const Icon(Icons.search, color: Color(0xFF1A4463)),
@@ -390,126 +399,158 @@ class _IndicadoresEconomicosScreenState
             ),
           )
         else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, i) {
-                final ind = filtrados[i];
-                final nombreProducto = (ind.productoTipo).isNotEmpty
-                    ? ind.productoTipo
-                    : 'Sin nombre';
-                final precio = _safePrecio(ind);
-                final rango = _safeRango(ind);
-                final unidad = (ind.unidad).isNotEmpty ? ind.unidad : 'kg';
-                return Card(
-                  color: Colors.white,
-                  elevation: 0,
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Colors.grey.withValues(alpha: 0.5), width: 0.5),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A4463).withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.bar_chart,
-                                color: Color(0xFF1A4463),
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    nombreProducto,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      fontFamily: 'Montserrat',
-                                      color: Color(0xFF1A1A1A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Precio promedio',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                      fontFamily: 'Montserrat',
-                                    ),
-                                  ),
-                                  RichText(
-                                    text: TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: precio,
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                            fontFamily: 'Montserrat',
-                                            color: Color(0xFF1A4463),
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: ' / $unidad',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            fontFamily: 'Montserrat',
-                                            color: Color(0x991A4463),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A4463).withValues(alpha: 0.07),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Rango: $rango',
-                                style: const TextStyle(
-                                  fontSize: 12,
+          ...[
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  final ind = paginados[i];
+                  final nombreProducto = (ind.productoTipo).isNotEmpty
+                      ? ind.productoTipo
+                      : 'Sin nombre';
+                  final precio = _safePrecio(ind);
+                  final rango = _safeRango(ind);
+                  final unidad = (ind.unidad).isNotEmpty ? ind.unidad : 'kg';
+                  return Card(
+                    color: Colors.white,
+                    elevation: 0,
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.grey.withValues(alpha: 0.5), width: 0.5),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1A4463).withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.bar_chart,
                                   color: Color(0xFF1A4463),
-                                  fontFamily: 'Montserrat',
+                                  size: 24,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nombreProducto,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        fontFamily: 'Montserrat',
+                                        color: Color(0xFF1A1A1A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Precio promedio',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        fontFamily: 'Montserrat',
+                                      ),
+                                    ),
+                                    RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: precio,
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w700,
+                                              fontFamily: 'Montserrat',
+                                              color: Color(0xFF1A4463),
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text: ' / $unidad',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              fontFamily: 'Montserrat',
+                                              color: Color(0x991A4463),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1A4463).withValues(alpha: 0.07),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Rango: $rango',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF1A4463),
+                                    fontFamily: 'Montserrat',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-              childCount: filtrados.length,
+                  );
+                },
+                childCount: paginados.length,
+              ),
             ),
-          ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: _paginaActual == 0
+                          ? null
+                          : () => setState(() => _paginaActual--),
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Text(
+                      '${_paginaActual + 1} / $totalPaginas',
+                      style: const TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A4463),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _paginaActual >= totalPaginas - 1
+                          ? null
+                          : () => setState(() => _paginaActual++),
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
       ],
     );
   }

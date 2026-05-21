@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/router/app_router.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/tutorial/tutorial_service.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -20,6 +21,7 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
+  await TutorialService.instance.init(Supabase.instance.client);
   if (!kIsWeb && firebaseOptionsConfigured) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await Firebase.initializeApp(options: firebaseOptionsForPlatform());

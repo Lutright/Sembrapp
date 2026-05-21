@@ -1,6 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/tutorial/models/tutorial_step.dart';
+import '../../../core/tutorial/tutorial_runner.dart';
+import '../../../core/tutorial/tutorial_service.dart';
+import '../../../core/tutorial/widgets/tutorial_help_button.dart';
+import '../tutorial/comercializacion_tutorial_keys.dart';
+import '../tutorial/productor_mercado_menu_tutorial.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
@@ -26,8 +35,70 @@ final class _OrganicHeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-class ComercializacionHomeScreen extends StatelessWidget {
+class ComercializacionHomeScreen extends StatefulWidget {
   const ComercializacionHomeScreen({super.key});
+
+  @override
+  State<ComercializacionHomeScreen> createState() =>
+      _ComercializacionHomeScreenState();
+}
+
+class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen> {
+  final _scrollController = ScrollController();
+  final _tutorialInfo = GlobalKey();
+  final _tutorialMisProductos = GlobalKey();
+  final _tutorialMisPedidos = GlobalKey();
+  final _tutorialRed = GlobalKey();
+  final _tutorialBeneficios = GlobalKey();
+  final _tutorialIndicadores = GlobalKey();
+  final _tutorialAyuda = GlobalKey();
+  List<TutorialStep>? _tutorialSteps;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
+  }
+
+  List<TutorialStep> _buildMercadoTutorialSteps() {
+    return buildProductorMercadoMenuTutorialSteps(
+      infoKey: _tutorialInfo,
+      misProductosKey: _tutorialMisProductos,
+      misPedidosKey: _tutorialMisPedidos,
+      redKey: _tutorialRed,
+      beneficiosKey: _tutorialBeneficios,
+      indicadoresKey: _tutorialIndicadores,
+      ayudaKey: _tutorialAyuda,
+    );
+  }
+
+  void _tryStartTutorial() {
+    if (!mounted) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    final role = user?.userMetadata?['role'] as String? ?? 'campesino';
+    if (role != 'campesino') return;
+
+    final pending = TutorialRunner.filterPendingSteps(
+      flowId: kTutorialProductorMercadoFlowId,
+      steps: _buildMercadoTutorialSteps(),
+    );
+    if (pending.isEmpty) return;
+    setState(() => _tutorialSteps = pending);
+  }
+
+  Future<void> _replayTutorial() async {
+    await TutorialService.instance.resetFlow(
+      stepIdPrefix: kTutorialProductorMercadoFlowId,
+    );
+    if (!mounted) return;
+    setState(() => _tutorialSteps = _buildMercadoTutorialSteps());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,76 +111,109 @@ class ComercializacionHomeScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: ListView(
+            child: SingleChildScrollView(
+              controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A4463).withValues(alpha: 0.07),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Color(0xFF1A4463),
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Gestiona tus productos, pedidos y '
-                          'herramientas desde aquí.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF1A4463),
-                            height: 1.5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                KeyedSubtree(
+                  key: _tutorialInfo,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A4463).withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Color(0xFF1A4463),
+                          size: 20,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Gestiona tus productos, pedidos y '
+                            'herramientas desde aquí.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF1A4463),
+                              height: 1.5,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
                 if (isCampesino) ...[
-                  _TonalNavCard(
-                    icon: Icons.inventory_2_rounded,
-                    title: 'Mis productos',
-                    subtitle: 'Lo que tú publicas',
-                    onTap: () => context.push('/comercializacion/mis-productos'),
+                  KeyedSubtree(
+                    key: _tutorialMisProductos,
+                    child: _TonalNavCard(
+                      icon: Icons.inventory_2_rounded,
+                      title: 'Mis productos',
+                      subtitle: 'Lo que tú publicas',
+                      onTap: () => context.push('/comercializacion/mis-productos'),
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  _TonalNavCard(
-                    icon: Icons.groups_rounded,
-                    title: 'Red comunitaria',
-                    subtitle: 'Otros productores y pedidos juntos',
-                    onTap: () => context.push('/comercializacion/red-comunitaria'),
+                  KeyedSubtree(
+                    key: _tutorialMisPedidos,
+                    child: _TonalNavCard(
+                      icon: Icons.receipt_long_rounded,
+                      title: 'Mis pedidos',
+                      subtitle: 'Pedidos que hiciste o recibiste',
+                      onTap: () => context.push('/comercializacion/ordenes'),
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  _TonalNavCard(
-                    icon: Icons.stars_rounded,
-                    title: 'Beneficios',
-                    subtitle: 'Canjear puntos por visibilidad',
-                    onTap: () => context.push('/comercializacion/beneficios'),
+                  KeyedSubtree(
+                    key: _tutorialRed,
+                    child: _TonalNavCard(
+                      icon: Icons.groups_rounded,
+                      title: 'Red comunitaria',
+                      subtitle: 'Otros productores y pedidos juntos',
+                      onTap: () =>
+                          context.push('/comercializacion/red-comunitaria'),
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  _TonalNavCard(
-                    icon: Icons.analytics_rounded,
-                    title: 'Precios de referencia',
-                    subtitle: 'Indicadores para ayudarte a fijar precios',
-                    onTap: () => context.push('/comercializacion/indicadores'),
+                  KeyedSubtree(
+                    key: _tutorialBeneficios,
+                    child: _TonalNavCard(
+                      icon: Icons.stars_rounded,
+                      title: 'Beneficios',
+                      subtitle: 'Canjear puntos por visibilidad',
+                      onTap: () => context.push('/comercializacion/beneficios'),
+                    ),
                   ),
                   const SizedBox(height: 14),
+                  KeyedSubtree(
+                    key: _tutorialIndicadores,
+                    child: _TonalNavCard(
+                      icon: Icons.analytics_rounded,
+                      title: 'Precios de referencia',
+                      subtitle: 'Indicadores para ayudarte a fijar precios',
+                      onTap: () =>
+                          context.push('/comercializacion/indicadores'),
+                    ),
+                  ),
+                ] else
+                  KeyedSubtree(
+                    key: _tutorialMisPedidos,
+                    child: _TonalNavCard(
+                      icon: Icons.receipt_long_rounded,
+                      title: 'Mis pedidos',
+                      subtitle: 'Pedidos que hiciste o recibiste',
+                      onTap: () => context.push('/comercializacion/ordenes'),
+                    ),
+                  ),
                 ],
-                _TonalNavCard(
-                  icon: Icons.receipt_long_rounded,
-                  title: 'Mis pedidos',
-                  subtitle: 'Pedidos que hiciste o recibiste',
-                  onTap: () => context.push('/comercializacion/ordenes'),
-                ),
-              ],
+              ),
             ),
           ),
           Positioned(
@@ -183,10 +287,37 @@ class ComercializacionHomeScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (isCampesino)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: KeyedSubtree(
+                        key: _tutorialAyuda,
+                        child: IconTheme(
+                          data: const IconThemeData(color: Colors.white),
+                          child: TutorialHelpButton(
+                            phrases: productorMercadoMenuHelpPhrases,
+                            tooltip: 'Ayuda',
+                            onReplayWalkthrough: () =>
+                                unawaited(_replayTutorial()),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
+          if (_tutorialSteps != null)
+            TutorialWalkthroughLayer(
+              anchorContext: context,
+              flowId: kTutorialProductorMercadoFlowId,
+              steps: _tutorialSteps!,
+              scrollController: _scrollController,
+              onClose: () {
+                if (mounted) setState(() => _tutorialSteps = null);
+              },
+            ),
         ],
       ),
     );
