@@ -69,7 +69,15 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       letra: 'I',
       ejemplo: 'I de iguana',
       emoji: '🦎',
-      trazo: [Offset(0.3, 0.2), Offset(0.7, 0.2), Offset(0.5, 0.2), Offset(0.5, 0.85), Offset(0.3, 0.85), Offset(0.7, 0.85)],
+      // Línea vertical principal; trazos cortos arriba/abajo opcionales.
+      trazo: [
+        Offset(0.5, 0.12),
+        Offset(0.5, 0.9),
+        Offset(0.34, 0.12),
+        Offset(0.66, 0.12),
+        Offset(0.34, 0.9),
+        Offset(0.66, 0.9),
+      ],
     ),
     _VocalItem(
       letra: 'O',
@@ -132,7 +140,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     setState(() => _fase = _FaseEscritura.demo);
     await _tts.interrupt();
     await _ttsDecir('Así se escribe la ${_vocalActual.letra}');
-    await _ttsDecir('Sube... baja... cruza');
+    await _ttsDecir(_instruccionDemoTrazo(_vocalActual.letra));
   }
 
   Future<void> _irAGuiada() async {
@@ -142,9 +150,35 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     });
     await _tts.interrupt();
     await _ttsDecir('Ahora hazlo tú');
-    await _ttsDecir('Sube');
-    await _ttsDecir('Baja');
-    await _ttsDecir('Cruza');
+    for (final paso in _instruccionesGuiadasTrazo(_vocalActual.letra)) {
+      await _ttsDecir(paso);
+    }
+  }
+
+  String _instruccionDemoTrazo(String letra) {
+    switch (letra) {
+      case 'I':
+        return 'Haz una línea recta de arriba hacia abajo';
+      case 'O':
+        return 'Haz un círculo';
+      case 'U':
+        return 'Baja, curva y sube';
+      default:
+        return 'Sube... baja... cruza';
+    }
+  }
+
+  List<String> _instruccionesGuiadasTrazo(String letra) {
+    switch (letra) {
+      case 'I':
+        return ['Arriba', 'Abajo'];
+      case 'O':
+        return ['Gira', 'Cierra el círculo'];
+      case 'U':
+        return ['Baja', 'Curva', 'Sube'];
+      default:
+        return ['Sube', 'Baja', 'Cruza'];
+    }
   }
 
   Future<void> _irALibre() async {
@@ -157,7 +191,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   }
 
   Future<void> _evaluarGuiada() async {
-    final ok = _trazoAproximado(_puntos, _vocalActual.trazo);
+    final ok = _trazoAproximado(_puntos, _vocalActual.trazo, letra: _vocalActual.letra);
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
@@ -169,7 +203,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   }
 
   Future<void> _evaluarLibre() async {
-    final ok = _trazoAproximado(_puntos, _vocalActual.trazo);
+    final ok = _trazoAproximado(_puntos, _vocalActual.trazo, letra: _vocalActual.letra);
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
@@ -180,28 +214,98 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     await _ttsDecir(_mensajeFeedback);
   }
 
-  bool _trazoAproximado(List<Offset> raw, List<Offset> objetivo) {
+  bool _trazoAproximado(
+    List<Offset> raw,
+    List<Offset> objetivo, {
+    required String letra,
+  }) {
+    if (letra == 'I') {
+      return _trazoLetraI(raw, objetivo);
+    }
+    return _trazoAproximadoContorno(
+      raw,
+      objetivo,
+      minAncho: 35,
+      minAlto: 35,
+      umbralCobertura: 0.62,
+      umbralPrecision: 0.52,
+      umbralCercaniaModelo: 0.2,
+      umbralCercaniaTrazo: 0.24,
+    );
+  }
+
+  /// La I suele trazarse como una línea vertical estrecha; el umbral de ancho
+  /// general (35 px) la rechazaba aunque el trazo fuera correcto.
+  bool _trazoLetraI(List<Offset> raw, List<Offset> objetivo) {
+    if (_trazoVerticalAproximado(raw)) return true;
+    return _trazoAproximadoContorno(
+      raw,
+      objetivo,
+      minAncho: 10,
+      minAlto: 35,
+      umbralCobertura: 0.42,
+      umbralPrecision: 0.5,
+      umbralCercaniaModelo: 0.22,
+      umbralCercaniaTrazo: 0.3,
+    );
+  }
+
+  bool _trazoVerticalAproximado(List<Offset> raw) {
+    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
+    if (puntosValidos.length < 8) return false;
+    final box = _bounds(puntosValidos);
+    if (box.height < 35) return false;
+    if (box.width < 6) return false;
+
+    final alto = math.max(box.height, 1.0);
+    final ancho = math.max(box.width, 1.0);
+    if (alto / ancho < 1.6) return false;
+
+    final normalizados = _normalizarTrazado(puntosValidos);
+    final centroX =
+        normalizados.map((p) => p.dx).reduce((a, b) => a + b) / normalizados.length;
+
+    var alineados = 0;
+    for (final p in normalizados) {
+      if ((p.dx - centroX).abs() <= 0.3) alineados++;
+    }
+    if (alineados / normalizados.length < 0.55) return false;
+
+    final ys = normalizados.map((p) => p.dy);
+    final minY = ys.reduce(math.min);
+    final maxY = ys.reduce(math.max);
+    return maxY - minY >= 0.45;
+  }
+
+  bool _trazoAproximadoContorno(
+    List<Offset> raw,
+    List<Offset> objetivo, {
+    required double minAncho,
+    required double minAlto,
+    required double umbralCobertura,
+    required double umbralPrecision,
+    required double umbralCercaniaModelo,
+    required double umbralCercaniaTrazo,
+  }) {
     final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
     if (puntosValidos.length < 10) return false;
     final box = _bounds(puntosValidos);
-    if (box.width < 35 || box.height < 35) return false;
+    if (box.width < minAncho || box.height < minAlto) return false;
     final normalizados = _normalizarTrazado(puntosValidos);
     final objetivoNormalizado = _normalizarTrazado(objetivo);
 
-    // Verifica que la forma escrita cubra suficientemente el modelo
-    // y también que no se desvíe demasiado del contorno esperado.
     final coberturaModelo = _ratioCercaniaAContorno(
       muestra: objetivoNormalizado,
       contorno: normalizados,
-      umbral: 0.2,
+      umbral: umbralCercaniaModelo,
     );
     final precisionTrazo = _ratioCercaniaAContorno(
       muestra: normalizados,
       contorno: objetivoNormalizado,
-      umbral: 0.24,
+      umbral: umbralCercaniaTrazo,
     );
 
-    return coberturaModelo >= 0.62 && precisionTrazo >= 0.52;
+    return coberturaModelo >= umbralCobertura && precisionTrazo >= umbralPrecision;
   }
 
   List<Offset> _normalizarTrazado(List<Offset> pts) {
