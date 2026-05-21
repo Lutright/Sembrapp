@@ -15,7 +15,6 @@ enum _FaseEscritura {
   demo,
   guiada,
   libre,
-  actividad,
   feedback,
   recompensa,
 }
@@ -89,7 +88,17 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       letra: 'U',
       ejemplo: 'U de uva',
       emoji: '🍇',
-      trazo: [Offset(0.25, 0.2), Offset(0.25, 0.72), Offset(0.5, 0.86), Offset(0.75, 0.72), Offset(0.75, 0.2)],
+      trazo: [
+        Offset(0.27, 0.14),
+        Offset(0.27, 0.42),
+        Offset(0.27, 0.68),
+        Offset(0.36, 0.8),
+        Offset(0.5, 0.88),
+        Offset(0.64, 0.8),
+        Offset(0.73, 0.68),
+        Offset(0.73, 0.42),
+        Offset(0.73, 0.14),
+      ],
     ),
   ];
 
@@ -101,8 +110,6 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   bool _guardado = false;
   bool _fueCorrecto = false;
   String _mensajeFeedback = '';
-  int _actividadIndex = 0;
-  String _actividadRespuesta = '';
   List<Offset> _puntos = <Offset>[];
   int _aciertoFeedbackTick = 0;
   final GlobalKey _lienzoTrazoKey = GlobalKey();
@@ -222,6 +229,9 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     if (letra == 'I') {
       return _trazoLetraI(raw, objetivo);
     }
+    if (letra == 'U') {
+      return _trazoLetraU(raw, objetivo);
+    }
     return _trazoAproximadoContorno(
       raw,
       objetivo,
@@ -248,6 +258,61 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       umbralCercaniaModelo: 0.22,
       umbralCercaniaTrazo: 0.3,
     );
+  }
+
+  /// La U se dibuja con curva inferior; el modelo con pocos segmentos rectos
+  /// y las esquinas superiores obligatorias rechazaban trazos válidos.
+  bool _trazoLetraU(List<Offset> raw, List<Offset> objetivo) {
+    if (_trazoFormaUAproximada(raw)) return true;
+    return _trazoAproximadoContorno(
+      raw,
+      objetivo,
+      minAncho: 22,
+      minAlto: 35,
+      umbralCobertura: 0.45,
+      umbralPrecision: 0.48,
+      umbralCercaniaModelo: 0.24,
+      umbralCercaniaTrazo: 0.3,
+    );
+  }
+
+  bool _trazoFormaUAproximada(List<Offset> raw) {
+    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
+    if (puntosValidos.length < 8) return false;
+    final box = _bounds(puntosValidos);
+    if (box.height < 30) return false;
+    if (box.width < 18) return false;
+
+    final alto = math.max(box.height, 1.0);
+    final ancho = math.max(box.width, 1.0);
+    if (ancho / alto > 2.4) return false;
+
+    final normalizados = _normalizarTrazado(puntosValidos);
+    final izquierda = normalizados.where((p) => p.dx <= 0.44).toList();
+    final derecha = normalizados.where((p) => p.dx >= 0.56).toList();
+    if (izquierda.length < 2 || derecha.length < 2) return false;
+
+    final spanIzq = _spanVertical(normalizados.where((p) => p.dx <= 0.44));
+    final spanDer = _spanVertical(normalizados.where((p) => p.dx >= 0.56));
+    if (spanIzq < 0.32 && spanDer < 0.32) return false;
+    if (spanIzq + spanDer < 0.5) return false;
+
+    final enFondo = normalizados.where((p) => p.dy >= 0.55).length;
+    if (enFondo / normalizados.length < 0.1) return false;
+
+    final curvaInferior = normalizados.where(
+      (p) => p.dy >= 0.52 && p.dx >= 0.3 && p.dx <= 0.7,
+    );
+    if (curvaInferior.isEmpty) return false;
+
+    return true;
+  }
+
+  double _spanVertical(Iterable<Offset> pts) {
+    final lista = pts.toList();
+    if (lista.isEmpty) return 0;
+    final ys = lista.map((p) => p.dy);
+    return ys.reduce(math.max) - ys.reduce(math.min);
   }
 
   bool _trazoVerticalAproximado(List<Offset> raw) {
@@ -385,63 +450,22 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
       await _ttsDecir(_vocalActual.ejemplo);
       return;
     }
-    setState(() {
-      _fase = _FaseEscritura.actividad;
-      _actividadIndex = 0;
-      _actividadRespuesta = '';
-    });
-    await _ttsDecir('Actividad interactiva');
-    await _ttsDecir('Selecciona la A bien escrita');
+    await _completarLeccion();
   }
 
-  Future<void> _evaluarActividad() async {
-    bool ok = false;
-    if (_actividadIndex == 0) {
-      ok = _actividadRespuesta == 'A';
-    } else if (_actividadIndex == 1) {
-      ok = _actividadRespuesta.trim().toUpperCase() == 'U';
-    } else {
-      ok = _actividadRespuesta.trim().toUpperCase() == 'O';
-    }
-    setState(() {
-      _fueCorrecto = ok;
-      _fase = _FaseEscritura.feedback;
-      _mensajeFeedback = ok ? 'Muy bien' : 'Intenta de nuevo';
-      if (ok) _aciertoFeedbackTick++;
-    });
-    await _ttsDecir(_mensajeFeedback);
-  }
-
-  Future<void> _continuarActividadDesdeFeedback() async {
-    if (!_fueCorrecto) {
-      setState(() => _fase = _FaseEscritura.actividad);
-      await _ttsDecir('Escucha y vuelve a intentarlo');
-      return;
-    }
-    if (_actividadIndex < 2) {
-      setState(() {
-        _actividadIndex++;
-        _fase = _FaseEscritura.actividad;
-        _actividadRespuesta = '';
-      });
-      if (_actividadIndex == 1) {
-        await _ttsDecir('Escribe la letra con la que empieza uva');
-      } else {
-        await _ttsDecir('Ooooo. Escribe la vocal que escuchas');
-      }
-      return;
-    }
+  Future<void> _completarLeccion() async {
     if (!_guardado) {
       _guardado = true;
       await widget.onCompletar();
     }
+    if (!mounted) return;
     setState(() => _fase = _FaseEscritura.recompensa);
     await _ttsDecir('Muy bien. Ya sabes escribir las vocales');
   }
 
   @override
   Widget build(BuildContext context) {
-    const totalEtapas = 7;
+    const totalEtapas = 6;
     final progreso = (_fase.index + 1) / totalEtapas;
     return AlfabetizacionLessonShell(
       title: widget.leccion.titulo,
@@ -463,8 +487,6 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         return 'Escritura guiada';
       case _FaseEscritura.libre:
         return 'Escritura libre';
-      case _FaseEscritura.actividad:
-        return 'Actividad final';
       case _FaseEscritura.feedback:
         return 'Retroalimentación';
       case _FaseEscritura.recompensa:
@@ -482,8 +504,6 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         return _buildTrazo(isGuided: true);
       case _FaseEscritura.libre:
         return _buildTrazo(isGuided: false);
-      case _FaseEscritura.actividad:
-        return _buildActividad();
       case _FaseEscritura.feedback:
         return _buildFeedback();
       case _FaseEscritura.recompensa:
@@ -618,50 +638,6 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     );
   }
 
-  Widget _buildActividad() {
-    if (_actividadIndex == 0) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Selecciona la A bien escrita', textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ...['A', 'A/', 'B'].map(
-            (op) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: OutlinedButton(
-                onPressed: () => setState(() => _actividadRespuesta = op),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: _actividadRespuesta == op ? Colors.blue.shade50 : null,
-                ),
-                child: Text(op, style: const TextStyle(fontSize: 24)),
-              ),
-            ),
-          ),
-          const Spacer(),
-          FilledButton(onPressed: _evaluarActividad, child: const Text('Validar')),
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          _actividadIndex == 1 ? '🍇 Escribe la letra con la que empieza' : 'Audio: Ooooo. Escribe la vocal',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          textAlign: TextAlign.center,
-          textCapitalization: TextCapitalization.characters,
-          onChanged: (v) => _actividadRespuesta = v,
-          decoration: const InputDecoration(hintText: 'Escribe aquí'),
-        ),
-        const Spacer(),
-        FilledButton(onPressed: _evaluarActividad, child: const Text('Validar')),
-      ],
-    );
-  }
-
   Offset _normalizarPuntoAlLienzo(Offset localPosition) {
     final box = _lienzoTrazoKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return localPosition;
@@ -695,9 +671,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
         ),
         const SizedBox(height: 18),
         FilledButton(
-          onPressed: _fase == _FaseEscritura.feedback && _indiceVocal == _vocales.length - 1
-              ? _continuarActividadDesdeFeedback
-              : _siguienteDesdeFeedback,
+          onPressed: _siguienteDesdeFeedback,
           child: const Text('Continuar'),
         ),
       ],

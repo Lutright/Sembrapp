@@ -380,33 +380,6 @@ final alfabetizacionLecciones = <LeccionData>[
     flujoId: kFlujoEscrituraVocalesGuiadoId,
     puntos: 10,
   ),
-  const LeccionData(
-    id: 'E1-2',
-    modulo: 'escritura',
-    nivel: 1,
-    titulo: 'Escribe la letra E',
-    contenido: 'E',
-    respuestaCorrecta: 'E',
-    puntos: 10,
-  ),
-  const LeccionData(
-    id: 'E1-3',
-    modulo: 'escritura',
-    nivel: 1,
-    titulo: 'Escribe la sílaba MA',
-    contenido: 'MA',
-    respuestaCorrecta: 'MA',
-    puntos: 15,
-  ),
-  const LeccionData(
-    id: 'E1-4',
-    modulo: 'escritura',
-    nivel: 1,
-    titulo: 'Escribe: MAMA',
-    contenido: 'MAMA',
-    respuestaCorrecta: 'MAMA',
-    puntos: 20,
-  ),
 ];
 
 List<LeccionData> leccionesPorModuloNivel(String modulo, int nivel) {
