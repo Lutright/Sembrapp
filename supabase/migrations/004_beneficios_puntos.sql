@@ -42,7 +42,7 @@ create policy "Todos pueden leer beneficios activos para visibilidad"
 -- Datos iniciales de beneficios
 insert into public.beneficios (id, nombre, descripcion, puntos_requeridos, duracion_horas, orden_prioridad)
 values
-  ('destacado_24h', 'Destacado 24 horas', 'Tus productos aparecen primero en el listado durante 24 horas.', 50, 24, 1),
-  ('destacado_3d', 'Destacado 3 días', 'Tus productos aparecen primero durante 3 días.', 120, 72, 2),
-  ('destacado_1sem', 'Destacado 1 semana', 'Tus productos aparecen primero durante una semana.', 250, 168, 3)
+  ('destacado_1sem', 'Visibilidad premium (24 h)', 'Tus productos y tu tienda aparecen primero durante 24 horas.', 250, 24, 1),
+  ('destacado_3d', 'Visibilidad media (12 h)', 'Tus productos y tu tienda aparecen primero durante 12 horas.', 120, 12, 2),
+  ('destacado_24h', 'Visibilidad básica (6 h)', 'Tus productos y tu tienda aparecen primero durante 6 horas.', 50, 6, 3)
 on conflict (id) do nothing;

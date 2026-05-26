@@ -1,11 +1,11 @@
 {
-    "name": "sembrapp",
-    "short_name": "sembrapp",
+    "name": "SembrApp",
+    "short_name": "SembrApp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "SembrApp: alfabetización y comercialización directa de productos agrícolas.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

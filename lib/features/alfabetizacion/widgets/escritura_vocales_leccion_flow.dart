@@ -1,0 +1,768 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../alfabetizacion_ui_colors.dart';
+import '../data/lecciones_data.dart';
+import '../../../core/services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_feedback.dart';
+import 'alfabetizacion_lesson_shell.dart';
+
+enum _FaseEscritura {
+  intro,
+  demo,
+  guiada,
+  libre,
+  feedback,
+  recompensa,
+}
+
+class _VocalItem {
+  const _VocalItem({
+    required this.letra,
+    required this.ejemplo,
+    required this.emoji,
+    required this.trazo,
+  });
+
+  final String letra;
+  final String ejemplo;
+  final String emoji;
+  final List<Offset> trazo;
+}
+
+class EscrituraVocalesLeccionFlow extends StatefulWidget {
+  const EscrituraVocalesLeccionFlow({
+    super.key,
+    required this.leccion,
+    required this.onCompletar,
+  });
+
+  final LeccionData leccion;
+  final Future<void> Function() onCompletar;
+
+  @override
+  State<EscrituraVocalesLeccionFlow> createState() =>
+      _EscrituraVocalesLeccionFlowState();
+}
+
+class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlow> {
+  static const Color _azulHorizonte = Color(0xFF1A4463);
+  static const Color _rojoManta = Color(0xFFD34836);
+  static const _vocales = <_VocalItem>[
+    _VocalItem(
+      letra: 'A',
+      ejemplo: 'A de árbol',
+      emoji: '🌳',
+      trazo: [Offset(0.2, 0.9), Offset(0.5, 0.15), Offset(0.8, 0.9), Offset(0.35, 0.55), Offset(0.65, 0.55)],
+    ),
+    _VocalItem(
+      letra: 'E',
+      ejemplo: 'E de escoba',
+      emoji: '🧹',
+      trazo: [Offset(0.75, 0.2), Offset(0.25, 0.2), Offset(0.25, 0.85), Offset(0.75, 0.85), Offset(0.25, 0.52), Offset(0.65, 0.52)],
+    ),
+    _VocalItem(
+      letra: 'I',
+      ejemplo: 'I de iguana',
+      emoji: '🦎',
+      // Línea vertical principal; trazos cortos arriba/abajo opcionales.
+      trazo: [
+        Offset(0.5, 0.12),
+        Offset(0.5, 0.9),
+        Offset(0.34, 0.12),
+        Offset(0.66, 0.12),
+        Offset(0.34, 0.9),
+        Offset(0.66, 0.9),
+      ],
+    ),
+    _VocalItem(
+      letra: 'O',
+      ejemplo: 'O de oveja',
+      emoji: '🐑',
+      trazo: [Offset(0.5, 0.15), Offset(0.78, 0.3), Offset(0.82, 0.58), Offset(0.68, 0.84), Offset(0.32, 0.84), Offset(0.18, 0.58), Offset(0.22, 0.3), Offset(0.5, 0.15)],
+    ),
+    _VocalItem(
+      letra: 'U',
+      ejemplo: 'U de uva',
+      emoji: '🍇',
+      trazo: [
+        Offset(0.27, 0.14),
+        Offset(0.27, 0.42),
+        Offset(0.27, 0.68),
+        Offset(0.36, 0.8),
+        Offset(0.5, 0.88),
+        Offset(0.64, 0.8),
+        Offset(0.73, 0.68),
+        Offset(0.73, 0.42),
+        Offset(0.73, 0.14),
+      ],
+    ),
+  ];
+
+  final _tts = AlfabetizacionTtsCoach();
+
+  _FaseEscritura _fase = _FaseEscritura.intro;
+  int _indiceVocal = 0;
+  bool _ttsListo = false;
+  bool _guardado = false;
+  bool _fueCorrecto = false;
+  String _mensajeFeedback = '';
+  List<Offset> _puntos = <Offset>[];
+  int _aciertoFeedbackTick = 0;
+  final GlobalKey _lienzoTrazoKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _initTts();
+  }
+
+  @override
+  void dispose() {
+    unawaited(_tts.dispose());
+    super.dispose();
+  }
+
+  bool _ttsFlujoOk() =>
+      mounted && alfabetizacionTtsRouteActive(context);
+
+  Future<void> _ttsDecir(String text) =>
+      _tts.speak(text, shouldContinue: _ttsFlujoOk);
+
+  _VocalItem get _vocalActual => _vocales[_indiceVocal];
+
+  Future<void> _initTts() async {
+    try {
+      await _tts.init();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _ttsListo = _tts.isReady);
+    await _ttsDecir('Vamos a aprender a escribir las vocales');
+  }
+
+  Future<void> _irADemo() async {
+    setState(() => _fase = _FaseEscritura.demo);
+    await _tts.interrupt();
+    await _ttsDecir('Así se escribe la ${_vocalActual.letra}');
+    await _ttsDecir(_instruccionDemoTrazo(_vocalActual.letra));
+  }
+
+  Future<void> _irAGuiada() async {
+    setState(() {
+      _fase = _FaseEscritura.guiada;
+      _puntos = [];
+    });
+    await _tts.interrupt();
+    await _ttsDecir('Ahora hazlo tú');
+    for (final paso in _instruccionesGuiadasTrazo(_vocalActual.letra)) {
+      await _ttsDecir(paso);
+    }
+  }
+
+  String _instruccionDemoTrazo(String letra) {
+    switch (letra) {
+      case 'I':
+        return 'Haz una línea recta de arriba hacia abajo';
+      case 'O':
+        return 'Haz un círculo';
+      case 'U':
+        return 'Baja, curva y sube';
+      default:
+        return 'Sube... baja... cruza';
+    }
+  }
+
+  List<String> _instruccionesGuiadasTrazo(String letra) {
+    switch (letra) {
+      case 'I':
+        return ['Arriba', 'Abajo'];
+      case 'O':
+        return ['Gira', 'Cierra el círculo'];
+      case 'U':
+        return ['Baja', 'Curva', 'Sube'];
+      default:
+        return ['Sube', 'Baja', 'Cruza'];
+    }
+  }
+
+  Future<void> _irALibre() async {
+    setState(() {
+      _fase = _FaseEscritura.libre;
+      _puntos = [];
+    });
+    await _tts.interrupt();
+    await _ttsDecir('Escribe la ${_vocalActual.letra}');
+  }
+
+  Future<void> _evaluarGuiada() async {
+    final ok = _trazoAproximado(_puntos, _vocalActual.trazo, letra: _vocalActual.letra);
+    setState(() {
+      _fueCorrecto = ok;
+      _fase = _FaseEscritura.feedback;
+      _mensajeFeedback = ok ? 'Bien' : 'Intenta otra vez';
+      if (ok) _aciertoFeedbackTick++;
+    });
+    await _tts.interrupt();
+    await _ttsDecir(_mensajeFeedback);
+  }
+
+  Future<void> _evaluarLibre() async {
+    final ok = _trazoAproximado(_puntos, _vocalActual.trazo, letra: _vocalActual.letra);
+    setState(() {
+      _fueCorrecto = ok;
+      _fase = _FaseEscritura.feedback;
+      _mensajeFeedback = ok ? 'Muy bien' : 'Intenta de nuevo';
+      if (ok) _aciertoFeedbackTick++;
+    });
+    await _tts.interrupt();
+    await _ttsDecir(_mensajeFeedback);
+  }
+
+  bool _trazoAproximado(
+    List<Offset> raw,
+    List<Offset> objetivo, {
+    required String letra,
+  }) {
+    if (letra == 'I') {
+      return _trazoLetraI(raw, objetivo);
+    }
+    if (letra == 'U') {
+      return _trazoLetraU(raw, objetivo);
+    }
+    return _trazoAproximadoContorno(
+      raw,
+      objetivo,
+      minAncho: 35,
+      minAlto: 35,
+      umbralCobertura: 0.62,
+      umbralPrecision: 0.52,
+      umbralCercaniaModelo: 0.2,
+      umbralCercaniaTrazo: 0.24,
+    );
+  }
+
+  /// La I suele trazarse como una línea vertical estrecha; el umbral de ancho
+  /// general (35 px) la rechazaba aunque el trazo fuera correcto.
+  bool _trazoLetraI(List<Offset> raw, List<Offset> objetivo) {
+    if (_trazoVerticalAproximado(raw)) return true;
+    return _trazoAproximadoContorno(
+      raw,
+      objetivo,
+      minAncho: 10,
+      minAlto: 35,
+      umbralCobertura: 0.42,
+      umbralPrecision: 0.5,
+      umbralCercaniaModelo: 0.22,
+      umbralCercaniaTrazo: 0.3,
+    );
+  }
+
+  /// La U se dibuja con curva inferior; el modelo con pocos segmentos rectos
+  /// y las esquinas superiores obligatorias rechazaban trazos válidos.
+  bool _trazoLetraU(List<Offset> raw, List<Offset> objetivo) {
+    if (_trazoFormaUAproximada(raw)) return true;
+    return _trazoAproximadoContorno(
+      raw,
+      objetivo,
+      minAncho: 22,
+      minAlto: 35,
+      umbralCobertura: 0.45,
+      umbralPrecision: 0.48,
+      umbralCercaniaModelo: 0.24,
+      umbralCercaniaTrazo: 0.3,
+    );
+  }
+
+  bool _trazoFormaUAproximada(List<Offset> raw) {
+    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
+    if (puntosValidos.length < 8) return false;
+    final box = _bounds(puntosValidos);
+    if (box.height < 30) return false;
+    if (box.width < 18) return false;
+
+    final alto = math.max(box.height, 1.0);
+    final ancho = math.max(box.width, 1.0);
+    if (ancho / alto > 2.4) return false;
+
+    final normalizados = _normalizarTrazado(puntosValidos);
+    final izquierda = normalizados.where((p) => p.dx <= 0.44).toList();
+    final derecha = normalizados.where((p) => p.dx >= 0.56).toList();
+    if (izquierda.length < 2 || derecha.length < 2) return false;
+
+    final spanIzq = _spanVertical(normalizados.where((p) => p.dx <= 0.44));
+    final spanDer = _spanVertical(normalizados.where((p) => p.dx >= 0.56));
+    if (spanIzq < 0.32 && spanDer < 0.32) return false;
+    if (spanIzq + spanDer < 0.5) return false;
+
+    final enFondo = normalizados.where((p) => p.dy >= 0.55).length;
+    if (enFondo / normalizados.length < 0.1) return false;
+
+    final curvaInferior = normalizados.where(
+      (p) => p.dy >= 0.52 && p.dx >= 0.3 && p.dx <= 0.7,
+    );
+    if (curvaInferior.isEmpty) return false;
+
+    return true;
+  }
+
+  double _spanVertical(Iterable<Offset> pts) {
+    final lista = pts.toList();
+    if (lista.isEmpty) return 0;
+    final ys = lista.map((p) => p.dy);
+    return ys.reduce(math.max) - ys.reduce(math.min);
+  }
+
+  bool _trazoVerticalAproximado(List<Offset> raw) {
+    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
+    if (puntosValidos.length < 8) return false;
+    final box = _bounds(puntosValidos);
+    if (box.height < 35) return false;
+    if (box.width < 6) return false;
+
+    final alto = math.max(box.height, 1.0);
+    final ancho = math.max(box.width, 1.0);
+    if (alto / ancho < 1.6) return false;
+
+    final normalizados = _normalizarTrazado(puntosValidos);
+    final centroX =
+        normalizados.map((p) => p.dx).reduce((a, b) => a + b) / normalizados.length;
+
+    var alineados = 0;
+    for (final p in normalizados) {
+      if ((p.dx - centroX).abs() <= 0.3) alineados++;
+    }
+    if (alineados / normalizados.length < 0.55) return false;
+
+    final ys = normalizados.map((p) => p.dy);
+    final minY = ys.reduce(math.min);
+    final maxY = ys.reduce(math.max);
+    return maxY - minY >= 0.45;
+  }
+
+  bool _trazoAproximadoContorno(
+    List<Offset> raw,
+    List<Offset> objetivo, {
+    required double minAncho,
+    required double minAlto,
+    required double umbralCobertura,
+    required double umbralPrecision,
+    required double umbralCercaniaModelo,
+    required double umbralCercaniaTrazo,
+  }) {
+    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
+    if (puntosValidos.length < 10) return false;
+    final box = _bounds(puntosValidos);
+    if (box.width < minAncho || box.height < minAlto) return false;
+    final normalizados = _normalizarTrazado(puntosValidos);
+    final objetivoNormalizado = _normalizarTrazado(objetivo);
+
+    final coberturaModelo = _ratioCercaniaAContorno(
+      muestra: objetivoNormalizado,
+      contorno: normalizados,
+      umbral: umbralCercaniaModelo,
+    );
+    final precisionTrazo = _ratioCercaniaAContorno(
+      muestra: normalizados,
+      contorno: objetivoNormalizado,
+      umbral: umbralCercaniaTrazo,
+    );
+
+    return coberturaModelo >= umbralCobertura && precisionTrazo >= umbralPrecision;
+  }
+
+  List<Offset> _normalizarTrazado(List<Offset> pts) {
+    final box = _bounds(pts);
+    final ancho = math.max(box.width, 1.0);
+    final alto = math.max(box.height, 1.0);
+    return pts
+        .map((p) => Offset((p.dx - box.left) / ancho, (p.dy - box.top) / alto))
+        .toList();
+  }
+
+  double _ratioCercaniaAContorno({
+    required List<Offset> muestra,
+    required List<Offset> contorno,
+    required double umbral,
+  }) {
+    if (muestra.isEmpty || contorno.length < 2) return 0;
+    var cercanos = 0;
+    for (final p in muestra) {
+      final d = _distanciaMinimaAContorno(p, contorno);
+      if (d <= umbral) cercanos++;
+    }
+    return cercanos / muestra.length;
+  }
+
+  double _distanciaMinimaAContorno(Offset p, List<Offset> contorno) {
+    var minimo = double.infinity;
+    for (var i = 1; i < contorno.length; i++) {
+      final d = _distanciaPuntoASegmento(p, contorno[i - 1], contorno[i]);
+      if (d < minimo) minimo = d;
+    }
+    return minimo;
+  }
+
+  double _distanciaPuntoASegmento(Offset p, Offset a, Offset b) {
+    final ab = b - a;
+    final ap = p - a;
+    final ab2 = (ab.dx * ab.dx) + (ab.dy * ab.dy);
+    if (ab2 <= 1e-9) return (p - a).distance;
+    final t = ((ap.dx * ab.dx) + (ap.dy * ab.dy)) / ab2;
+    final tc = t.clamp(0.0, 1.0);
+    final proyeccion = Offset(a.dx + ab.dx * tc, a.dy + ab.dy * tc);
+    return (p - proyeccion).distance;
+  }
+
+  Rect _bounds(List<Offset> pts) {
+    var left = pts.first.dx;
+    var right = pts.first.dx;
+    var top = pts.first.dy;
+    var bottom = pts.first.dy;
+    for (final p in pts) {
+      left = math.min(left, p.dx);
+      right = math.max(right, p.dx);
+      top = math.min(top, p.dy);
+      bottom = math.max(bottom, p.dy);
+    }
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  Future<void> _siguienteDesdeFeedback() async {
+    if (_fase != _FaseEscritura.feedback) return;
+    if (!_fueCorrecto) {
+      setState(() {
+        _fase = _FaseEscritura.guiada;
+        _puntos = [];
+      });
+      await _ttsDecir('Volvamos a la guía');
+      return;
+    }
+    if (_indiceVocal < _vocales.length - 1) {
+      setState(() {
+        _indiceVocal++;
+        _fase = _FaseEscritura.demo;
+        _puntos = [];
+      });
+      await _ttsDecir('Ahora sigue la vocal ${_vocalActual.letra}');
+      await _ttsDecir(_vocalActual.ejemplo);
+      return;
+    }
+    await _completarLeccion();
+  }
+
+  Future<void> _completarLeccion() async {
+    if (!_guardado) {
+      _guardado = true;
+      await widget.onCompletar();
+    }
+    if (!mounted) return;
+    setState(() => _fase = _FaseEscritura.recompensa);
+    await _ttsDecir('Muy bien. Ya sabes escribir las vocales');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const totalEtapas = 6;
+    final progreso = (_fase.index + 1) / totalEtapas;
+    return AlfabetizacionLessonShell(
+      title: widget.leccion.titulo,
+      subtitle: 'Escritura · Nivel ${widget.leccion.nivel}',
+      progress: progreso,
+      stepLabel: _tituloPantalla(),
+      expandBody: true,
+      child: _buildFase(),
+    );
+  }
+
+  String _tituloPantalla() {
+    switch (_fase) {
+      case _FaseEscritura.intro:
+        return 'Introducción';
+      case _FaseEscritura.demo:
+        return 'Trazo de ejemplo';
+      case _FaseEscritura.guiada:
+        return 'Escritura guiada';
+      case _FaseEscritura.libre:
+        return 'Escritura libre';
+      case _FaseEscritura.feedback:
+        return 'Retroalimentación';
+      case _FaseEscritura.recompensa:
+        return '¡Lección completada!';
+    }
+  }
+
+  Widget _buildFase() {
+    switch (_fase) {
+      case _FaseEscritura.intro:
+        return _buildIntro();
+      case _FaseEscritura.demo:
+        return _buildDemo();
+      case _FaseEscritura.guiada:
+        return _buildTrazo(isGuided: true);
+      case _FaseEscritura.libre:
+        return _buildTrazo(isGuided: false);
+      case _FaseEscritura.feedback:
+        return _buildFeedback();
+      case _FaseEscritura.recompensa:
+        return _buildRecompensa();
+    }
+  }
+
+  Widget _buildIntro() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Icon(Icons.edit_note_rounded, size: 120, color: _azulHorizonte),
+        const SizedBox(height: 8),
+        const Text('✏️🌾', textAlign: TextAlign.center, style: TextStyle(fontSize: 44)),
+        const SizedBox(height: 16),
+        const Text(
+          'Vamos a aprender a escribir las vocales',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: _ttsListo ? _irADemo : null,
+          child: const Text('Empezar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDemo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${_vocalActual.letra} · ${_vocalActual.ejemplo}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(_vocalActual.emoji, textAlign: TextAlign.center, style: const TextStyle(fontSize: 64)),
+        const SizedBox(height: 12),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: _azulHorizonte, width: 2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: CustomPaint(
+              painter: _ModeloLetraPainter(_vocalActual.letra),
+              child: const Center(
+                child: Text('↑ Direccion del trazo', style: TextStyle(color: _azulHorizonte)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: _rojoManta),
+          onPressed: _irAGuiada,
+          child: const Text('Ahora hazlo tú'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrazo({required bool isGuided}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isGuided ? 'Traza la ${_vocalActual.letra} con ayuda' : 'Escribe ${_vocalActual.letra} sin guía',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: GestureDetector(
+            key: _lienzoTrazoKey,
+            onPanStart: (d) {
+              final p = _normalizarPuntoAlLienzo(d.localPosition);
+              setState(() => _puntos = [..._puntos, p]);
+            },
+            onPanUpdate: (d) {
+              final p = _normalizarPuntoAlLienzo(d.localPosition);
+              setState(() => _puntos = [..._puntos, p]);
+            },
+            onPanEnd: (_) {
+              setState(() => _puntos = [..._puntos, const Offset(double.nan, double.nan)]);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: _azulHorizonte, width: 2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: CustomPaint(
+                painter: _TrazoPainter(
+                  puntos: _puntos,
+                  letraModelo: isGuided ? _vocalActual.letra : '',
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _puntos = []),
+                child: const Text('Borrar'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: isGuided ? _evaluarGuiada : _evaluarLibre,
+                child: const Text('Comprobar'),
+              ),
+            ),
+          ],
+        ),
+        if (isGuided) ...[
+          const SizedBox(height: 8),
+          FilledButton.tonal(
+            onPressed: _irALibre,
+            child: const Text('Continuar a escritura libre'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Offset _normalizarPuntoAlLienzo(Offset localPosition) {
+    final box = _lienzoTrazoKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return localPosition;
+    final size = box.size;
+    return Offset(
+      localPosition.dx.clamp(0.0, size.width),
+      localPosition.dy.clamp(0.0, size.height),
+    );
+  }
+
+  Widget _buildFeedback() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_fueCorrecto) ...[
+          AlfabetizacionLessonCorrectBanner(animationTick: _aciertoFeedbackTick),
+          const SizedBox(height: 16),
+        ] else ...[
+          const Icon(
+            Icons.refresh_rounded,
+            size: 90,
+            color: _rojoManta,
+          ),
+          const SizedBox(height: 12),
+        ],
+        Text(
+          _mensajeFeedback,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 18),
+        FilledButton(
+          onPressed: _siguienteDesdeFeedback,
+          child: const Text('Continuar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecompensa() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AlfabetizacionLessonCompletionPanel(
+          headline: '¡Lo lograste!',
+          detail: 'Lección: ${widget.leccion.titulo}',
+          pointsLabel: '+${widget.leccion.puntos} puntos',
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          onPressed: () => context.pop(),
+          style: FilledButton.styleFrom(
+            backgroundColor: AlfabetizacionUiColors.verdeContinuar,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Volver al módulo'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ModeloLetraPainter extends CustomPainter {
+  const _ModeloLetraPainter(this.letra);
+  final String letra;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final style = TextStyle(
+      fontSize: size.height * 0.7,
+      color: Colors.grey.withValues(alpha: 0.35),
+      fontWeight: FontWeight.w800,
+    );
+    final text = TextPainter(
+      text: TextSpan(text: letra, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: size.width);
+    text.paint(canvas, Offset((size.width - text.width) / 2, (size.height - text.height) / 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ModeloLetraPainter oldDelegate) => oldDelegate.letra != letra;
+}
+
+class _TrazoPainter extends CustomPainter {
+  const _TrazoPainter({
+    required this.puntos,
+    required this.letraModelo,
+  });
+
+  final List<Offset> puntos;
+  final String letraModelo;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (letraModelo.isNotEmpty) {
+      final text = TextPainter(
+        text: TextSpan(
+          text: letraModelo,
+          style: TextStyle(
+            fontSize: size.height * 0.7,
+            color: Colors.grey.withValues(alpha: 0.25),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width);
+      text.paint(canvas, Offset((size.width - text.width) / 2, (size.height - text.height) / 2));
+    }
+    final paint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    for (var i = 1; i < puntos.length; i++) {
+      if (!puntos[i - 1].dx.isFinite || !puntos[i - 1].dy.isFinite) continue;
+      if (!puntos[i].dx.isFinite || !puntos[i].dy.isFinite) continue;
+      canvas.drawLine(puntos[i - 1], puntos[i], paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrazoPainter oldDelegate) =>
+      oldDelegate.puntos != puntos || oldDelegate.letraModelo != letraModelo;
+}

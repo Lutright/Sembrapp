@@ -1,208 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Tema minimalista: pocos colores, alto contraste, tipografía grande,
-/// controles amplios — orientado a personas con baja lectura o barreras tecnológicas.
+/// Tema de Sembrapp: Diseñado para ser ultra-legible en el campo.
+/// Prioriza botones grandes, colores tierra y tipografía clara.
 final class AppTheme {
   AppTheme._();
 
-  static const Color _seed = Color(0xFF1B5E20);
-  static const Color _surface = Color(0xFFF7F6F2);
+  // Identidad visual de Sembrapp
+  static const Color _primaryRed = Color(0xFFD34836); // Rojo manta
+  static const Color _mountainBlue = Color(0xFF1A4463); // Azul montaña
+  static const Color _earthOcre = Color(0xFF6D5E00); // Tono tierra
+  static const Color _backgroundCrema = Color(0xFFFBF9F1); // Fondo orgánico
 
   static ThemeData get light {
     final base = ColorScheme.fromSeed(
-      seedColor: _seed,
+      seedColor: _mountainBlue,
       brightness: Brightness.light,
-      primary: const Color(0xFF1B5E20),
-      onPrimary: const Color(0xFFFFFFFF),
-      secondary: const Color(0xFF33691E),
-      surface: _surface,
-      surfaceContainerLowest: const Color(0xFFFFFFFF),
-      surfaceContainerLow: const Color(0xFFF0EFE8),
-      surfaceContainer: const Color(0xFFE8E6DE),
+      primary: _mountainBlue,
+      onPrimary: Colors.white,
+      secondary: _primaryRed,
+      onSecondary: Colors.white,
+      tertiary: _earthOcre,
+      surface: _backgroundCrema,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: base,
-      scaffoldBackgroundColor: _surface,
-      visualDensity: VisualDensity.standard,
-      materialTapTargetSize: MaterialTapTargetSize.padded,
-      splashFactory: InkRipple.splashFactory,
+      scaffoldBackgroundColor: base.surface,
+
+      // Tipografía global Montserrat
+      textTheme: GoogleFonts.montserratTextTheme().copyWith(
+        displayLarge: TextStyle(
+            fontSize: 40, fontWeight: FontWeight.bold, color: base.onSurface),
+        headlineSmall: TextStyle(
+            fontSize: 26, fontWeight: FontWeight.bold, color: base.onSurface),
+        titleLarge: TextStyle(
+            fontSize: 22, fontWeight: FontWeight.w600, color: base.onSurface),
+        bodyLarge: TextStyle(fontSize: 18, color: base.onSurface),
+        bodyMedium: TextStyle(fontSize: 16, color: base.onSurface),
+      ),
+
+      // Barra superior limpia
       appBarTheme: AppBarTheme(
-        elevation: 0,
-        scrolledUnderElevation: 0,
         centerTitle: true,
-        backgroundColor: _surface,
+        backgroundColor: base.surface,
         foregroundColor: base.onSurface,
-        surfaceTintColor: Colors.transparent,
-        titleTextStyle: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: base.onSurface,
-          height: 1.2,
-        ),
-        iconTheme: IconThemeData(color: base.onSurface, size: 26),
-      ),
-      cardTheme: CardThemeData(
         elevation: 0,
-        color: base.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: base.outlineVariant.withOpacity(0.5)),
+        scrolledUnderElevation: 0, // Evita que cambie de color al hacer scroll
+        titleTextStyle: GoogleFonts.montserrat(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: base.onSurface,
         ),
-        margin: EdgeInsets.zero,
       ),
+
+      // Botones "gigantes" para fácil acceso
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ),
-      segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          backgroundColor: WidgetStateProperty.all(_primaryRed),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          minimumSize: WidgetStateProperty.all(const Size.fromHeight(60)),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          textStyle: const WidgetStatePropertyAll(
-            TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
       ),
+
+      // Inputs con contraste para uso bajo el sol
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: base.surfaceContainerLowest,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: base.outlineVariant),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: base.outline),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: base.outlineVariant.withOpacity(0.8)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: base.outline.withOpacity(0.5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: base.primary, width: 2),
-        ),
-        labelStyle: TextStyle(fontSize: 16, color: base.onSurfaceVariant),
-        floatingLabelStyle: TextStyle(fontSize: 15, color: base.primary),
-        hintStyle: TextStyle(fontSize: 16, color: base.onSurfaceVariant.withOpacity(0.7)),
-      ),
-      listTileTheme: ListTileThemeData(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        minVerticalPadding: 12,
-        titleTextStyle: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: base.onSurface,
-        ),
-        subtitleTextStyle: TextStyle(
-          fontSize: 15,
-          height: 1.35,
-          color: base.onSurfaceVariant,
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: _mountainBlue, width: 2.5),
         ),
       ),
-      iconTheme: IconThemeData(color: base.primary, size: 26),
-      dividerTheme: DividerThemeData(color: base.outlineVariant.withOpacity(0.5)),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        contentTextStyle: const TextStyle(fontSize: 16),
-      ),
-      searchBarTheme: SearchBarThemeData(
-        elevation: const WidgetStatePropertyAll(0),
-        backgroundColor: WidgetStatePropertyAll(base.surfaceContainerLow),
-        side: WidgetStatePropertyAll(
-          BorderSide(color: base.outlineVariant.withOpacity(0.6)),
-        ),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        ),
-        textStyle: WidgetStatePropertyAll(
-          TextStyle(fontSize: 17, color: base.onSurface),
-        ),
-        hintStyle: WidgetStatePropertyAll(
-          TextStyle(fontSize: 17, color: base.onSurfaceVariant),
-        ),
-      ),
-      textTheme: TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 40,
-          fontWeight: FontWeight.w700,
-          color: base.onSurface,
-          height: 1.15,
-        ),
-        displayMedium: TextStyle(
-          fontSize: 34,
-          fontWeight: FontWeight.w700,
-          color: base.onSurface,
-          height: 1.15,
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w700,
-          color: base.onSurface,
-          height: 1.2,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: base.onSurface,
-          height: 1.25,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 19,
-          fontWeight: FontWeight.w600,
-          color: base.onSurface,
-          height: 1.3,
-        ),
-        titleSmall: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: base.onSurface,
-          height: 1.3,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w400,
-          color: base.onSurface,
-          height: 1.4,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: base.onSurface,
-          height: 1.4,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: base.onSurfaceVariant,
-          height: 1.35,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: base.onSurface,
+
+      // CardTheme
+      cardTheme: CardThemeData(
+        elevation: 2,
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
       ),
     );
