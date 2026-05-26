@@ -5,6 +5,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/minimal_ui.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
+<<<<<<< Updated upstream
+=======
+import '../../../core/services/alfabetizacion_tts_coach.dart';
+import '../widgets/alfabetizacion_lesson_feedback.dart';
+import '../widgets/alfabetizacion_lesson_shell.dart';
+import '../widgets/abecedario_leccion_flow.dart';
+import '../widgets/escritura_teclado_abecedario_leccion_flow.dart';
+import '../widgets/escritura_teclado_vocales_leccion_flow.dart';
+import '../widgets/escritura_vocales_leccion_flow.dart';
+import '../widgets/lectura_guiada_leccion_flow.dart';
+import '../widgets/vocales_leccion_flow.dart';
+
+const Color _azulHorizonte = Color(0xFF1A4463);
+>>>>>>> Stashed changes
 
 class AlfabetizacionLeccionScreen extends StatefulWidget {
   const AlfabetizacionLeccionScreen({
@@ -90,6 +104,7 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
           ),
           onPressed: () => context.pop(),
         ),
+<<<<<<< Updated upstream
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -114,6 +129,96 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
               FilledButton(
                 onPressed: () => context.pop(),
                 child: const Text('Volver'),
+=======
+      );
+    }
+
+    if (leccion.flujoId == kFlujoVocalesGuiadoId) {
+      return VocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoAbecedarioGuiadoId) {
+      return AbecedarioLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoEscrituraVocalesGuiadoId) {
+      return EscrituraVocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoEscrituraTecladoVocalesGuiadoId) {
+      return EscrituraTecladoVocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoEscrituraTecladoAbecedarioGuiadoId) {
+      return EscrituraTecladoAbecedarioLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    if (leccion.flujoId == kFlujoEscrituraTecladoVocalesGuiadoId) {
+      return EscrituraTecladoVocalesLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    final lecturaGuiadaConfig = LecturaGuiadaLeccionFlow.configForLeccion(leccion);
+    if (lecturaGuiadaConfig != null) {
+      return LecturaGuiadaLeccionFlow(
+        leccion: leccion,
+        onCompletar: _guardarProgreso,
+        config: lecturaGuiadaConfig,
+      );
+    }
+
+    // Auto-guía por voz (para el resto del módulo).
+    if (_ttsListo && !_audioAutoYa) {
+      _audioAutoYa = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_narrarEntradaLeccion());
+      });
+    }
+
+    final totalP = leccion.preguntas.length;
+    final progresoLineal = totalP > 0
+        ? ((_completado && _correcto == true)
+            ? 1.0
+            : ((_preguntaIndex + 1) / totalP).clamp(0.0, 1.0))
+        : 0.0;
+    final etiquetaPaso = _completado && _correcto == true
+        ? '¡Lección completada!'
+        : _completado && _correcto == false
+            ? 'Revisa tu respuesta'
+            : 'Avance: ${_preguntaIndex + 1} / $totalP';
+
+    return AlfabetizacionLessonShell(
+      title: leccion.titulo,
+      subtitle:
+          '${leccion.esLectura ? 'Lectura' : 'Escritura'} · Nivel ${leccion.nivel}',
+      progress: progresoLineal,
+      stepLabel: etiquetaPaso,
+      useCloseButton: true,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Responde todas las preguntas para completar esta lección.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+>>>>>>> Stashed changes
               ),
             ],
           ],

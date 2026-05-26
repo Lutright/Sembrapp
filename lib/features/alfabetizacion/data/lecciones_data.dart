@@ -1,4 +1,43 @@
 /// RF-A: Contenido de lecciones para alfabetización (lectura y escritura).
+<<<<<<< Updated upstream
+=======
+
+/// Flujo multipantalla + TTS usado por la lección [L1-1] Vocales.
+const kFlujoVocalesGuiadoId = 'vocales_guiado';
+/// Flujo multipantalla + TTS usado por la lección [L1-2] Abecedario.
+const kFlujoAbecedarioGuiadoId = 'abecedario_guiado';
+/// Flujo multipantalla + trazo guiado para Escritura de vocales.
+const kFlujoEscrituraVocalesGuiadoId = 'escritura_vocales_guiado';
+/// Flujo teclado: animación de vocal resaltada + práctica de escritura.
+const kFlujoEscrituraTecladoVocalesGuiadoId = 'escritura_teclado_vocales_guiado';
+/// Flujo teclado: recorrido por letras del abecedario + práctica de escritura.
+const kFlujoEscrituraTecladoAbecedarioGuiadoId =
+    'escritura_teclado_abecedario_guiado';
+/// Flujos guiados progresivos para Lectura (enseñanza + práctica + actividad).
+const kFlujoSilabasDirectasGuiadoId = 'silabas_directas_guiado';
+const kFlujoSilabasDirectasDosGuiadoId = 'silabas_directas_dos_guiado';
+const kFlujoPalabrasCortasGuiadoId = 'palabras_cortas_guiado';
+const kFlujoPalabrasCampoGuiadoId = 'palabras_campo_guiado';
+const kFlujoFrasesCortasGuiadoId = 'frases_cortas_guiado';
+const kFlujoComprensionBasicaGuiadoId = 'comprension_basica_guiado';
+const kFlujoOrdenAlfabeticoBasicoGuiadoId = 'orden_alfabetico_basico_guiado';
+const kFlujoSilabasDirectasTresGuiadoId = 'silabas_directas_tres_guiado';
+const kFlujoSilabasDirectasCuatroGuiadoId = 'silabas_directas_cuatro_guiado';
+const kFlujoSilabasDirectasCincoGuiadoId = 'silabas_directas_cinco_guiado';
+const kFlujoSilabasMezclaGuiadoId = 'silabas_mezcla_guiado';
+const kFlujoPalabraImagenUnoGuiadoId = 'palabra_imagen_uno_guiado';
+const kFlujoPalabraImagenDosGuiadoId = 'palabra_imagen_dos_guiado';
+const kFlujoCompletarPalabraUnoGuiadoId = 'completar_palabra_uno_guiado';
+const kFlujoCompletarPalabraDosGuiadoId = 'completar_palabra_dos_guiado';
+const kFlujoFrasesRutinaUnoGuiadoId = 'frases_rutina_uno_guiado';
+const kFlujoFrasesRutinaDosGuiadoId = 'frases_rutina_dos_guiado';
+const kFlujoOrdenarFraseGuiadoId = 'ordenar_frase_guiado';
+const kFlujoFraseImagenGuiadoId = 'frase_imagen_guiado';
+const kFlujoComprensionQuienQueGuiadoId = 'comprension_quien_que_guiado';
+const kFlujoComprensionDondeGuiadoId = 'comprension_donde_guiado';
+const kFlujoSecuenciaBasicaGuiadoId = 'secuencia_basica_guiado';
+const kFlujoVocabularioContextualGuiadoId = 'vocabulario_contextual_guiado';
+>>>>>>> Stashed changes
 /// Niveles progresivos; cada lección puede ser de tipo lectura o escritura.
 class LeccionData {
   const LeccionData({
@@ -155,19 +194,32 @@ final alfabetizacionLecciones = <LeccionData>[
     id: 'E1-3',
     modulo: 'escritura',
     nivel: 1,
+<<<<<<< Updated upstream
     titulo: 'Escribe la sílaba MA',
     contenido: 'MA',
     respuestaCorrecta: 'MA',
+=======
+    titulo: 'Teclado y abecedario 1',
+    contenido: 'A - M',
+    flujoId: kFlujoEscrituraTecladoAbecedarioGuiadoId,
+>>>>>>> Stashed changes
     puntos: 15,
   ),
   const LeccionData(
     id: 'E1-4',
     modulo: 'escritura',
     nivel: 1,
+<<<<<<< Updated upstream
     titulo: 'Escribe: MAMA',
     contenido: 'MAMA',
     respuestaCorrecta: 'MAMA',
     puntos: 20,
+=======
+    titulo: 'Teclado y abecedario 2',
+    contenido: 'N - Z',
+    flujoId: kFlujoEscrituraTecladoAbecedarioGuiadoId,
+    puntos: 15,
+>>>>>>> Stashed changes
   ),
 ];
 
