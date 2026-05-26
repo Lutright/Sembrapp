@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/services/alfabetizacion_tts_coach.dart';
@@ -67,6 +68,7 @@ class _EscrituraTecladoVocalesLeccionFlowState
 
   final _tts = AlfabetizacionTtsCoach();
   final _entradaController = TextEditingController();
+  final _entradaFocus = FocusNode();
 
   _FaseTeclado _fase = _FaseTeclado.intro;
   int _indiceVocal = 0;
@@ -86,6 +88,7 @@ class _EscrituraTecladoVocalesLeccionFlowState
   @override
   void dispose() {
     unawaited(_tts.dispose());
+    _entradaFocus.dispose();
     _entradaController.dispose();
     super.dispose();
   }
@@ -130,6 +133,20 @@ class _EscrituraTecladoVocalesLeccionFlowState
     setState(() => _fase = _FaseTeclado.practica);
     await _tts.interrupt();
     await _ttsDecir('Ahora escribe la vocal ${_vocalActual.letra}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _entradaFocus.requestFocus();
+    });
+  }
+
+  void _onEntradaCambiada(String value) {
+    final limpio = value.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+    final uno = limpio.isEmpty ? '' : limpio[limpio.length - 1];
+    if (_entradaController.text != uno) {
+      _entradaController.value = TextEditingValue(
+        text: uno,
+        selection: TextSelection.collapsed(offset: uno.length),
+      );
+    }
   }
 
   Future<void> _evaluarPractica() async {
@@ -199,7 +216,9 @@ class _EscrituraTecladoVocalesLeccionFlowState
       subtitle: 'Escritura · Nivel ${widget.leccion.nivel}',
       progress: _progresoLeccion(),
       stepLabel: _tituloPantalla(),
-      expandBody: _fase == _FaseTeclado.demo,
+      expandBody: _fase == _FaseTeclado.demo ||
+          _fase == _FaseTeclado.practica,
+      resizeForKeyboard: _fase == _FaseTeclado.practica,
       child: _buildFase(),
     );
   }
@@ -300,6 +319,16 @@ class _EscrituraTecladoVocalesLeccionFlowState
     );
   }
 
+  void _escribirLetraEnPractica(String letra) {
+    final l = letra.toUpperCase();
+    _entradaController.value = TextEditingValue(
+      text: l,
+      selection: TextSelection.collapsed(offset: l.length),
+    );
+    setState(() {});
+    _entradaFocus.requestFocus();
+  }
+
   Widget _buildPractica() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -315,20 +344,44 @@ class _EscrituraTecladoVocalesLeccionFlowState
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
         ),
-        const SizedBox(height: 20),
-        _TecladoVocalEstatico(
-          vocalResaltada: _vocalActual.letra,
-          filas: _filasTeclado,
-          colorResaltado: _resaltadoTecla,
-          fondoResaltado: _resaltadoFondo,
-          opacidadReferencia: 0.45,
+        const SizedBox(height: 6),
+        Text(
+          'Toca la vocal en el teclado o escríbela en el recuadro',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade600,
+            height: 1.3,
+          ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
+        Expanded(
+          child: Align(
+            alignment: Alignment.center,
+            child: _TecladoVocalEstatico(
+              vocalResaltada: _vocalActual.letra,
+              filas: _filasTeclado,
+              colorResaltado: _resaltadoTecla,
+              fondoResaltado: _resaltadoFondo,
+              opacidadReferencia: 0.45,
+              onLetraTap: _escribirLetraEnPractica,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
         TextField(
+          focusNode: _entradaFocus,
           controller: _entradaController,
+          autofocus: true,
           textAlign: TextAlign.center,
           textCapitalization: TextCapitalization.characters,
+          keyboardType: TextInputType.text,
+          textInputAction: TextInputAction.done,
           maxLength: 1,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+            LengthLimitingTextInputFormatter(1),
+          ],
           style: const TextStyle(
             fontSize: 48,
             fontWeight: FontWeight.bold,
@@ -341,16 +394,24 @@ class _EscrituraTecladoVocalesLeccionFlowState
             hintStyle: TextStyle(
               color: _azulHorizonte.withValues(alpha: 0.25),
             ),
+            filled: true,
+            fillColor: Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: _azulHorizonte, width: 2),
             ),
           ),
+          onChanged: _onEntradaCambiada,
           onSubmitted: (_) => unawaited(_evaluarPractica()),
+          onTap: () => _entradaFocus.requestFocus(),
         ),
-        const Spacer(),
+        const SizedBox(height: 12),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: _rojoManta,
+            minimumSize: const Size.fromHeight(52),
+          ),
           onPressed: _evaluarPractica,
           child: const Text('Comprobar'),
         ),
@@ -469,15 +530,12 @@ class _TecladoVocalAnimadoState extends State<_TecladoVocalAnimado>
       builder: (context, _) {
         return Opacity(
           opacity: _entradaAnim.value,
-          child: Transform.scale(
-            scale: 0.88 + 0.12 * _entradaAnim.value,
-            child: _TecladoVocalEstatico(
-              vocalResaltada: widget.vocalResaltada,
-              filas: widget.filas,
-              colorResaltado: widget.colorResaltado,
-              fondoResaltado: widget.fondoResaltado,
-              escalaResaltado: _pulsoAnim.value,
-            ),
+          child: _TecladoVocalEstatico(
+            vocalResaltada: widget.vocalResaltada,
+            filas: widget.filas,
+            colorResaltado: widget.colorResaltado,
+            fondoResaltado: widget.fondoResaltado,
+            escalaResaltado: _pulsoAnim.value,
           ),
         );
       },
@@ -494,6 +552,7 @@ class _TecladoVocalEstatico extends StatelessWidget {
     required this.fondoResaltado,
     this.opacidadReferencia = 1.0,
     this.escalaResaltado = 1.0,
+    this.onLetraTap,
   });
 
   final String vocalResaltada;
@@ -502,30 +561,53 @@ class _TecladoVocalEstatico extends StatelessWidget {
   final Color fondoResaltado;
   final double opacidadReferencia;
   final double escalaResaltado;
+  final ValueChanged<String>? onLetraTap;
 
   @override
   Widget build(BuildContext context) {
     final objetivo = vocalResaltada.toUpperCase();
     return Opacity(
       opacity: opacidadReferencia,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.grey.shade400),
-          boxShadow: AlfabetizacionLessonTokens.cardShadow,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < filas.length; i++)
-              Padding(
-                padding: EdgeInsets.only(bottom: i < filas.length - 1 ? 8 : 0),
-                child: _filaTeclado(filas[i], objetivo),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Mantener el diseño original (teclas 28x36) y, si el dispositivo
+          // es muy estrecho/alto, escalar el "tarjetón" completo para evitar
+          // overflow manteniendo centrado.
+          return Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 340,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.grey.shade400),
+                    boxShadow: AlfabetizacionLessonTokens.cardShadow,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < filas.length; i++)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: i < filas.length - 1 ? 8 : 0,
+                          ),
+                          child: _filaTeclado(filas[i], objetivo),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-          ],
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -574,7 +656,26 @@ class _TecladoVocalEstatico extends StatelessWidget {
         ),
       ),
     );
-    if (!resaltada) return child;
-    return Transform.scale(scale: escalaResaltado, child: child);
+
+    final wrapped = !resaltada
+        ? child
+        : Transform.scale(
+            scale: escalaResaltado,
+            child: child,
+          );
+
+    if (onLetraTap == null) return wrapped;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onLetraTap!(letra);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: wrapped,
+      ),
+    );
   }
 }

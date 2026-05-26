@@ -56,6 +56,7 @@ class AlfabetizacionLessonShell extends StatelessWidget {
     /// Si es true, el cuerpo ocupa el espacio restante (p. ej. trazos con [Expanded]).
     /// Si es false, el contenido va en un [SingleChildScrollView].
     this.expandBody = false,
+    this.resizeForKeyboard = false,
   });
 
   final String title;
@@ -66,6 +67,7 @@ class AlfabetizacionLessonShell extends StatelessWidget {
   final bool useCloseButton;
   final bool centerChild;
   final bool expandBody;
+  final bool resizeForKeyboard;
 
   static const double _headerH = 124;
 
@@ -74,6 +76,7 @@ class AlfabetizacionLessonShell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: AlfabetizacionLessonTokens.fondoAbajo,
+      resizeToAvoidBottomInset: resizeForKeyboard,
       body: Stack(
         children: [
           Positioned.fill(
