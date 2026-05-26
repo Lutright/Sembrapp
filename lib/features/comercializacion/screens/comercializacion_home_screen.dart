@@ -8,8 +8,11 @@ import '../../../core/tutorial/models/tutorial_step.dart';
 import '../../../core/tutorial/tutorial_runner.dart';
 import '../../../core/tutorial/tutorial_service.dart';
 import '../../../core/tutorial/widgets/tutorial_help_button.dart';
+import '../audio/comercializacion_audio_phrases.dart';
+import '../services/comercializacion_audio_guide.dart';
 import '../tutorial/comercializacion_tutorial_keys.dart';
 import '../tutorial/productor_mercado_menu_tutorial.dart';
+import '../widgets/comercializacion_audio_coach_bar.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
 const Color _crema = Color(0xFFFBF9F1);
@@ -54,10 +57,49 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
   final _tutorialAyuda = GlobalKey();
   List<TutorialStep>? _tutorialSteps;
 
+  final _audioGuide = ComercializacionAudioGuide();
+  bool _ttsListo = false;
+  bool _audioAutoYa = false;
+  bool _narrando = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _audioGuide.ensureReady();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _ttsListo = _audioGuide.isReady);
+    if (_ttsListo && !_audioAutoYa) {
+      _audioAutoYa = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_narrarEntrada());
+      });
+    }
+  }
+
+  bool get _tutorialActivo => _tutorialSteps != null || TutorialRunner.isShowing;
+
+  Future<void> _narrarEntrada({bool forzar = false}) async {
+    if (_tutorialActivo) return;
+    if (!_ttsListo || _narrando) return;
+    setState(() => _narrando = true);
+    try {
+      await _audioGuide.interrupt();
+      if (!mounted) return;
+      await _audioGuide.speakSequence(
+        context,
+        ComercializacionAudioPhrases.homeWelcome,
+      );
+    } finally {
+      if (mounted) setState(() => _narrando = false);
+    }
   }
 
   List<TutorialStep> _buildMercadoTutorialSteps() {
@@ -100,6 +142,19 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
     super.dispose();
   }
 
+  Future<void> _go(String route, String phrase) async {
+    if (_tutorialActivo) {
+      await context.push(route);
+      return;
+    }
+    await _audioGuide.interruptAndSpeak(
+      context,
+      phrase,
+    );
+    if (!mounted) return;
+    await context.push(route);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
@@ -117,6 +172,13 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                ComercializacionAudioCoachBar(
+                  listo: _ttsListo,
+                  narrando: _narrando,
+                  enabled: !_tutorialActivo,
+                  onRepeat: () => unawaited(_narrarEntrada(forzar: true)),
+                ),
+                const SizedBox(height: 14),
                 KeyedSubtree(
                   key: _tutorialInfo,
                   child: Container(
@@ -157,7 +219,12 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       icon: Icons.inventory_2_rounded,
                       title: 'Mis productos',
                       subtitle: 'Lo que tú publicas',
-                      onTap: () => context.push('/comercializacion/mis-productos'),
+                      onTap: () => unawaited(
+                        _go(
+                          '/comercializacion/mis-productos',
+                          ComercializacionAudioPhrases.goMisProductos,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -167,7 +234,12 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       icon: Icons.receipt_long_rounded,
                       title: 'Mis pedidos',
                       subtitle: 'Pedidos que hiciste o recibiste',
-                      onTap: () => context.push('/comercializacion/ordenes'),
+                      onTap: () => unawaited(
+                        _go(
+                          '/comercializacion/ordenes',
+                          ComercializacionAudioPhrases.goMisPedidos,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -177,8 +249,12 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       icon: Icons.groups_rounded,
                       title: 'Red comunitaria',
                       subtitle: 'Otros productores y pedidos juntos',
-                      onTap: () =>
-                          context.push('/comercializacion/red-comunitaria'),
+                      onTap: () => unawaited(
+                        _go(
+                          '/comercializacion/red-comunitaria',
+                          ComercializacionAudioPhrases.goRed,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -188,7 +264,12 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       icon: Icons.stars_rounded,
                       title: 'Beneficios',
                       subtitle: 'Canjear puntos por visibilidad',
-                      onTap: () => context.push('/comercializacion/beneficios'),
+                      onTap: () => unawaited(
+                        _go(
+                          '/comercializacion/beneficios',
+                          ComercializacionAudioPhrases.goBeneficios,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -198,8 +279,12 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       icon: Icons.analytics_rounded,
                       title: 'Precios de referencia',
                       subtitle: 'Indicadores para ayudarte a fijar precios',
-                      onTap: () =>
-                          context.push('/comercializacion/indicadores'),
+                      onTap: () => unawaited(
+                        _go(
+                          '/comercializacion/indicadores',
+                          ComercializacionAudioPhrases.goIndicadores,
+                        ),
+                      ),
                     ),
                   ),
                 ] else
@@ -209,7 +294,12 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       icon: Icons.receipt_long_rounded,
                       title: 'Mis pedidos',
                       subtitle: 'Pedidos que hiciste o recibiste',
-                      onTap: () => context.push('/comercializacion/ordenes'),
+                      onTap: () => unawaited(
+                        _go(
+                          '/comercializacion/ordenes',
+                          ComercializacionAudioPhrases.goMisPedidos,
+                        ),
+                      ),
                     ),
                   ),
                 ],

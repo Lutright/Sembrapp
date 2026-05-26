@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/services/alfabetizacion_tts_coach.dart';
 import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
-import '../services/alfabetizacion_tts_coach.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
 
