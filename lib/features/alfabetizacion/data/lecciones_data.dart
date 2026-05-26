@@ -8,6 +8,10 @@ const kFlujoAbecedarioGuiadoId = 'abecedario_guiado';
 const kFlujoEscrituraVocalesGuiadoId = 'escritura_vocales_guiado';
 /// Flujo teclado: animación de vocal resaltada + práctica de escritura.
 const kFlujoEscrituraTecladoVocalesGuiadoId = 'escritura_teclado_vocales_guiado';
+/// Flujo de trazos del abecedario (primer acercamiento).
+const kFlujoEscrituraTrazosAbecedarioGuiadoId = 'escritura_trazos_abecedario_guiado';
+/// Flujo de teclado del abecedario (primer acercamiento).
+const kFlujoEscrituraTecladoAbecedarioGuiadoId = 'escritura_teclado_abecedario_guiado';
 /// Flujos guiados progresivos para Lectura (enseñanza + práctica + actividad).
 const kFlujoSilabasDirectasGuiadoId = 'silabas_directas_guiado';
 const kFlujoSilabasDirectasDosGuiadoId = 'silabas_directas_dos_guiado';
@@ -389,6 +393,24 @@ final alfabetizacionLecciones = <LeccionData>[
     titulo: 'Teclado y vocales',
     contenido: 'A E I O U',
     flujoId: kFlujoEscrituraTecladoVocalesGuiadoId,
+    puntos: 10,
+  ),
+  const LeccionData(
+    id: 'E1-3',
+    modulo: 'escritura',
+    nivel: 1,
+    titulo: 'Abecedario: trazos',
+    contenido: 'A B C',
+    flujoId: kFlujoEscrituraTrazosAbecedarioGuiadoId,
+    puntos: 10,
+  ),
+  const LeccionData(
+    id: 'E1-4',
+    modulo: 'escritura',
+    nivel: 1,
+    titulo: 'Abecedario: teclado',
+    contenido: 'A B C',
+    flujoId: kFlujoEscrituraTecladoAbecedarioGuiadoId,
     puntos: 10,
   ),
 ];
