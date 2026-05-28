@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 
 final class _OrganicHeaderClipper extends CustomClipper<Path> {
   @override
@@ -92,7 +96,8 @@ class ComercializacionOrdenesScreen extends StatefulWidget {
 }
 
 class _ComercializacionOrdenesScreenState
-    extends State<ComercializacionOrdenesScreen> {
+    extends State<ComercializacionOrdenesScreen>
+    with ComercializacionScreenAudio {
   List<Map<String, dynamic>> _ordenes = [];
   Map<String, String> _nombresProductorPorId = {};
   Map<String, String> _nombresCompradorPorId = {};
@@ -106,6 +111,7 @@ class _ComercializacionOrdenesScreenState
     super.initState();
     _load();
     _suscribirRealtimeOrdenes();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.ordenesWelcome);
   }
 
   @override
@@ -258,7 +264,15 @@ class _ComercializacionOrdenesScreenState
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 180, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 124, 20, 0),
+                    child: buildComercializacionAudioCoachBarFor(
+                      ComercializacionAudioPhrases.ordenesWelcome,
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -423,8 +437,13 @@ class _ComercializacionOrdenesScreenState
                                 borderRadius: BorderRadius.circular(20),
                                 clipBehavior: Clip.antiAlias,
                                 child: InkWell(
-                                  onTap: () => context
-                                      .push('/comercializacion/orden/$id'),
+                                  onTap: () async {
+                                    await audioSpeakAction(
+                                      'Pedido de $tituloTarjeta. Estado: $estado.',
+                                    );
+                                    if (!context.mounted) return;
+                                    await context.push('/comercializacion/orden/$id');
+                                  },
                                   child: Padding(
                                     padding: const EdgeInsets.all(16),
                                     child: Row(

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../repositories/orden_ayuda_repository.dart';
 
 const Color _azulHorizonte = Color(0xFF1A4463);
@@ -40,7 +42,8 @@ class AyudaChatScreen extends StatefulWidget {
   State<AyudaChatScreen> createState() => _AyudaChatScreenState();
 }
 
-class _AyudaChatScreenState extends State<AyudaChatScreen> {
+class _AyudaChatScreenState extends State<AyudaChatScreen>
+    with ComercializacionScreenAudio {
   void _backFromAyuda(BuildContext context) {
     if (context.canPop()) {
       context.pop();
@@ -69,6 +72,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
     super.initState();
     _cargar();
     _suscribirRealtime();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.ayudaChatWelcome);
     _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (mounted && _solicitud != null) _cargarMensajes();
     });
@@ -244,6 +248,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
     final t = _mensajeController.text.trim();
     if (t.isEmpty || !_chatHabilitado) return;
     try {
+      await audioSpeakAction('Enviando mensaje.');
       await _repo.enviarMensajeSolicitud(widget.solicitudId, t);
       _mensajeController.clear();
       _cargarMensajes();
@@ -282,6 +287,12 @@ class _AyudaChatScreenState extends State<AyudaChatScreen> {
       title: _otroNombre ?? 'Chat',
       child: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: buildComercializacionAudioCoachBarFor(
+              ComercializacionAudioPhrases.ayudaChatWelcome,
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,

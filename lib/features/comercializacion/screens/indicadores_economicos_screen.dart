@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/indicador_economico.dart';
 import '../repositories/indicadores_repository.dart';
 
@@ -36,7 +40,8 @@ class IndicadoresEconomicosScreen extends StatefulWidget {
 }
 
 class _IndicadoresEconomicosScreenState
-    extends State<IndicadoresEconomicosScreen> {
+    extends State<IndicadoresEconomicosScreen>
+    with ComercializacionScreenAudio {
   final _repo = IndicadoresRepository(Supabase.instance.client);
 
   List<IndicadorEconomico> _indicadores = [];
@@ -84,6 +89,7 @@ class _IndicadoresEconomicosScreenState
   void initState() {
     super.initState();
     _load();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.indicadoresWelcome);
   }
 
   Future<void> _load() async {
@@ -112,6 +118,7 @@ class _IndicadoresEconomicosScreenState
   }
 
   Future<void> _sincronizarDesdeFuente() async {
+    await audioSpeakAction(ComercializacionAudioPhrases.indicadoresActualizar);
     setState(() {
       _syncing = true;
       _error = null;
@@ -274,6 +281,10 @@ class _IndicadoresEconomicosScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                buildComercializacionAudioCoachBarFor(
+                  ComercializacionAudioPhrases.indicadoresWelcome,
+                ),
+                const SizedBox(height: 14),
                 TextField(
                   onChanged: (value) => setState(() {
                     _searchQuery = value;

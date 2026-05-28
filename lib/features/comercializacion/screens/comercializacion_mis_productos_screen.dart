@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
 
@@ -38,7 +42,8 @@ class ComercializacionMisProductosScreen extends StatefulWidget {
 }
 
 class _ComercializacionMisProductosScreenState
-    extends State<ComercializacionMisProductosScreen> {
+    extends State<ComercializacionMisProductosScreen>
+    with ComercializacionScreenAudio {
   final _repo = ProductosRepository(Supabase.instance.client);
   List<Producto> _productos = [];
   bool _loading = true;
@@ -47,6 +52,7 @@ class _ComercializacionMisProductosScreenState
   void initState() {
     super.initState();
     _load();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.misProductosWelcome);
   }
 
   Future<void> _load() async {
@@ -71,11 +77,15 @@ class _ComercializacionMisProductosScreenState
   }
 
   Future<void> _onAddProducto() async {
+    await audioSpeakAction(ComercializacionAudioPhrases.addProducto);
+    if (!mounted) return;
     await context.push('/comercializacion/producto/nuevo');
     _load();
   }
 
   Future<void> _onEditarProducto(Producto p) async {
+    await audioSpeakAction(ComercializacionAudioPhrases.editProducto);
+    if (!mounted) return;
     await context.push(
       '/comercializacion/producto/editar/${p.id}',
       extra: p,
@@ -102,8 +112,12 @@ class _ComercializacionMisProductosScreenState
       ),
     );
     if (ok == true) {
+      await audioSpeakAction(ComercializacionAudioPhrases.deleteProducto);
       await _repo.eliminarProducto(p.id);
       _load();
+      if (mounted) {
+        await audioSpeakAction(ComercializacionAudioPhrases.deletedOk);
+      }
     }
   }
 
@@ -119,6 +133,10 @@ class _ComercializacionMisProductosScreenState
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
                     children: [
+                      buildComercializacionAudioCoachBarFor(
+                        ComercializacionAudioPhrases.misProductosWelcome,
+                      ),
+                      const SizedBox(height: 14),
                       if (_productos.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 24),

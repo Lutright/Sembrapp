@@ -12,6 +12,8 @@ import '../../../core/tutorial/models/tutorial_step.dart';
 import '../../../core/tutorial/tutorial_runner.dart';
 import '../../../core/tutorial/tutorial_service.dart';
 import '../../../core/tutorial/widgets/tutorial_help_button.dart';
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
 import '../tutorial/producto_publicacion_tutorial.dart';
@@ -53,7 +55,8 @@ class ProductoFormScreen extends StatefulWidget {
   State<ProductoFormScreen> createState() => _ProductoFormScreenState();
 }
 
-class _ProductoFormScreenState extends State<ProductoFormScreen> {
+class _ProductoFormScreenState extends State<ProductoFormScreen>
+    with ComercializacionScreenAudio {
   final _scrollController = ScrollController();
   final _tutorialInfo = GlobalKey();
   final _tutorialFoto = GlobalKey();
@@ -66,11 +69,20 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   List<TutorialStep>? _tutorialSteps;
 
   @override
+  bool get audioGuideSuppressed =>
+      _tutorialSteps != null || TutorialRunner.isShowing;
+
+  @override
   void initState() {
     super.initState();
     if (widget.producto == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _tryStartTutorial());
     }
+    initComercializacionScreenAudio(
+      widget.producto == null
+          ? ComercializacionAudioPhrases.productoFormWelcome
+          : ComercializacionAudioPhrases.productoFormEditWelcome,
+    );
   }
 
   @override
@@ -133,6 +145,13 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                 tutorialPrecioKey: _tutorialPrecio,
                 tutorialUnidadKey: _tutorialUnidad,
                 tutorialGuardarKey: _tutorialGuardar,
+                audioCoachBar: buildComercializacionAudioCoachBarFor(
+                  widget.producto == null
+                      ? ComercializacionAudioPhrases.productoFormWelcome
+                      : ComercializacionAudioPhrases.productoFormEditWelcome,
+                ),
+                audioEnabled: !audioGuideSuppressed,
+                onAudioHint: audioSpeakAction,
               ),
             ),
           ),
@@ -249,6 +268,9 @@ class _ProductoFormBody extends StatefulWidget {
     required this.tutorialPrecioKey,
     required this.tutorialUnidadKey,
     required this.tutorialGuardarKey,
+    required this.audioCoachBar,
+    required this.audioEnabled,
+    required this.onAudioHint,
   });
 
   final Producto? producto;
@@ -261,6 +283,9 @@ class _ProductoFormBody extends StatefulWidget {
   final GlobalKey tutorialPrecioKey;
   final GlobalKey tutorialUnidadKey;
   final GlobalKey tutorialGuardarKey;
+  final Widget audioCoachBar;
+  final bool audioEnabled;
+  final Future<void> Function(String phrase) onAudioHint;
 
   @override
   State<_ProductoFormBody> createState() => _ProductoFormBodyState();
@@ -297,9 +322,17 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
     super.dispose();
   }
 
+  Future<void> _hint(String phrase) async {
+    if (!widget.audioEnabled) return;
+    await widget.onAudioHint(phrase);
+  }
+
   Future<void> _submit() async {
     if (_saving) return;
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      await _hint(ComercializacionAudioPhrases.formRevisaCampos);
+      return;
+    }
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     setState(() => _saving = true);
@@ -309,15 +342,16 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       final lat = pos?.latitude;
       final lng = pos?.longitude;
       if (lat == null || lng == null) {
+        const ubicacionMsg = 'Activa ubicación para publicar este producto';
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Activa ubicación para publicar este producto'),
-            ),
+            const SnackBar(content: Text(ubicacionMsg)),
           );
         }
+        await _hint(ubicacionMsg);
         return;
       }
+      await _hint(ComercializacionAudioPhrases.formGuardar);
       final precio = double.tryParse(_precioController.text) ?? 0;
       String? imagenUrl = widget.producto?.imagenUrl;
       if (widget.producto != null) {
@@ -407,6 +441,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
         }
       }
       if (mounted) {
+        await _hint(ComercializacionAudioPhrases.formGuardado);
         widget.onSaved();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Guardado')),
@@ -416,6 +451,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
       debugPrint('Error guardando producto: $e');
       debugPrintStack(stackTrace: st);
       final msg = _mensajeErrorAmigable(e);
+      await _hint(msg);
       if (mounted) {
         final detalleDebug = kDebugMode ? ' ($e)' : '';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -573,6 +609,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            widget.audioCoachBar,
+            const SizedBox(height: 14),
             KeyedSubtree(
               key: widget.tutorialInfoKey,
               child: Container(
@@ -621,7 +659,10 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                   ),
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: _seleccionarImagen,
+                    onTap: () async {
+                      await _hint(ComercializacionAudioPhrases.formFoto);
+                      await _seleccionarImagen();
+                    },
                     child: Container(
                       height: 160,
                       decoration: BoxDecoration(
@@ -644,6 +685,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               key: widget.tutorialNombreKey,
               child: TextFormField(
                 controller: _nombreController,
+                onTap: () => unawaited(_hint(ComercializacionAudioPhrases.formNombre)),
                 decoration: const InputDecoration(
                   labelText: 'Nombre',
                   prefixIcon: Icon(Icons.shopping_basket),
@@ -657,6 +699,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               key: widget.tutorialDescripcionKey,
               child: TextFormField(
                 controller: _descripcionController,
+                onTap: () =>
+                    unawaited(_hint(ComercializacionAudioPhrases.formDescripcion)),
                 decoration: const InputDecoration(
                   labelText: 'Descripción corta',
                   prefixIcon: Icon(Icons.description),
@@ -669,6 +713,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               key: widget.tutorialPrecioKey,
               child: TextFormField(
                 controller: _precioController,
+                onTap: () => unawaited(_hint(ComercializacionAudioPhrases.formPrecio)),
                 decoration: const InputDecoration(
                   labelText: 'Precio',
                   prefixIcon: Icon(Icons.attach_money),
@@ -694,7 +739,10 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                   DropdownMenuItem(value: 'lb', child: Text('lb')),
                   DropdownMenuItem(value: 'unidad', child: Text('unidad')),
                 ],
-                onChanged: (v) => setState(() => _unidad = v ?? 'kg'),
+                onChanged: (v) {
+                  setState(() => _unidad = v ?? 'kg');
+                  unawaited(_hint(ComercializacionAudioPhrases.formUnidad));
+                },
               ),
             ),
             const SizedBox(height: 32),
