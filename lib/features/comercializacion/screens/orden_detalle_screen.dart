@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../repositories/orden_ayuda_repository.dart';
 import '../repositories/ordenes_repository.dart';
 
@@ -19,7 +21,8 @@ class OrdenDetalleScreen extends StatefulWidget {
   State<OrdenDetalleScreen> createState() => _OrdenDetalleScreenState();
 }
 
-class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
+class _OrdenDetalleScreenState extends State<OrdenDetalleScreen>
+    with ComercializacionScreenAudio {
   void _backFromOrden(BuildContext context) {
     context.go('/comercializacion/ordenes');
   }
@@ -46,6 +49,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     _suscribirCambiosOrden();
     _suscribirCambiosAyuda();
     _iniciarPollingMensajes();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.ordenDetalleWelcome);
   }
 
   @override
@@ -305,6 +309,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
 
     if (ok != true || !mounted) return;
     try {
+      await audioSpeakAction(ComercializacionAudioPhrases.cancelPedido);
       final cancelada = await _ordenesRepo.cancelarOrdenComoCampesino(
         ordenId: widget.ordenId,
         campesinoId: uid,
@@ -370,6 +375,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     if (ok != true || !mounted) return;
 
     try {
+      await audioSpeakAction(ComercializacionAudioPhrases.entregado);
       const estadoEntregado = 'entregada';
       await Supabase.instance.client
           .from('ordenes')
@@ -489,6 +495,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     if (texto.isEmpty || _orden == null || estado == 'cancelada') return;
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) return;
+    await audioSpeakAction('Enviando mensaje.');
     await Supabase.instance.client.from('orden_mensajes').insert({
       'orden_id': widget.ordenId,
       'sender_id': uid,
@@ -613,6 +620,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    buildComercializacionAudioCoachBarFor(
+                      ComercializacionAudioPhrases.ordenDetalleWelcome,
+                    ),
+                    const SizedBox(height: 14),
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -755,10 +766,14 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                     if (ayudaChatDisponible) ...[
                       const SizedBox(height: 12),
                       FilledButton.icon(
-                        onPressed: () {
+                        onPressed: () async {
                           final id = sol?['id'] as String?;
                           if (id != null) {
-                            context.push('/comercializacion/ayuda-chat/$id');
+                            await audioSpeakAction(
+                              ComercializacionAudioPhrases.abrirChatAyuda,
+                            );
+                            if (!context.mounted) return;
+                            await context.push('/comercializacion/ayuda-chat/$id');
                           }
                         },
                         icon: const Icon(Icons.chat_rounded),
@@ -833,7 +848,13 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                 width: double.infinity,
                                 child: FilledButton(
                                   onPressed: _items.any((e) => e['id'] != null)
-                                      ? _mostrarDialogoPedirAyuda
+                                      ? () async {
+                                          await audioSpeakAction(
+                                            ComercializacionAudioPhrases.pedirAyuda,
+                                          );
+                                          if (!mounted) return;
+                                          await _mostrarDialogoPedirAyuda();
+                                        }
                                       : null,
                                   style: FilledButton.styleFrom(
                                     backgroundColor: rojo,

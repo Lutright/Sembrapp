@@ -55,6 +55,11 @@ final class ComercializacionAudioPhrases {
     'Primero agrega una foto, luego nombre y precio, y al final pulsa Guardar.',
   ];
 
+  static const List<String> productoFormEditWelcome = [
+    'Editar producto.',
+    'Actualiza los datos y pulsa Guardar cuando termines.',
+  ];
+
   // --- Acciones (frases cortas) ---
 
   // Home / navegación

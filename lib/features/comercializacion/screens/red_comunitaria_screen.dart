@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/location_service.dart';
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../../../core/utils/geo_utils.dart';
 import '../models/producto.dart';
 import '../navigation/tienda_campesino_extra.dart';
@@ -52,7 +56,7 @@ class RedComunitariaScreen extends StatefulWidget {
 }
 
 class _RedComunitariaScreenState extends State<RedComunitariaScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, ComercializacionScreenAudio {
   late TabController _tabController;
   final _ayudaRepo = OrdenAyudaRepository(Supabase.instance.client);
   final _productoRepo = ProductosRepository(Supabase.instance.client);
@@ -82,6 +86,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
     _tabController.addListener(_onTabChanged);
     _init();
     _suscribirRealtime();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.redComunitariaWelcome);
   }
 
   void _onTabChanged() {
@@ -524,6 +529,13 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
               padding: const EdgeInsets.only(top: 124),
               child: Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    child: buildComercializacionAudioCoachBarFor(
+                      ComercializacionAudioPhrases.redComunitariaWelcome,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Container(
                     color: _crema,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -757,10 +769,14 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                 subtitle:
                     '${c.cantidadProductos} producto${c.cantidadProductos != 1 ? 's' : ''} · '
                     '${c.distanciaKm.toStringAsFixed(1)} km',
-                onTap: () => context.push(
-                  '/comercializacion/tienda/${c.id}',
-                  extra: TiendaCampesinoExtra(nombreTienda: c.nombre),
-                ),
+                onTap: () async {
+                  await audioSpeakAction('Abriendo tienda de ${c.nombre}.');
+                  if (!context.mounted) return;
+                  await context.push(
+                    '/comercializacion/tienda/${c.id}',
+                    extra: TiendaCampesinoExtra(nombreTienda: c.nombre),
+                  );
+                },
               );
             },
           ),
@@ -806,7 +822,11 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
           title: nombre ?? 'Productor',
           subtitle:
               '$nItems producto${nItems != 1 ? 's' : ''} · ${d.toStringAsFixed(1)} km',
-          onTap: () => _mostrarDetalleSolicitud(s),
+          onTap: () async {
+            await audioSpeakAction('Pedido de ayuda de un productor cercano.');
+            if (!mounted) return;
+            await _mostrarDetalleSolicitud(s);
+          },
         );
       },
     );

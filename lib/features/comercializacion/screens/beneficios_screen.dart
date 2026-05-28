@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../audio/comercializacion_audio_phrases.dart';
+import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/beneficio.dart';
 import '../repositories/beneficios_repository.dart';
 
@@ -14,7 +18,8 @@ class BeneficiosScreen extends StatefulWidget {
   State<BeneficiosScreen> createState() => _BeneficiosScreenState();
 }
 
-class _BeneficiosScreenState extends State<BeneficiosScreen> {
+class _BeneficiosScreenState extends State<BeneficiosScreen>
+    with ComercializacionScreenAudio {
   final _repo = BeneficiosRepository(Supabase.instance.client);
 
   int _puntosDisponibles = 0;
@@ -27,6 +32,7 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
   void initState() {
     super.initState();
     _load();
+    initComercializacionScreenAudio(ComercializacionAudioPhrases.beneficiosWelcome);
   }
 
   Future<void> _load() async {
@@ -65,17 +71,17 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) return;
     if (_puntosDisponibles < b.puntosRequeridos) {
+      final msg =
+          'Necesitas ${b.puntosRequeridos} puntos. Tienes $_puntosDisponibles.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Necesitas ${b.puntosRequeridos} puntos. Tienes $_puntosDisponibles.',
-          ),
-        ),
+        SnackBar(content: Text(msg)),
       );
+      await audioSpeakAction(msg);
       return;
     }
     setState(() => _error = null);
     try {
+      await audioSpeakAction(ComercializacionAudioPhrases.beneficioActivando);
       await _repo.activarBeneficio(campesinoId: uid, beneficio: b);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -113,6 +119,10 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  buildComercializacionAudioCoachBarFor(
+                    ComercializacionAudioPhrases.beneficiosWelcome,
+                  ),
+                  const SizedBox(height: 14),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
