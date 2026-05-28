@@ -16,6 +16,9 @@ import '../widgets/escritura_teclado_vocales_leccion_flow.dart';
 import '../widgets/escritura_vocales_leccion_flow.dart';
 import '../widgets/escritura_trazos_abecedario_leccion_flow.dart';
 import '../widgets/escritura_teclado_abecedario_leccion_flow.dart';
+import '../widgets/escritura_trazos_guiado_leccion_flow.dart';
+import '../widgets/escritura_teclado_guiado_leccion_flow.dart';
+import '../data/escritura_guiada_config.dart';
 import '../widgets/lectura_guiada_leccion_flow.dart';
 import '../widgets/vocales_leccion_flow.dart';
 
@@ -366,6 +369,22 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
     if (leccion.flujoId == kFlujoEscrituraTecladoAbecedarioGuiadoId) {
       return EscrituraTecladoAbecedarioLeccionFlow(
         leccion: leccion,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    final trazosGuiadoConfig = escrituraTrazosConfigForLeccion(leccion.flujoId);
+    if (trazosGuiadoConfig != null) {
+      return EscrituraTrazosGuiadoLeccionFlow(
+        leccion: leccion,
+        config: trazosGuiadoConfig,
+        onCompletar: _guardarProgreso,
+      );
+    }
+    final tecladoGuiadoConfig = escrituraTecladoConfigForLeccion(leccion.flujoId);
+    if (tecladoGuiadoConfig != null) {
+      return EscrituraTecladoGuiadoLeccionFlow(
+        leccion: leccion,
+        config: tecladoGuiadoConfig,
         onCompletar: _guardarProgreso,
       );
     }
