@@ -168,12 +168,15 @@ class _EscrituraTrazosGuiadoLeccionFlowState
 
   bool _trazoSuficiente(List<Offset> raw, String texto) {
     final puntos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
-    final n = math.max(texto.length, 1);
-    if (puntos.length < 8 + n * 6) return false;
+    final letras = texto.replaceAll(' ', '').length;
+    final n = math.max(letras, 1);
+    final palabras = texto.split(' ').where((p) => p.isNotEmpty).length;
+    final minPuntos = 10 + n * 5 + palabras * 8;
+    if (puntos.length < minPuntos) return false;
     final box = _bounds(puntos);
-    if (box.height < 28) return false;
-    if (box.width < 22 + n * 20) return false;
-    return box.width * box.height >= 800 + (n - 1) * 350;
+    if (box.height < (n > 8 ? 36 : 28)) return false;
+    if (box.width < 30 + n * 14) return false;
+    return box.width * box.height >= 900 + n * 280;
   }
 
   Rect _bounds(List<Offset> pts) {
@@ -209,10 +212,16 @@ class _EscrituraTrazosGuiadoLeccionFlowState
   }
 
   double _fontModelo(String texto) {
-    if (texto.length <= 2) return 88;
-    if (texto.length == 3) return 72;
-    return 56;
+    final n = texto.length;
+    if (n <= 2) return 88;
+    if (n <= 4) return 72;
+    if (n <= 8) return 56;
+    if (n <= 14) return 36;
+    if (n <= 20) return 28;
+    return 22;
   }
+
+  double _letterSpacingModelo(String texto) => texto.length > 8 ? 2 : 4;
 
   @override
   Widget build(BuildContext context) {
@@ -309,6 +318,7 @@ class _EscrituraTrazosGuiadoLeccionFlowState
               painter: _ModeloTextoPainter(
                 _pasoActual.texto,
                 fontSize: _fontModelo(_pasoActual.texto),
+                letterSpacing: _letterSpacingModelo(_pasoActual.texto),
               ),
               child: const Center(
                 child: Text('↑ Sigue la forma', style: TextStyle(color: _azulHorizonte)),
@@ -362,6 +372,7 @@ class _EscrituraTrazosGuiadoLeccionFlowState
                   puntos: _puntos,
                   textoModelo: isGuided ? _pasoActual.texto : '',
                   fontSize: _fontModelo(_pasoActual.texto),
+                  letterSpacing: _letterSpacingModelo(_pasoActual.texto),
                 ),
                 child: const SizedBox.expand(),
               ),
@@ -460,9 +471,14 @@ class _EscrituraTrazosGuiadoLeccionFlowState
 }
 
 class _ModeloTextoPainter extends CustomPainter {
-  _ModeloTextoPainter(this.texto, {required this.fontSize});
+  _ModeloTextoPainter(
+    this.texto, {
+    required this.fontSize,
+    this.letterSpacing = 4,
+  });
   final String texto;
   final double fontSize;
+  final double letterSpacing;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -473,7 +489,7 @@ class _ModeloTextoPainter extends CustomPainter {
           fontSize: fontSize,
           color: Colors.grey.withValues(alpha: 0.35),
           fontWeight: FontWeight.w800,
-          letterSpacing: 4,
+          letterSpacing: letterSpacing,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -486,7 +502,9 @@ class _ModeloTextoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ModeloTextoPainter oldDelegate) =>
-      oldDelegate.texto != texto || oldDelegate.fontSize != fontSize;
+      oldDelegate.texto != texto ||
+      oldDelegate.fontSize != fontSize ||
+      oldDelegate.letterSpacing != letterSpacing;
 }
 
 class _TrazoPainter extends CustomPainter {
@@ -494,11 +512,13 @@ class _TrazoPainter extends CustomPainter {
     required this.puntos,
     required this.textoModelo,
     required this.fontSize,
+    this.letterSpacing = 4,
   });
 
   final List<Offset> puntos;
   final String textoModelo;
   final double fontSize;
+  final double letterSpacing;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -510,7 +530,7 @@ class _TrazoPainter extends CustomPainter {
             fontSize: fontSize,
             color: Colors.grey.withValues(alpha: 0.22),
             fontWeight: FontWeight.w800,
-            letterSpacing: 4,
+            letterSpacing: letterSpacing,
           ),
         ),
         textDirection: TextDirection.ltr,

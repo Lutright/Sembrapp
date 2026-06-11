@@ -63,8 +63,11 @@ class _EscrituraTecladoGuiadoLeccionFlowState
 
   EscrituraPaso get _pasoActual => widget.config.pasos[_indicePaso];
 
-  Set<String> get _teclasResaltadas =>
-      _pasoActual.texto.toUpperCase().split('').toSet();
+  Set<String> get _teclasResaltadas => _pasoActual.texto
+      .toUpperCase()
+      .replaceAll(' ', '')
+      .split('')
+      .toSet();
 
   @override
   void initState() {
@@ -121,21 +124,28 @@ class _EscrituraTecladoGuiadoLeccionFlowState
     });
   }
 
+  String _normalizarEntrada(String value) {
+    var limpio = value.toUpperCase().replaceAll(RegExp(r'[^A-ZÑ\s]'), '');
+    limpio = limpio.replaceAll(RegExp(r'\s+'), ' ');
+    return limpio;
+  }
+
   void _onEntradaCambiada(String value) {
-    final limpio = value.toUpperCase().replaceAll(RegExp(r'[^A-ZÑ]'), '');
     final max = _pasoActual.texto.length;
-    final corto = limpio.length > max ? limpio.substring(0, max) : limpio;
-    if (_entradaController.text != corto) {
+    var limpio = _normalizarEntrada(value);
+    if (limpio.length > max) limpio = limpio.substring(0, max);
+    if (_entradaController.text != limpio) {
       _entradaController.value = TextEditingValue(
-        text: corto,
-        selection: TextSelection.collapsed(offset: corto.length),
+        text: limpio,
+        selection: TextSelection.collapsed(offset: limpio.length),
       );
     }
   }
 
   Future<void> _evaluarPractica() async {
-    final texto = _entradaController.text.trim().toUpperCase();
-    final ok = texto == _pasoActual.texto.toUpperCase();
+    final texto = _normalizarEntrada(_entradaController.text).trim();
+    final esperado = _normalizarEntrada(_pasoActual.texto);
+    final ok = texto == esperado;
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseTeclado.feedback;
@@ -198,8 +208,11 @@ class _EscrituraTecladoGuiadoLeccionFlowState
 
   double _fontEntrada(int longitud) {
     if (longitud <= 2) return 48;
-    if (longitud == 3) return 40;
-    return 32;
+    if (longitud <= 4) return 40;
+    if (longitud <= 8) return 32;
+    if (longitud <= 14) return 24;
+    if (longitud <= 20) return 20;
+    return 18;
   }
 
   @override
@@ -333,12 +346,14 @@ class _EscrituraTecladoGuiadoLeccionFlowState
           focusNode: _entradaFocus,
           textAlign: TextAlign.center,
           textCapitalization: TextCapitalization.characters,
+          keyboardType: TextInputType.text,
           maxLength: longitud,
+          maxLines: longitud > 16 ? 2 : 1,
           style: TextStyle(
             fontSize: _fontEntrada(longitud),
             fontWeight: FontWeight.bold,
             color: _azulHorizonte,
-            letterSpacing: longitud > 2 ? 6 : 8,
+            letterSpacing: longitud > 8 ? 2 : (longitud > 2 ? 4 : 8),
           ),
           decoration: InputDecoration(
             counterText: '',

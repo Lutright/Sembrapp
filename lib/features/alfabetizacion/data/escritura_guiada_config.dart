@@ -42,9 +42,23 @@ const kFlujoEscrituraTecladoSilabasSaId = 'escritura_teclado_silabas_sa';
 const kFlujoEscrituraTrazosSilabasMezclaId = 'escritura_trazos_silabas_mezcla';
 const kFlujoEscrituraTecladoSilabasMezclaId = 'escritura_teclado_silabas_mezcla';
 
-// --- Palabras comunes ---
+// --- Palabras comunes (escritura nivel 2) ---
 const kFlujoEscrituraTrazosPalabrasComunesId = 'escritura_trazos_palabras_comunes';
 const kFlujoEscrituraTecladoPalabrasComunesId = 'escritura_teclado_palabras_comunes';
+
+// --- Frases simples (escritura nivel 3, paralelo a lectura L3 en estructura) ---
+const kFlujoEscrituraTrazosFrasesCortasId = 'escritura_trazos_frases_cortas';
+const kFlujoEscrituraTecladoFrasesCortasId = 'escritura_teclado_frases_cortas';
+const kFlujoEscrituraTrazosFrasesRutinaUnoId = 'escritura_trazos_frases_rutina_uno';
+const kFlujoEscrituraTecladoFrasesRutinaUnoId = 'escritura_teclado_frases_rutina_uno';
+const kFlujoEscrituraTrazosFrasesRutinaDosId = 'escritura_trazos_frases_rutina_dos';
+const kFlujoEscrituraTecladoFrasesRutinaDosId = 'escritura_teclado_frases_rutina_dos';
+const kFlujoEscrituraTrazosFrasesOrdenId = 'escritura_trazos_frases_orden';
+const kFlujoEscrituraTecladoFrasesOrdenId = 'escritura_teclado_frases_orden';
+const kFlujoEscrituraTrazosFrasesImagenId = 'escritura_trazos_frases_imagen';
+const kFlujoEscrituraTecladoFrasesImagenId = 'escritura_teclado_frases_imagen';
+const kFlujoEscrituraTrazosFrasesMezclaId = 'escritura_trazos_frases_mezcla';
+const kFlujoEscrituraTecladoFrasesMezclaId = 'escritura_teclado_frases_mezcla';
 
 const _pasosSilabasMa = [
   EscrituraPaso(texto: 'MA', pista: 'MA de mano', emoji: '✋'),
@@ -115,6 +129,64 @@ EscrituraGuiadaConfig _cfgSilabas({
     nombreUnidad: 'Sílaba',
     introNarracion: esTrazos ? introTrazos : introTeclado,
     mensajeCompletado: esTrazos ? finTrazos : finTeclado,
+    pasos: pasos,
+  );
+}
+
+const _pasosFrasesCortas = [
+  EscrituraPaso(texto: 'MI MAMA ME AMA', pista: 'Mi mamá me ama', emoji: '❤️'),
+  EscrituraPaso(texto: 'MI PAPA RIEGA', pista: 'Mi papá riega', emoji: '💧'),
+  EscrituraPaso(texto: 'LA VACA COME', pista: 'La vaca come', emoji: '🐄'),
+];
+
+const _pasosFrasesRutinaUno = [
+  EscrituraPaso(texto: 'PAPA USA LA PALA', pista: 'Papá usa la pala', emoji: '🪏'),
+  EscrituraPaso(texto: 'MAMA RIEGA EL MAIZ', pista: 'Mamá riega el maíz', emoji: '🌽'),
+  EscrituraPaso(texto: 'LA VACA COME PASTO', pista: 'La vaca come pasto', emoji: '🐄'),
+];
+
+const _pasosFrasesRutinaDos = [
+  EscrituraPaso(texto: 'EL CAMPESINO CARGA SACO', pista: 'El campesino carga saco', emoji: '🧺'),
+  EscrituraPaso(texto: 'LA FAMILIA VENDE MAIZ', pista: 'La familia vende maíz', emoji: '🌽'),
+  EscrituraPaso(texto: 'EL RIEGO LLEGA AL SURCO', pista: 'El riego llega al surco', emoji: '🚜'),
+];
+
+const _pasosFrasesOrden = [
+  EscrituraPaso(texto: 'MAMA RIEGA MAIZ', pista: 'Mamá riega maíz', emoji: '🌽'),
+  EscrituraPaso(texto: 'PAPA USA PALA', pista: 'Papá usa pala', emoji: '🪏'),
+  EscrituraPaso(texto: 'VACA TOMA AGUA', pista: 'Vaca toma agua', emoji: '💧'),
+];
+
+const _pasosFrasesImagen = [
+  EscrituraPaso(texto: 'LA VACA TOMA AGUA', pista: 'La vaca toma agua', emoji: '🐄'),
+  EscrituraPaso(texto: 'EL CAMPESINO SIEMBRA', pista: 'El campesino siembra', emoji: '🌱'),
+  EscrituraPaso(texto: 'MAMA LLEVA CANASTA', pista: 'Mamá lleva canasta', emoji: '🧺'),
+];
+
+const _pasosFrasesMezcla = [
+  EscrituraPaso(texto: 'MI PAPA RIEGA', pista: 'Mi papá riega', emoji: '💧'),
+  EscrituraPaso(texto: 'LA VACA COME', pista: 'La vaca come', emoji: '🐄'),
+  EscrituraPaso(texto: 'MAMA USA PALA', pista: 'Mamá usa pala', emoji: '🪏'),
+];
+
+EscrituraGuiadaConfig _cfgFrases({
+  required String titulo,
+  required List<EscrituraPaso> pasos,
+  required bool esTrazos,
+  String? introTrazos,
+  String? introTeclado,
+  String? finTrazos,
+  String? finTeclado,
+}) {
+  return EscrituraGuiadaConfig(
+    tituloNarrado: titulo,
+    nombreUnidad: 'Frase',
+    introNarracion: esTrazos
+        ? (introTrazos ?? 'Vamos a escribir frases simples con trazos')
+        : (introTeclado ?? 'Vamos a escribir frases simples en el teclado'),
+    mensajeCompletado: esTrazos
+        ? (finTrazos ?? '¡Muy bien! Ya escribes frases con trazos')
+        : (finTeclado ?? '¡Muy bien! Ya escribes frases en el teclado'),
     pasos: pasos,
   );
 }
@@ -191,6 +263,48 @@ final Map<String, EscrituraGuiadaConfig> escrituraTrazosConfigs = {
     esTrazos: true,
   ),
   kFlujoEscrituraTrazosPalabrasComunesId: _cfgPalabras(esTrazos: true),
+  kFlujoEscrituraTrazosFrasesCortasId: _cfgFrases(
+    titulo: 'Frases cortas',
+    pasos: _pasosFrasesCortas,
+    esTrazos: true,
+    introTrazos: 'Vamos a escribir frases cortas con trazos',
+    finTrazos: '¡Muy bien! Ya escribes frases cortas',
+  ),
+  kFlujoEscrituraTrazosFrasesRutinaUnoId: _cfgFrases(
+    titulo: 'Frases de rutina agrícola 1',
+    pasos: _pasosFrasesRutinaUno,
+    esTrazos: true,
+    introTrazos: 'Frases del campo con trazos',
+    finTrazos: '¡Muy bien! Frases de rutina con trazos',
+  ),
+  kFlujoEscrituraTrazosFrasesRutinaDosId: _cfgFrases(
+    titulo: 'Frases de rutina agrícola 2',
+    pasos: _pasosFrasesRutinaDos,
+    esTrazos: true,
+    introTrazos: 'Más frases del campo con trazos',
+    finTrazos: '¡Muy bien! Sigues con frases del campo',
+  ),
+  kFlujoEscrituraTrazosFrasesOrdenId: _cfgFrases(
+    titulo: 'Construir frases en orden',
+    pasos: _pasosFrasesOrden,
+    esTrazos: true,
+    introTrazos: 'Construye frases en el orden correcto',
+    finTrazos: '¡Muy bien! Ordenas frases con trazos',
+  ),
+  kFlujoEscrituraTrazosFrasesImagenId: _cfgFrases(
+    titulo: 'Frases con imagen',
+    pasos: _pasosFrasesImagen,
+    esTrazos: true,
+    introTrazos: 'Escribe frases que describen la imagen',
+    finTrazos: '¡Muy bien! Frases con imagen en trazos',
+  ),
+  kFlujoEscrituraTrazosFrasesMezclaId: _cfgFrases(
+    titulo: 'Mezcla de frases',
+    pasos: _pasosFrasesMezcla,
+    esTrazos: true,
+    introTrazos: 'Repaso de frases simples con trazos',
+    finTrazos: '¡Muy bien! Dominas frases simples',
+  ),
 };
 
 final Map<String, EscrituraGuiadaConfig> escrituraTecladoConfigs = {
@@ -249,6 +363,48 @@ final Map<String, EscrituraGuiadaConfig> escrituraTecladoConfigs = {
     esTrazos: false,
   ),
   kFlujoEscrituraTecladoPalabrasComunesId: _cfgPalabras(esTrazos: false),
+  kFlujoEscrituraTecladoFrasesCortasId: _cfgFrases(
+    titulo: 'Frases cortas',
+    pasos: _pasosFrasesCortas,
+    esTrazos: false,
+    introTeclado: 'Escribe frases cortas en el teclado',
+    finTeclado: '¡Muy bien! Frases cortas en el teclado',
+  ),
+  kFlujoEscrituraTecladoFrasesRutinaUnoId: _cfgFrases(
+    titulo: 'Frases de rutina agrícola 1',
+    pasos: _pasosFrasesRutinaUno,
+    esTrazos: false,
+    introTeclado: 'Frases del campo en el teclado',
+    finTeclado: '¡Muy bien! Frases de rutina en el teclado',
+  ),
+  kFlujoEscrituraTecladoFrasesRutinaDosId: _cfgFrases(
+    titulo: 'Frases de rutina agrícola 2',
+    pasos: _pasosFrasesRutinaDos,
+    esTrazos: false,
+    introTeclado: 'Más frases del campo en el teclado',
+    finTeclado: '¡Muy bien! Sigues con frases del campo',
+  ),
+  kFlujoEscrituraTecladoFrasesOrdenId: _cfgFrases(
+    titulo: 'Construir frases en orden',
+    pasos: _pasosFrasesOrden,
+    esTrazos: false,
+    introTeclado: 'Ordena y escribe frases en el teclado',
+    finTeclado: '¡Muy bien! Ordenas frases en el teclado',
+  ),
+  kFlujoEscrituraTecladoFrasesImagenId: _cfgFrases(
+    titulo: 'Frases con imagen',
+    pasos: _pasosFrasesImagen,
+    esTrazos: false,
+    introTeclado: 'Escribe frases según la imagen',
+    finTeclado: '¡Muy bien! Frases con imagen en el teclado',
+  ),
+  kFlujoEscrituraTecladoFrasesMezclaId: _cfgFrases(
+    titulo: 'Mezcla de frases',
+    pasos: _pasosFrasesMezcla,
+    esTrazos: false,
+    introTeclado: 'Repaso de frases en el teclado',
+    finTeclado: '¡Muy bien! Dominas frases en el teclado',
+  ),
 };
 
 EscrituraGuiadaConfig? escrituraTrazosConfigForLeccion(String? flujoId) =>
