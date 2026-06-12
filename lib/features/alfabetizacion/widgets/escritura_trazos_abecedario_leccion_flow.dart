@@ -110,6 +110,7 @@ class _EscrituraTrazosAbecedarioLeccionFlowState
   int _aciertoFeedbackTick = 0;
 
   List<Offset> _puntos = <Offset>[];
+  Size _lienzoSize = Size.zero;
   final GlobalKey _lienzoTrazoKey = GlobalKey();
 
   @override
@@ -196,8 +197,7 @@ class _EscrituraTrazosAbecedarioLeccionFlowState
   }
 
   bool _validarTrazoActual() {
-    final box = _lienzoTrazoKey.currentContext?.findRenderObject() as RenderBox?;
-    final canvasSize = box?.size ?? Size.zero;
+    final canvasSize = _lienzoSize;
     return AlfabetizacionTrazoValidator.validarLetraEnLienzo(
       puntosRaw: _puntos,
       letra: _letraActual.letra,
@@ -374,32 +374,37 @@ class _EscrituraTrazosAbecedarioLeccionFlowState
         ),
         const SizedBox(height: 10),
         Expanded(
-          child: GestureDetector(
-            key: _lienzoTrazoKey,
-            onPanStart: (d) {
-              final p = _normalizarPuntoAlLienzo(d.localPosition);
-              setState(() => _puntos = [..._puntos, p]);
-            },
-            onPanUpdate: (d) {
-              final p = _normalizarPuntoAlLienzo(d.localPosition);
-              setState(() => _puntos = [..._puntos, p]);
-            },
-            onPanEnd: (_) {
-              setState(() => _puntos = [..._puntos, const Offset(double.nan, double.nan)]);
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: _azulHorizonte, width: 2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: CustomPaint(
-                painter: _TrazoPainter(
-                  puntos: _puntos,
-                  letraModelo: isGuided ? _letraActual.letra : '',
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              _lienzoSize = Size(constraints.maxWidth, constraints.maxHeight);
+              return GestureDetector(
+                key: _lienzoTrazoKey,
+                onPanStart: (d) {
+                  final p = _normalizarPuntoAlLienzo(d.localPosition);
+                  setState(() => _puntos = [..._puntos, p]);
+                },
+                onPanUpdate: (d) {
+                  final p = _normalizarPuntoAlLienzo(d.localPosition);
+                  setState(() => _puntos = [..._puntos, p]);
+                },
+                onPanEnd: (_) {
+                  setState(() => _puntos = [..._puntos, const Offset(double.nan, double.nan)]);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: _azulHorizonte, width: 2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: CustomPaint(
+                    painter: _TrazoPainter(
+                      puntos: _puntos,
+                      letraModelo: isGuided ? _letraActual.letra : '',
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
                 ),
-                child: const SizedBox.expand(),
-              ),
-            ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 12),

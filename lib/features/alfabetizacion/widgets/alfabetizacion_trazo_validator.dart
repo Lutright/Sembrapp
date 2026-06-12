@@ -9,39 +9,35 @@ enum AlfabetizacionTrazoPerfil {
   vocalU,
 }
 
+/// Resultado de validación (útil para depuración).
+class AlfabetizacionTrazoResultado {
+  const AlfabetizacionTrazoResultado({
+    required this.valido,
+    required this.motivo,
+  });
+
+  final bool valido;
+  final String motivo;
+}
+
 /// Motor unificado de validación de trazos para lecciones de escritura.
 class AlfabetizacionTrazoValidator {
   AlfabetizacionTrazoValidator._();
 
-  /// Valida trazo sobre una letra centrada (vocales, abecedario).
   static bool validarLetraEnLienzo({
     required List<Offset> puntosRaw,
     required String letra,
     required Size canvasSize,
     AlfabetizacionTrazoPerfil perfil = AlfabetizacionTrazoPerfil.estandar,
   }) {
-    if (canvasSize.width <= 0 || canvasSize.height <= 0) return false;
-
-    if (perfil == AlfabetizacionTrazoPerfil.vocalI &&
-        _formaVerticalEnLienzo(puntosRaw, canvasSize)) {
-      return true;
-    }
-    if (perfil == AlfabetizacionTrazoPerfil.vocalU &&
-        _formaUEnLienzo(puntosRaw, canvasSize)) {
-      return true;
-    }
-
-    return validarTextoEnLienzo(
+    return evaluarLetraEnLienzo(
       puntosRaw: puntosRaw,
-      texto: letra,
+      letra: letra,
       canvasSize: canvasSize,
-      fontSize: canvasSize.height * 0.7,
-      letterSpacing: 0,
-      esLetraUnica: true,
-    );
+      perfil: perfil,
+    ).valido;
   }
 
-  /// Valida trazo sobre texto centrado (sílabas, palabras, frases).
   static bool validarTextoEnLienzo({
     required List<Offset> puntosRaw,
     required String texto,
@@ -50,13 +46,90 @@ class AlfabetizacionTrazoValidator {
     double letterSpacing = 4,
     bool esLetraUnica = false,
   }) {
-    if (canvasSize.width <= 0 || canvasSize.height <= 0) return false;
+    return evaluarTextoEnLienzo(
+      puntosRaw: puntosRaw,
+      texto: texto,
+      canvasSize: canvasSize,
+      fontSize: fontSize,
+      letterSpacing: letterSpacing,
+      esLetraUnica: esLetraUnica,
+    ).valido;
+  }
+
+  static AlfabetizacionTrazoResultado evaluarLetraEnLienzo({
+    required List<Offset> puntosRaw,
+    required String letra,
+    required Size canvasSize,
+    AlfabetizacionTrazoPerfil perfil = AlfabetizacionTrazoPerfil.estandar,
+  }) {
+    if (canvasSize.width <= 0 || canvasSize.height <= 0) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'lienzo_sin_medidas',
+      );
+    }
+
+    final base = evaluarTextoEnLienzo(
+      puntosRaw: puntosRaw,
+      texto: letra,
+      canvasSize: canvasSize,
+      fontSize: canvasSize.height * 0.7,
+      letterSpacing: 0,
+      esLetraUnica: true,
+      perfil: perfil,
+    );
+    if (base.valido) return base;
+
+    // Perfiles I/U: solo aceptar si además hay forma reconocible + algo de trazo
+    // sobre la letra (evita línea/circulo sueltos en cualquier parte del lienzo).
+    if (perfil == AlfabetizacionTrazoPerfil.vocalI &&
+        _formaVerticalEnLienzo(puntosRaw, canvasSize)) {
+      return _revalidarFormaEspecial(
+        puntosRaw: puntosRaw,
+        letra: letra,
+        canvasSize: canvasSize,
+        fontSize: canvasSize.height * 0.7,
+      );
+    }
+    if (perfil == AlfabetizacionTrazoPerfil.vocalU &&
+        _formaUEnLienzo(puntosRaw, canvasSize)) {
+      return _revalidarFormaEspecial(
+        puntosRaw: puntosRaw,
+        letra: letra,
+        canvasSize: canvasSize,
+        fontSize: canvasSize.height * 0.7,
+      );
+    }
+
+    return base;
+  }
+
+  static AlfabetizacionTrazoResultado evaluarTextoEnLienzo({
+    required List<Offset> puntosRaw,
+    required String texto,
+    required Size canvasSize,
+    required double fontSize,
+    double letterSpacing = 4,
+    bool esLetraUnica = false,
+    AlfabetizacionTrazoPerfil perfil = AlfabetizacionTrazoPerfil.estandar,
+  }) {
+    if (canvasSize.width <= 0 || canvasSize.height <= 0) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'lienzo_sin_medidas',
+      );
+    }
 
     final puntos = _puntosFinitos(puntosRaw);
     final letras = texto.replaceAll(' ', '');
     final nLetras = math.max(letras.length, 1);
 
-    if (puntos.length < 6 + nLetras * 2) return false;
+    if (puntos.length < 10 + nLetras * 4) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'pocos_puntos',
+      );
+    }
 
     final layout = _layoutTexto(
       texto: texto,
@@ -64,135 +137,352 @@ class AlfabetizacionTrazoValidator {
       fontSize: fontSize,
       letterSpacing: letterSpacing,
     );
-    if (layout == null || layout.regiones.isEmpty) return false;
+    if (layout == null || layout.regiones.isEmpty) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'sin_regiones_texto',
+      );
+    }
 
-    final umbral = _umbralDistancia(canvasSize, esLetraUnica);
-    final trazosUsuario = _segmentarTrazos(puntosRaw);
-    if (trazosUsuario.isEmpty) return false;
+    final trazos = _segmentarTrazos(puntosRaw);
+    if (trazos.isEmpty) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'sin_trazos',
+      );
+    }
+
+    final radioCercania = _radioCercania(canvasSize, esLetraUnica);
+    final margenTight = math.max(4.0, radioCercania * 0.35);
+    final margenLoose = math.max(8.0, radioCercania * 0.75);
+    final regionesTight =
+        layout.regiones.map((r) => r.inflate(margenTight)).toList();
+    final regionesLoose =
+        layout.regiones.map((r) => r.inflate(margenLoose)).toList();
+    final cajaLoose = layout.cajaTexto.inflate(margenLoose);
 
     final muestras = _generarMuestras(layout.regiones);
-    if (muestras.isEmpty) return false;
+    if (muestras.isEmpty) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'sin_muestras',
+      );
+    }
 
     var muestrasCubiertas = 0;
-    for (final muestra in muestras) {
-      if (_cercaDePolilineas(muestra, trazosUsuario, umbral)) {
-        muestrasCubiertas++;
-      }
+    for (final m in muestras) {
+      if (_cercaDePolilineas(m, trazos, radioCercania)) muestrasCubiertas++;
     }
     final cobertura = muestrasCubiertas / muestras.length;
 
     var puntosEnModelo = 0;
-    final regionesInfladas =
-        layout.regiones.map((r) => r.inflate(umbral * 0.85)).toList();
+    var puntosFuera = 0;
     for (final p in puntos) {
-      if (regionesInfladas.any((r) => r.contains(p))) {
+      if (regionesTight.any((r) => r.contains(p))) {
         puntosEnModelo++;
-      } else if (_distanciaMinimaARegiones(p, layout.regiones) <= umbral) {
+      } else if (_distanciaMinimaARegiones(p, regionesLoose) <= margenLoose) {
         puntosEnModelo++;
+      } else {
+        puntosFuera++;
       }
     }
     final precision = puntosEnModelo / puntos.length;
+    final fraccionFuera = puntosFuera / puntos.length;
 
     final boxTrazo = _bounds(puntos);
     final boxTexto = layout.cajaTexto;
-    if (!_solapamientoRazonable(boxTrazo, boxTexto)) return false;
-    if (_esGarabato(puntos, trazosUsuario, boxTrazo, boxTexto, canvasSize)) {
-      return false;
+    final areaTrazo = _area(boxTrazo);
+    final areaTexto = math.max(_area(boxTexto), 1.0);
+    final ratioArea = areaTrazo / areaTexto;
+
+    if (!_solapamientoMinimo(boxTrazo, boxTexto)) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'sin_solapamiento',
+      );
     }
 
-    if (!_coberturaPorLetra(layout.regionesPorIndice, trazosUsuario, umbral)) {
-      return false;
+    if (ratioArea > 2.8) {
+      return AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'area_excesiva_${ratioArea.toStringAsFixed(1)}',
+      );
     }
 
-    final minCobertura = esLetraUnica
-        ? 0.38
-        : nLetras > 14
-            ? 0.34
-            : nLetras > 8
-                ? 0.36
-                : 0.4;
-    final minPrecision = esLetraUnica
-        ? 0.28
-        : nLetras > 14
-            ? 0.24
-            : nLetras > 8
-                ? 0.26
-                : 0.28;
+    if (fraccionFuera > 0.42) {
+      return AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'trazo_fuera_modelo_${(fraccionFuera * 100).toStringAsFixed(0)}',
+      );
+    }
 
-    return cobertura >= minCobertura && precision >= minPrecision;
+    final longitud = _longitudPolilineas(trazos);
+    final complejidad = longitud / math.max(math.sqrt(areaTrazo), 1.0);
+    if (complejidad > 11.5) {
+      return AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'garabato_complejo_${complejidad.toStringAsFixed(1)}',
+      );
+    }
+
+    if (_esTrazoLinealSobreTexto(puntos, layout.cajaTexto, nLetras)) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'trazo_lineal',
+      );
+    }
+
+    if (perfil == AlfabetizacionTrazoPerfil.estandar &&
+        !_coberturaVerticalPorLetra(
+          layout.regionesPorIndice,
+          trazos,
+          radioCercania,
+        )) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'trazo_superficial',
+      );
+    }
+
+    if (!_todasLasLetrasTrazadas(
+      layout.regionesPorIndice,
+      trazos,
+      radioCercania,
+      margenTight,
+      puntos.length,
+    )) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'letras_sin_trazar',
+      );
+    }
+
+    // Puntos dentro de caja suelta del texto (evita trazo solo en esquina).
+    final puntosEnCaja =
+        puntos.where((p) => cajaLoose.contains(p)).length / puntos.length;
+    if (puntosEnCaja < 0.55) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'trazo_lejos_del_texto',
+      );
+    }
+
+    final minCobertura = _minCobertura(nLetras, esLetraUnica, perfil);
+    final minPrecision = _minPrecision(nLetras, esLetraUnica, perfil);
+
+    if (cobertura < minCobertura) {
+      return AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'cobertura_baja_${(cobertura * 100).toStringAsFixed(0)}',
+      );
+    }
+    if (precision < minPrecision) {
+      return AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'precision_baja_${(precision * 100).toStringAsFixed(0)}',
+      );
+    }
+
+    return const AlfabetizacionTrazoResultado(valido: true, motivo: 'ok');
   }
 
-  /// Valida trazo contra contorno relativo 0–1 (respaldo opcional).
-  static bool validarContornoRelativo({
+  static AlfabetizacionTrazoResultado _revalidarFormaEspecial({
     required List<Offset> puntosRaw,
-    required List<Offset> contornoRelativo,
+    required String letra,
     required Size canvasSize,
+    required double fontSize,
   }) {
-    if (canvasSize.width <= 0 ||
-        canvasSize.height <= 0 ||
-        contornoRelativo.length < 2) {
-      return false;
+    final layout = _layoutTexto(
+      texto: letra,
+      canvasSize: canvasSize,
+      fontSize: fontSize,
+      letterSpacing: 0,
+    );
+    if (layout == null) {
+      return const AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'forma_sin_layout',
+      );
     }
 
     final puntos = _puntosFinitos(puntosRaw);
-    if (puntos.length < 8) return false;
+    final margen = math.max(6.0, canvasSize.shortestSide * 0.04);
+    final regiones = layout.regiones.map((r) => r.inflate(margen)).toList();
+    final enModelo =
+        puntos.where((p) => regiones.any((r) => r.contains(p))).length;
+    final ratio = enModelo / puntos.length;
 
-    final modelo = contornoRelativo
-        .map(
-          (p) => Offset(
-            p.dx * canvasSize.width,
-            p.dy * canvasSize.height,
-          ),
-        )
-        .toList();
+    if (ratio < 0.45) {
+      return AlfabetizacionTrazoResultado(
+        valido: false,
+        motivo: 'forma_fuera_letra_${(ratio * 100).toStringAsFixed(0)}',
+      );
+    }
 
-    final umbral = _umbralDistancia(canvasSize, true);
-    final trazosUsuario = _segmentarTrazos(puntosRaw);
-    final muestrasModelo = _densificarPolyline(modelo, umbral * 0.6);
-
-    final cobertura = _ratioCercaDePolilineas(muestrasModelo, trazosUsuario, umbral);
-    final precision = _ratioPuntosCercaDePolyline(puntos, modelo, umbral * 1.15);
-
-    final boxUser = _bounds(puntos);
-    final boxModelo = _bounds(modelo).inflate(umbral);
-    if (!_solapamientoRazonable(boxUser, boxModelo)) return false;
-    if (_area(boxUser) / math.max(_area(boxModelo), 1) > 5.5) return false;
-
-    return cobertura >= 0.4 && precision >= 0.32;
+    return const AlfabetizacionTrazoResultado(valido: true, motivo: 'forma_ok');
   }
 
-  static double _umbralDistancia(Size canvasSize, bool letraUnica) {
-    final base = math.min(canvasSize.width, canvasSize.height);
-    return math.max(letraUnica ? 16.0 : 12.0, base * (letraUnica ? 0.1 : 0.085));
+  static double _minCobertura(
+    int nLetras,
+    bool esLetraUnica,
+    AlfabetizacionTrazoPerfil perfil,
+  ) {
+    if (perfil != AlfabetizacionTrazoPerfil.estandar) return 0.5;
+    if (esLetraUnica) return 0.58;
+    if (nLetras > 12) return 0.5;
+    if (nLetras > 6) return 0.52;
+    return 0.55;
+  }
+
+  static double _minPrecision(
+    int nLetras,
+    bool esLetraUnica,
+    AlfabetizacionTrazoPerfil perfil,
+  ) {
+    if (perfil != AlfabetizacionTrazoPerfil.estandar) return 0.5;
+    if (esLetraUnica) return 0.55;
+    if (nLetras > 12) return 0.48;
+    if (nLetras > 6) return 0.5;
+    return 0.52;
+  }
+
+  static bool _esTrazoLinealSobreTexto(
+    List<Offset> puntos,
+    Rect cajaTexto,
+    int nLetras,
+  ) {
+    if (puntos.length < 8 || cajaTexto.isEmpty) return false;
+    final box = _bounds(puntos);
+    final alturaRel = box.height / math.max(cajaTexto.height, 1.0);
+    final anchoRel = box.width / math.max(cajaTexto.width, 1.0);
+
+    if (nLetras > 1 && alturaRel < 0.38 && anchoRel > 0.65) return true;
+    if (nLetras == 1 && alturaRel < 0.22 && anchoRel > 0.55) return true;
+    if (nLetras == 1 && anchoRel < 0.22 && alturaRel > 0.55) return false;
+
+    final cy = cajaTexto.center.dy;
+    final enFranjaHorizontal = puntos
+            .where(
+              (p) =>
+                  (p.dy - cy).abs() <= cajaTexto.height * 0.18 &&
+                  cajaTexto.inflate(4).contains(p),
+            )
+            .length /
+        puntos.length;
+    if (nLetras > 1 && enFranjaHorizontal > 0.72 && alturaRel < 0.45) {
+      return true;
+    }
+    return false;
+  }
+
+  static bool _coberturaVerticalPorLetra(
+    Map<int, List<Rect>> regionesPorIndice,
+    List<List<Offset>> trazos,
+    double radioCercania,
+  ) {
+    for (final rects in regionesPorIndice.values) {
+      final rect = _union(rects);
+      if (rect.height < 18) continue;
+
+      final tercio = rect.height / 3;
+      final bandas = [
+        Rect.fromLTRB(rect.left, rect.top, rect.right, rect.top + tercio),
+        Rect.fromLTRB(
+          rect.left,
+          rect.top + tercio,
+          rect.right,
+          rect.top + tercio * 2,
+        ),
+        Rect.fromLTRB(
+          rect.left,
+          rect.top + tercio * 2,
+          rect.right,
+          rect.bottom,
+        ),
+      ];
+
+      var bandasCubiertas = 0;
+      for (final banda in bandas) {
+        final muestras = _generarMuestras([banda]);
+        final cubiertas = muestras
+            .where((m) => _cercaDePolilineas(m, trazos, radioCercania))
+            .length;
+        if (muestras.isEmpty) continue;
+        if (cubiertas / muestras.length >= 0.34) bandasCubiertas++;
+      }
+      if (bandasCubiertas < 2) return false;
+    }
+    return true;
+  }
+
+  static double _radioCercania(Size canvasSize, bool letraUnica) {
+    final base = canvasSize.shortestSide;
+    final factor = letraUnica ? 0.045 : 0.04;
+    return base * factor.clamp(0.032, 0.055);
   }
 
   static bool _formaVerticalEnLienzo(List<Offset> raw, Size canvasSize) {
     final puntos = _puntosFinitos(raw);
-    if (puntos.length < 6) return false;
+    if (puntos.length < 10) return false;
     final box = _bounds(puntos);
-    if (box.height < canvasSize.height * 0.25) return false;
-    if (box.width > canvasSize.width * 0.35) return false;
-    if (box.height / math.max(box.width, 1) < 1.4) return false;
+    if (box.height < canvasSize.height * 0.28) return false;
+    if (box.width > canvasSize.width * 0.28) return false;
+    if (box.height / math.max(box.width, 1) < 1.8) return false;
 
     final cx = puntos.map((p) => p.dx).reduce((a, b) => a + b) / puntos.length;
     final alineados =
-        puntos.where((p) => (p.dx - cx).abs() <= box.width * 0.55 + 8).length;
-    return alineados / puntos.length >= 0.5;
+        puntos.where((p) => (p.dx - cx).abs() <= box.width * 0.35 + 6).length;
+    return alineados / puntos.length >= 0.62;
   }
 
   static bool _formaUEnLienzo(List<Offset> raw, Size canvasSize) {
     final puntos = _puntosFinitos(raw);
-    if (puntos.length < 8) return false;
+    if (puntos.length < 12) return false;
     final box = _bounds(puntos);
-    if (box.height < canvasSize.height * 0.22) return false;
-    if (box.width < canvasSize.width * 0.12) return false;
-    if (box.width / math.max(box.height, 1) > 2.6) return false;
+    if (box.height < canvasSize.height * 0.25) return false;
+    if (box.width < canvasSize.width * 0.14) return false;
+    if (box.width / math.max(box.height, 1) > 2.2) return false;
 
     final tercio = box.width / 3;
     final izq = puntos.where((p) => p.dx <= box.left + tercio).length;
     final der = puntos.where((p) => p.dx >= box.right - tercio).length;
-    final fondo = puntos.where((p) => p.dy >= box.top + box.height * 0.45).length;
-    return izq >= 2 && der >= 2 && fondo / puntos.length >= 0.12;
+    final fondo = puntos.where((p) => p.dy >= box.top + box.height * 0.5).length;
+    return izq >= 3 && der >= 3 && fondo / puntos.length >= 0.18;
+  }
+
+  static bool _todasLasLetrasTrazadas(
+    Map<int, List<Rect>> regionesPorIndice,
+    List<List<Offset>> trazos,
+    double radioCercania,
+    double margenTight,
+    int totalPuntos,
+  ) {
+    if (regionesPorIndice.isEmpty) return false;
+
+    final minPuntosPorLetra = math.max(6, (totalPuntos * 0.06).round());
+
+    for (final rects in regionesPorIndice.values) {
+      final tight = rects.map((r) => r.inflate(margenTight)).toList();
+      final muestras = _generarMuestras(rects);
+      var hitsMuestra = 0;
+      for (final m in muestras) {
+        if (_cercaDePolilineas(m, trazos, radioCercania)) hitsMuestra++;
+      }
+      final ratioMuestra =
+          muestras.isEmpty ? 0.0 : hitsMuestra / muestras.length;
+
+      var puntosEnRect = 0;
+      for (final trazo in trazos) {
+        for (final p in trazo) {
+          if (tight.any((r) => r.contains(p))) puntosEnRect++;
+        }
+      }
+
+      final ok = ratioMuestra >= 0.42 &&
+          puntosEnRect >= minPuntosPorLetra;
+      if (!ok) return false;
+    }
+    return true;
   }
 
   static _LayoutTexto? _layoutTexto({
@@ -223,7 +513,7 @@ class AlfabetizacionTrazoValidator {
 
     for (var i = 0; i < texto.length; i++) {
       if (texto[i] == ' ') continue;
-      var cajas = painter.getBoxesForSelection(
+      final cajas = painter.getBoxesForSelection(
         TextSelection(baseOffset: i, extentOffset: i + 1),
       );
       if (cajas.isEmpty) {
@@ -284,10 +574,10 @@ class AlfabetizacionTrazoValidator {
       if (r.width < 2 || r.height < 2) continue;
       muestras.add(r.center);
       final inset = Rect.fromLTRB(
-        r.left + r.width * 0.15,
-        r.top + r.height * 0.15,
-        r.right - r.width * 0.15,
-        r.bottom - r.height * 0.15,
+        r.left + r.width * 0.2,
+        r.top + r.height * 0.2,
+        r.right - r.width * 0.2,
+        r.bottom - r.height * 0.2,
       );
       if (inset.width > 1 && inset.height > 1) {
         muestras.addAll([
@@ -297,77 +587,17 @@ class AlfabetizacionTrazoValidator {
           inset.bottomRight,
           Offset(inset.center.dx, inset.top),
           Offset(inset.center.dx, inset.bottom),
-          Offset(inset.left, inset.center.dy),
-          Offset(inset.right, inset.center.dy),
         ]);
       }
     }
     return muestras;
   }
 
-  static bool _coberturaPorLetra(
-    Map<int, List<Rect>> regionesPorIndice,
-    List<List<Offset>> trazos,
-    double umbral,
-  ) {
-    if (regionesPorIndice.isEmpty) return true;
-
-    var letrasOk = 0;
-    for (final rects in regionesPorIndice.values) {
-      final muestras = _generarMuestras(rects);
-      if (muestras.isEmpty) {
-        letrasOk++;
-        continue;
-      }
-      var hits = 0;
-      for (final m in muestras) {
-        if (_cercaDePolilineas(m, trazos, umbral)) hits++;
-      }
-      final ratio = hits / muestras.length;
-      if (ratio >= 0.15 || (muestras.length <= 4 && hits >= 1)) {
-        letrasOk++;
-      }
-    }
-    return letrasOk >= regionesPorIndice.length * 0.7;
-  }
-
-  static bool _esGarabato(
-    List<Offset> puntos,
-    List<List<Offset>> trazos,
-    Rect boxTrazo,
-    Rect boxTexto,
-    Size canvas,
-  ) {
-    final areaTrazo = _area(boxTrazo);
-    final areaTexto = math.max(_area(boxTexto), 1.0);
-    if (areaTrazo / areaTexto > 6.5) return true;
-
-    final longitud = _longitudPolilineas(trazos);
-    final diagonal = math.sqrt(
-      canvas.width * canvas.width + canvas.height * canvas.height,
-    );
-    if (longitud > diagonal * 7) return true;
-
-    final fuera = puntos
-        .where(
-          (p) => _distanciaMinimaARegiones(p, [boxTexto.inflate(20)]) > 24,
-        )
-        .length;
-    if (fuera / puntos.length > 0.55 && areaTrazo / areaTexto > 3.5) {
-      return true;
-    }
-
-    return false;
-  }
-
-  static double _longitudPolilineas(List<List<Offset>> trazos) {
-    var total = 0.0;
-    for (final trazo in trazos) {
-      for (var i = 1; i < trazo.length; i++) {
-        total += (trazo[i] - trazo[i - 1]).distance;
-      }
-    }
-    return total;
+  static bool _solapamientoMinimo(Rect trazo, Rect texto) {
+    final inter = trazo.intersect(texto);
+    if (inter.isEmpty) return false;
+    final areaTexto = math.max(_area(texto), 1.0);
+    return _area(inter) / areaTexto >= 0.35;
   }
 
   static List<List<Offset>> _segmentarTrazos(List<Offset> raw) {
@@ -385,23 +615,14 @@ class AlfabetizacionTrazoValidator {
     return trazos;
   }
 
-  static List<Offset> _densificarPolyline(List<Offset> pts, double paso) {
-    if (pts.length < 2) return pts;
-    final out = <Offset>[];
-    for (var i = 1; i < pts.length; i++) {
-      final a = pts[i - 1];
-      final b = pts[i];
-      final dist = (b - a).distance;
-      final steps = math.max(1, (dist / paso).ceil());
-      for (var s = 0; s <= steps; s++) {
-        final t = s / steps;
-        out.add(Offset(
-          a.dx + (b.dx - a.dx) * t,
-          a.dy + (b.dy - a.dy) * t,
-        ));
+  static double _longitudPolilineas(List<List<Offset>> trazos) {
+    var total = 0.0;
+    for (final trazo in trazos) {
+      for (var i = 1; i < trazo.length; i++) {
+        total += (trazo[i] - trazo[i - 1]).distance;
       }
     }
-    return out;
+    return total;
   }
 
   static bool _cercaDePolilineas(
@@ -417,37 +638,6 @@ class AlfabetizacionTrazoValidator {
       }
     }
     return false;
-  }
-
-  static double _ratioCercaDePolilineas(
-    List<Offset> muestras,
-    List<List<Offset>> trazos,
-    double umbral,
-  ) {
-    if (muestras.isEmpty) return 0;
-    var ok = 0;
-    for (final m in muestras) {
-      if (_cercaDePolilineas(m, trazos, umbral)) ok++;
-    }
-    return ok / muestras.length;
-  }
-
-  static double _ratioPuntosCercaDePolyline(
-    List<Offset> puntos,
-    List<Offset> polyline,
-    double umbral,
-  ) {
-    if (puntos.isEmpty || polyline.length < 2) return 0;
-    var ok = 0;
-    for (final p in puntos) {
-      var min = double.infinity;
-      for (var i = 1; i < polyline.length; i++) {
-        final d = _distanciaPuntoASegmento(p, polyline[i - 1], polyline[i]);
-        if (d < min) min = d;
-      }
-      if (min <= umbral) ok++;
-    }
-    return ok / puntos.length;
   }
 
   static double _distanciaMinimaARegiones(Offset p, List<Rect> regiones) {
@@ -475,20 +665,6 @@ class AlfabetizacionTrazoValidator {
     final tc = t.clamp(0.0, 1.0);
     final proyeccion = Offset(a.dx + ab.dx * tc, a.dy + ab.dy * tc);
     return (p - proyeccion).distance;
-  }
-
-  static bool _solapamientoRazonable(Rect trazo, Rect texto) {
-    final inter = trazo.intersect(texto);
-    if (inter.isEmpty) return false;
-
-    final areaTexto = math.max(_area(texto), 1.0);
-    final areaInter = _area(inter);
-    if (areaInter / areaTexto < 0.25) return false;
-
-    final areaTrazo = math.max(_area(trazo), 1.0);
-    if (areaTrazo / areaTexto > 6.5) return false;
-
-    return true;
   }
 
   static double _area(Rect r) => r.width * r.height;
