@@ -6,31 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../audio/comercializacion_audio_phrases.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../repositories/orden_ayuda_repository.dart';
-
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _crema = Color(0xFFFBF9F1);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 /// Chat entre el campesino que pidió ayuda y quien aceptó cubrir productos.
 class AyudaChatScreen extends StatefulWidget {
@@ -333,7 +311,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen>
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: isMio ? _azulHorizonte : Colors.white,
+                              color: isMio ? TonalistColors.azulHorizonte : Colors.white,
                               border: isMio
                                   ? null
                                   : Border.all(
@@ -384,18 +362,18 @@ class _AyudaChatScreenState extends State<AyudaChatScreen>
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(
-                    color: _azulHorizonte.withValues(alpha: 0.3),
+                    color: TonalistColors.azulHorizonte.withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(
-                    color: _azulHorizonte.withValues(alpha: 0.3),
+                    color: TonalistColors.azulHorizonte.withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(24)),
-                  borderSide: BorderSide(color: _azulHorizonte, width: 1.5),
+                  borderSide: BorderSide(color: TonalistColors.azulHorizonte, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -405,7 +383,7 @@ class _AyudaChatScreenState extends State<AyudaChatScreen>
                 suffixIcon: Container(
                   margin: const EdgeInsets.only(right: 4),
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: _azulHorizonte),
+                    icon: const Icon(Icons.send, color: TonalistColors.azulHorizonte),
                     onPressed: _chatHabilitado ? _enviar : null,
                   ),
                 ),
@@ -425,81 +403,25 @@ class _AyudaChatScreenState extends State<AyudaChatScreen>
     required Widget child,
   }) {
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           Positioned.fill(
             child: Padding(
-              padding: const EdgeInsets.only(top: 124),
+              padding: const EdgeInsets.only(
+                top: TonalistHeaderMetrics.contentTopPadding,
+              ),
               child: child,
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => _backFromAyuda(context),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Chat entre productores',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: title,
+            subtitle: 'Chat entre productores',
+            onBack: () => _backFromAyuda(context),
           ),
         ],
       ),

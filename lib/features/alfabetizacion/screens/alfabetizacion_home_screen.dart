@@ -4,30 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/services/alfabetizacion_tts_coach.dart';
-
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _crema = Color(0xFFFBF9F1);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 
 class AlfabetizacionHomeScreen extends StatefulWidget {
   const AlfabetizacionHomeScreen({super.key});
@@ -95,12 +74,17 @@ class _AlfabetizacionHomeScreenState extends State<AlfabetizacionHomeScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           Positioned.fill(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 124, 16, 20),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                TonalistHeaderMetrics.contentTopPadding,
+                16,
+                20,
+              ),
               children: [
                 _AudioCoachBar(
                   listo: _ttsListo,
@@ -145,59 +129,13 @@ class _AlfabetizacionHomeScreenState extends State<AlfabetizacionHomeScreen> {
               ],
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded,
-                            color: Colors.white, size: 28),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Text(
-                      'Aprender',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontFamily: 'Montserrat',
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Fondo crema detrás de header (por si el theme cambia)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 1,
-            child: ColoredBox(color: cs.surface),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: 'Aprender',
+            onBack: () => context.pop(),
           ),
         ],
       ),
@@ -214,7 +152,7 @@ class _HeroLearnCard extends StatelessWidget {
     required this.onTap,
   });
 
-  static const Color _azul = Color(0xFF1A4463);
+  static const Color _azul = TonalistColors.azulHorizonte;
 
   final IconData icon;
   final String title;
@@ -275,17 +213,10 @@ class _HeroLearnCard extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  height: 44,
-                  child: FilledButton(
-                    onPressed: onTap,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _azul,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                    ),
-                    child: Text(buttonLabel),
-                  ),
+                TonalistGradientButton(
+                  label: buttonLabel,
+                  kind: TonalistGradientKind.brandBlue,
+                  onPressed: onTap,
                 ),
               ],
             ),
@@ -313,7 +244,7 @@ class _AudioCoachBar extends StatelessWidget {
     final disabled = !listo || narrando;
     return Container(
       decoration: BoxDecoration(
-        color: _azulHorizonte.withValues(alpha: 0.06),
+        color: TonalistColors.azulHorizonte.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

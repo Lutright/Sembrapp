@@ -6,29 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/services/pending_notification_navigation.dart';
 import '../../core/services/location_service.dart';
+import '../../core/theme/tonalist_colors.dart';
 import '../../core/widgets/minimal_ui.dart';
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.8)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.8,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
+import '../../core/widgets/tonalist_gradient_button.dart';
+import '../../core/widgets/tonalist_screen_header.dart';
 
 class LocationGateScreen extends StatefulWidget {
   const LocationGateScreen({super.key});
@@ -145,7 +126,7 @@ class _LocationGateScreenState extends State<LocationGateScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: TonalistColors.crema,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final headerHeight = (constraints.maxHeight * 0.25).clamp(190.0, 260.0);
@@ -161,13 +142,7 @@ class _LocationGateScreenState extends State<LocationGateScreen> {
                       child: Stack(
                         children: [
                           // Header Ocre Superior Fijo en este bloque
-                          ClipPath(
-                            clipper: _OrganicHeaderClipper(),
-                            child: Container(
-                              height: headerHeight,
-                              color: const Color(0xFF1A4463),
-                            ),
-                          ),
+                          TonalistHeaderWave(height: headerHeight),
                           SafeArea(
                             bottom: false,
                             child: Padding(
@@ -271,18 +246,10 @@ class _LocationGateScreenState extends State<LocationGateScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 48),
-                                  FilledButton(
+                                  TonalistGradientButton(
+                                    label: 'Activar y continuar',
+                                    loading: _loading,
                                     onPressed: _loading ? null : _continuar,
-                                    child: _loading
-                                        ? SizedBox(
-                                            height: 24,
-                                            width: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              color: cs.onPrimary,
-                                            ),
-                                          )
-                                        : const Text('Activar y continuar'),
                                   ),
                                   const SizedBox(height: 40),
                                   Padding(

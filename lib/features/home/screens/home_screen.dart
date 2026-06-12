@@ -2,32 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/tonalist_colors.dart';
 import '../../../core/widgets/schedule_cold_start_deep_link.dart';
-
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _rojoManta = Color(0xFFD34836);
-const Color _crema = Color(0xFFFBF9F1);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -46,7 +24,7 @@ class HomeScreen extends StatelessWidget {
 
     return ScheduleColdStartDeepLink(
       child: Scaffold(
-        backgroundColor: _crema,
+        backgroundColor: TonalistColors.crema,
         body: Stack(
           children: [
             Positioned.fill(
@@ -54,33 +32,41 @@ class HomeScreen extends StatelessWidget {
                 bottom: true,
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 220, 16, 20),
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    TonalistHeaderMetrics.homeContentTopPadding,
+                    16,
+                    20,
+                  ),
                   child: Column(
                     children: [
                       if (isCampesino) ...[
                         _HeroActionCard(
                           icon: Icons.school_rounded,
-                          iconBg: _azulHorizonte.withValues(alpha: 0.10),
-                          iconFg: _azulHorizonte,
+                          iconBg: TonalistColors.azulHorizonte
+                              .withValues(alpha: 0.10),
+                          iconFg: TonalistColors.azulHorizonte,
                           title: 'Aprender',
-                          titleColor: _azulHorizonte,
+                          titleColor: TonalistColors.azulHorizonte,
                           description:
                               'Practica lectura y escritura paso a paso, a tu ritmo',
                           buttonLabel: 'Ir a aprender',
-                          buttonBg: _azulHorizonte,
+                          buttonKind: TonalistGradientKind.brandBlue,
                           onTap: () => context.push('/alfabetizacion'),
                         ),
                         const SizedBox(height: 12),
                       ],
                       _HeroActionCard(
                         icon: Icons.storefront_rounded,
-                        iconBg: _rojoManta.withValues(alpha: 0.10),
-                        iconFg: _rojoManta,
-                        title: 'Vender y comprar',
-                        titleColor: _rojoManta,
-                        description: 'Publica tus productos y gestiona tu tienda',
+                        iconBg:
+                            TonalistColors.rojoManta.withValues(alpha: 0.10),
+                        iconFg: TonalistColors.rojoManta,
+                        title: 'Vender',
+                        titleColor: TonalistColors.rojoManta,
+                        description:
+                            'Publica tus productos y gestiona tu tienda',
                         buttonLabel: 'Ir a mi tienda',
-                        buttonBg: _rojoManta,
+                        buttonKind: TonalistGradientKind.actionRed,
                         onTap: () => context.push('/comercializacion'),
                       ),
                     ],
@@ -88,16 +74,8 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // Header orgánico
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 210,
-              child: ClipPath(
-                clipper: _OrganicHeaderClipper(),
-                child: Container(color: _azulHorizonte),
-              ),
+            TonalistHeaderBackground(
+              height: TonalistHeaderMetrics.homeHeight,
             ),
             Positioned(
               left: 0,
@@ -117,7 +95,10 @@ class HomeScreen extends StatelessWidget {
                               'Hola, $saludoNombre 👋',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
                                     color: Colors.white.withValues(alpha: 0.85),
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -125,7 +106,10 @@ class HomeScreen extends StatelessWidget {
                             const SizedBox(height: 6),
                             Text(
                               'Sembrapp',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -133,7 +117,10 @@ class HomeScreen extends StatelessWidget {
                             const SizedBox(height: 6),
                             Text(
                               '¿Qué quieres hacer hoy?',
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
                                     color: Colors.white.withValues(alpha: 0.75),
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -185,10 +172,10 @@ class _CircleHeaderIconButton extends StatelessWidget {
       child: Material(
         color: Colors.white.withValues(alpha: 0.15),
         shape: const CircleBorder(),
-          child: InkWell(
+        child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-            child: SizedBox(
+          child: SizedBox(
             width: 44,
             height: 44,
             child: Icon(icon, color: Colors.white),
@@ -208,7 +195,7 @@ class _HeroActionCard extends StatelessWidget {
     required this.titleColor,
     required this.description,
     required this.buttonLabel,
-    required this.buttonBg,
+    required this.buttonKind,
     required this.onTap,
   });
 
@@ -219,7 +206,7 @@ class _HeroActionCard extends StatelessWidget {
   final Color titleColor;
   final String description;
   final String buttonLabel;
-  final Color buttonBg;
+  final TonalistGradientKind buttonKind;
   final VoidCallback onTap;
 
   @override
@@ -283,21 +270,10 @@ class _HeroActionCard extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 14),
-                  SizedBox(
-                    height: 44,
-                    child: FilledButton(
-                      onPressed: onTap,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: buttonBg,
-                        foregroundColor: Colors.white,
-                        shape: const StadiumBorder(),
-                        minimumSize: const Size.fromHeight(44),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      child: Text(buttonLabel),
-                    ),
+                  TonalistGradientButton(
+                    label: buttonLabel,
+                    kind: buttonKind,
+                    onPressed: onTap,
                   ),
                 ],
               ),

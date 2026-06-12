@@ -6,28 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/minimal_ui.dart';
 import '../audio/comercializacion_audio_phrases.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.7)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.1,
-        0,
-        size.height * 0.7,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 class _OrderStatusPill extends StatelessWidget {
   final String estado;
@@ -254,7 +235,7 @@ class _ComercializacionOrdenesScreenState
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           // 1. Capa Inferior: El scroll donde habitan las tarjetas de órdenes
@@ -559,28 +540,23 @@ class _ComercializacionOrdenesScreenState
             ),
           ),
 
-          // 2. Capa Media: La Ola Mágica. Cubre el contenido debajo al scrollear
           Positioned(
             left: 0,
             right: 0,
             top: 0,
-            height: 160, // Altura de la Ola reducida en un ~27%
+            height: TonalistHeaderMetrics.ordenesWaveHeight,
             child: IgnorePointer(
-              ignoring:
-                  true, // Importante: la ola no debe bloquear toques de la lista en huecos vacíos
-              child: ClipPath(
-                clipper: _OrganicHeaderClipper(),
-                child: Container(color: cs.primary),
+              ignoring: true,
+              child: const TonalistHeaderWave(
+                height: TonalistHeaderMetrics.ordenesWaveHeight,
               ),
             ),
           ),
-
-          // 3. Capa Superior Fija: Botonería de Control que no se tapa con la ola
           Positioned(
             left: 0,
             right: 0,
             top: 0,
-            height: 160,
+            height: TonalistHeaderMetrics.ordenesWaveHeight,
             child: Stack(
               children: [
                 Positioned(

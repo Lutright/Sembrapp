@@ -5,30 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/pending_notification_navigation.dart';
+import '../../../core/theme/tonalist_colors.dart';
 import '../../../core/widgets/minimal_ui.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 
 enum UserRole { campesino, comprador }
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.8)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.8,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -104,19 +86,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final cs = Theme.of(context).colorScheme;
     final selectedRole = _role;
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: TonalistColors.crema,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final headerHeight = constraints.maxHeight * 0.25;
           return Stack(
             children: [
-              ClipPath(
-                clipper: _OrganicHeaderClipper(),
-                child: Container(
-                  height: headerHeight,
-                  color: cs.primary,
-                ),
-              ),
+              TonalistHeaderWave(height: headerHeight),
               SafeArea(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
@@ -265,18 +241,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                     const SizedBox(height: 32),
-                    FilledButton(
+                    TonalistGradientButton(
+                      label: 'Crear cuenta',
+                      loading: _loading,
                       onPressed: _loading ? null : _signUp,
-                      child: _loading
-                          ? SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: cs.onPrimary,
-                              ),
-                            )
-                          : const Text('Crear cuenta'),
                     ),
                     const SizedBox(height: 16),
                     Row(

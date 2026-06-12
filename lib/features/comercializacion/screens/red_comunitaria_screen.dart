@@ -12,32 +12,10 @@ import '../../../core/utils/geo_utils.dart';
 import '../models/producto.dart';
 import '../navigation/tienda_campesino_extra.dart';
 import '../repositories/orden_ayuda_repository.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../repositories/productos_repository.dart';
-
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _crema = Color(0xFFFBF9F1);
-const Color _rojoManta = Color(0xFFD34836);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 List<String> _asUuidList(dynamic v) {
   if (v == null) return [];
@@ -385,7 +363,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                     ? '$nombreSol necesita apoyo con parte de un pedido.'
                     : 'Un productor necesita apoyo con parte de un pedido.',
                 style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                      color: _azulHorizonte,
+                      color: TonalistColors.azulHorizonte,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -439,7 +417,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: _azulHorizonte.withValues(alpha: 0.06),
+                              color: TonalistColors.azulHorizonte.withValues(alpha: 0.06),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -477,7 +455,9 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton(
+                    child: TonalistGradientButton(
+                      label: 'Aceptar y abrir chat',
+                      minimumHeight: 48,
                       onPressed: () async {
                         final ok = await _ayudaRepo.aceptarSolicitud(solicitudId);
                         if (!ctx.mounted) return;
@@ -499,14 +479,6 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                           await _loadUbicacionYDatos();
                         }
                       },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _rojoManta,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Aceptar y abrir chat'),
                     ),
                   ),
                 ],
@@ -521,12 +493,14 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           Positioned.fill(
             child: Padding(
-              padding: const EdgeInsets.only(top: 124),
+              padding: const EdgeInsets.only(
+                top: TonalistHeaderMetrics.contentTopPadding,
+              ),
               child: Column(
                 children: [
                   Padding(
@@ -537,7 +511,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    color: _crema,
+                    color: TonalistColors.crema,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                     child: Row(
                       children: [
@@ -583,14 +557,14 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                               const Text(
                                 'Distancia máxima',
                                 style: TextStyle(
-                                  color: _azulHorizonte,
+                                  color: TonalistColors.azulHorizonte,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               Text(
                                 '$_selectedDistanceKm km',
                                 style: const TextStyle(
-                                  color: _azulHorizonte,
+                                  color: TonalistColors.azulHorizonte,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -598,8 +572,8 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                           ),
                           SliderTheme(
                             data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: _azulHorizonte,
-                              thumbColor: _azulHorizonte,
+                              activeTrackColor: TonalistColors.azulHorizonte,
+                              thumbColor: TonalistColors.azulHorizonte,
                             ),
                             child: Slider(
                               min: 1,
@@ -630,74 +604,14 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 10),
-                          Text(
-                            'Red comunitaria',
-                            textAlign: TextAlign.center,
-                            style:
-                                Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                      color: Colors.white,
-                                      fontFamily: 'Montserrat',
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Productores cerca de ti',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: 'Red comunitaria',
+            subtitle: 'Productores cerca de ti',
+            onBack: () => context.pop(),
           ),
         ],
       ),
@@ -724,13 +638,13 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _azulHorizonte.withValues(alpha: 0.07),
+              color: TonalistColors.azulHorizonte.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline, size: 18, color: _azulHorizonte),
+                const Icon(Icons.info_outline, size: 18, color: TonalistColors.azulHorizonte),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -738,7 +652,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                     'Toca uno para ver sus productos.',
                     style: TextStyle(
                       fontSize: 13,
-                      color: _azulHorizonte.withValues(alpha: 0.85),
+                      color: TonalistColors.azulHorizonte.withValues(alpha: 0.85),
                     ),
                   ),
                 ),
@@ -756,11 +670,11 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
               return _CommunityCard(
                 leading: CircleAvatar(
                   radius: 24,
-                  backgroundColor: _azulHorizonte.withValues(alpha: 0.10),
+                  backgroundColor: TonalistColors.azulHorizonte.withValues(alpha: 0.10),
                   child: Text(
                     _iniciales(c.nombre),
                     style: const TextStyle(
-                      color: _azulHorizonte,
+                      color: TonalistColors.azulHorizonte,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -812,10 +726,10 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
         return _CommunityCard(
           leading: CircleAvatar(
             radius: 24,
-            backgroundColor: _azulHorizonte.withValues(alpha: 0.10),
+            backgroundColor: TonalistColors.azulHorizonte.withValues(alpha: 0.10),
             child: const Icon(
               Icons.handshake_outlined,
-              color: _azulHorizonte,
+              color: TonalistColors.azulHorizonte,
               size: 24,
             ),
           ),
@@ -987,7 +901,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
             Text(
               titulo,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: _azulHorizonte,
+                    color: TonalistColors.azulHorizonte,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -995,7 +909,7 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
             Expanded(
               child: Container(
                 height: 1,
-                color: _azulHorizonte.withValues(alpha: 0.25),
+                color: TonalistColors.azulHorizonte.withValues(alpha: 0.25),
               ),
             ),
           ],
@@ -1035,8 +949,8 @@ class _RedComunitariaScreenState extends State<RedComunitariaScreen>
                   _CommunityCard(
                     leading: CircleAvatar(
                       radius: 24,
-                      backgroundColor: _azulHorizonte.withValues(alpha: 0.10),
-                      child: Icon(icon, color: _azulHorizonte, size: 24),
+                      backgroundColor: TonalistColors.azulHorizonte.withValues(alpha: 0.10),
+                      child: Icon(icon, color: TonalistColors.azulHorizonte, size: 24),
                     ),
                     title: builderTitulo(s),
                     subtitle: _misSolicitudSubtitle(s),
@@ -1269,7 +1183,7 @@ class _CommunityCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.chevron_right, color: _azulHorizonte, size: 24),
+              const Icon(Icons.chevron_right, color: TonalistColors.azulHorizonte, size: 24),
             ],
           ),
         ),
@@ -1302,8 +1216,8 @@ class _TabPill extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected
-                ? _azulHorizonte
-                : _azulHorizonte.withValues(alpha: 0.08),
+                ? TonalistColors.azulHorizonte
+                : TonalistColors.azulHorizonte.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -1313,7 +1227,7 @@ class _TabPill extends StatelessWidget {
             style: TextStyle(
               color: selected
                   ? Colors.white
-                  : _azulHorizonte.withValues(alpha: 0.7),
+                  : TonalistColors.azulHorizonte.withValues(alpha: 0.7),
               fontSize: compact ? 11.5 : 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),

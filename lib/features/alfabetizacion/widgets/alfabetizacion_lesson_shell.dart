@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../alfabetizacion_ui_colors.dart';
 
 /// Paleta y sombras compartidas para pantallas de lección (alfabetización).
@@ -18,28 +19,6 @@ abstract final class AlfabetizacionLessonTokens {
           offset: const Offset(0, 10),
         ),
       ];
-}
-
-/// Cabecera orgánica (misma forma que antes, con gradiente).
-final class AlfabetizacionLessonHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 /// Marco común: fondo cálido, cabecera con gradiente, tarjeta de progreso y cuerpo.
@@ -69,7 +48,7 @@ class AlfabetizacionLessonShell extends StatelessWidget {
   final bool expandBody;
   final bool resizeForKeyboard;
 
-  static const double _headerH = 124;
+  static const double _headerH = TonalistHeaderMetrics.lessonHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -112,113 +91,13 @@ class AlfabetizacionLessonShell extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
+          TonalistHeaderBackground(height: _headerH),
+          TonalistHeaderChrome(
             height: _headerH,
-            child: ClipPath(
-              clipper: AlfabetizacionLessonHeaderClipper(),
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AlfabetizacionLessonTokens.headerDeep,
-                      AlfabetizacionLessonTokens.headerMid,
-                      AlfabetizacionLessonTokens.headerLight,
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: -40,
-                      top: -20,
-                      child: Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 120,
-                        color: Colors.white.withValues(alpha: 0.06),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: _headerH,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 4,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: IconButton(
-                        icon: Icon(
-                          useCloseButton ? Icons.close_rounded : Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.12),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => Navigator.of(context).maybePop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 56),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontFamily: 'Montserrat',
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                  height: 1.2,
-                                  letterSpacing: -0.2,
-                                ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              subtitle,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.92),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            title: title,
+            subtitle: subtitle,
+            useCloseButton: useCloseButton,
+            subtitleAsPill: true,
           ),
         ],
       ),

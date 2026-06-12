@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../audio/comercializacion_audio_phrases.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/beneficio.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../repositories/beneficios_repository.dart';
 
 /// Apartado de beneficios: puntos acumulados en alfabetización
@@ -105,17 +107,23 @@ class _BeneficiosScreenState extends State<BeneficiosScreen>
 
   @override
   Widget build(BuildContext context) {
-    const azulHorizonte = Color(0xFF1A4463);
+    const azulHorizonte = TonalistColors.azulHorizonte;
     final activosVigentes = _activos.where((a) => a.estaVigente).toList();
 
     return Scaffold(
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else
             SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                TonalistHeaderMetrics.contentTopPadding,
+                16,
+                24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -331,70 +339,14 @@ class _BeneficiosScreenState extends State<BeneficiosScreen>
                 ],
               ),
             ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Beneficios',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Canjea puntos por visibilidad',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 13,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: 'Beneficios',
+            subtitle: 'Canjea puntos por visibilidad',
+            onBack: () => context.pop(),
           ),
         ],
       ),
@@ -402,23 +354,3 @@ class _BeneficiosScreenState extends State<BeneficiosScreen>
   }
 }
 
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}

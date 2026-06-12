@@ -7,32 +7,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../audio/comercializacion_audio_phrases.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/producto.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../repositories/productos_repository.dart';
 
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _crema = Color(0xFFFBF9F1);
-const Color _rojoManta = Color(0xFFD34836);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 class ComercializacionMisProductosScreen extends StatefulWidget {
   const ComercializacionMisProductosScreen({super.key});
 
@@ -124,14 +103,19 @@ class _ComercializacionMisProductosScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           Positioned.fill(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 124, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      TonalistHeaderMetrics.contentTopPadding,
+                      16,
+                      24,
+                    ),
                     children: [
                       buildComercializacionAudioCoachBarFor(
                         ComercializacionAudioPhrases.misProductosWelcome,
@@ -156,87 +140,22 @@ class _ComercializacionMisProductosScreenState
                               const SizedBox(height: 12),
                             ]),
                       const SizedBox(height: 16),
-                      FilledButton.icon(
+                      TonalistGradientButton(
+                        label: 'Añadir producto',
+                        icon: Icons.add,
                         onPressed: _onAddProducto,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Añadir producto'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _rojoManta,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(56),
-                          shape: const StadiumBorder(),
-                        ),
                       ),
                     ],
                   ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Mis productos',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Gestiona tu catálogo',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: 'Mis productos',
+            subtitle: 'Gestiona tu catálogo',
+            onBack: () => context.pop(),
           ),
         ],
       ),
@@ -277,7 +196,7 @@ class _ProductoCard extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: _azulHorizonte.withValues(alpha: 0.07),
+                color: TonalistColors.azulHorizonte.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(12),
               ),
               clipBehavior: Clip.antiAlias,
@@ -287,13 +206,13 @@ class _ProductoCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Icon(
                         Icons.image_outlined,
-                        color: _azulHorizonte.withValues(alpha: 0.4),
+                        color: TonalistColors.azulHorizonte.withValues(alpha: 0.4),
                         size: 32,
                       ),
                     )
                   : Icon(
                       Icons.image_outlined,
-                      color: _azulHorizonte.withValues(alpha: 0.4),
+                      color: TonalistColors.azulHorizonte.withValues(alpha: 0.4),
                       size: 32,
                     ),
             ),
@@ -319,7 +238,7 @@ class _ProductoCard extends StatelessWidget {
                     '${producto.unidad}',
                     style: const TextStyle(
                       fontSize: 14,
-                      color: _azulHorizonte,
+                      color: TonalistColors.azulHorizonte,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -349,8 +268,8 @@ class _ProductoCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    side: const BorderSide(color: _azulHorizonte, width: 1),
-                    foregroundColor: _azulHorizonte,
+                    side: const BorderSide(color: TonalistColors.azulHorizonte, width: 1),
+                    foregroundColor: TonalistColors.azulHorizonte,
                     textStyle: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -366,8 +285,8 @@ class _ProductoCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    side: const BorderSide(color: _rojoManta, width: 1),
-                    foregroundColor: _rojoManta,
+                    side: const BorderSide(color: TonalistColors.rojoManta, width: 1),
+                    foregroundColor: TonalistColors.rojoManta,
                     textStyle: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,

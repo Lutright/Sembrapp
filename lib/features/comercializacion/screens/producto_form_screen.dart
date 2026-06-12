@@ -17,31 +17,10 @@ import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/producto.dart';
 import '../repositories/productos_repository.dart';
 import '../tutorial/producto_publicacion_tutorial.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../tutorial/comercializacion_tutorial_keys.dart';
-
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _crema = Color(0xFFFBF9F1);
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 class ProductoFormScreen extends StatefulWidget {
   const ProductoFormScreen({
@@ -128,12 +107,14 @@ class _ProductoFormScreenState extends State<ProductoFormScreen>
     final isEdit = widget.producto != null;
     final titulo = isEdit ? 'Editar producto' : 'Añadir producto';
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           Positioned.fill(
             child: Padding(
-              padding: const EdgeInsets.only(top: 124),
+              padding: const EdgeInsets.only(
+                top: TonalistHeaderMetrics.contentTopPadding,
+              ),
               child: _ProductoFormBody(
                 producto: widget.producto,
                 onSaved: () => context.pop(),
@@ -155,90 +136,27 @@ class _ProductoFormScreenState extends State<ProductoFormScreen>
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: _azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => context.pop(),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: titulo,
+            subtitle: 'Tu catálogo · Mercado',
+            onBack: () => context.pop(),
+            trailing: !isEdit
+                ? KeyedSubtree(
+                    key: _tutorialAyuda,
+                    child: IconTheme(
+                      data: const IconThemeData(color: Colors.white),
+                      child: TutorialHelpButton(
+                        phrases: productoFormHelpPhrases,
+                        tooltip: 'Ayuda',
+                        onReplayWalkthrough: () => unawaited(_replayTutorial()),
                       ),
                     ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          titulo,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Tu catálogo · Mercado',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isEdit)
-                    Positioned(
-                      right: 4,
-                      top: 4,
-                      child: KeyedSubtree(
-                        key: _tutorialAyuda,
-                        child: IconTheme(
-                          data: const IconThemeData(color: Colors.white),
-                          child: TutorialHelpButton(
-                            phrases: productoFormHelpPhrases,
-                            tooltip: 'Ayuda',
-                            onReplayWalkthrough: () =>
-                                unawaited(_replayTutorial()),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                  )
+                : null,
           ),
           if (_tutorialSteps != null)
             TutorialWalkthroughLayer(
@@ -748,15 +666,10 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             const SizedBox(height: 32),
             KeyedSubtree(
               key: widget.tutorialGuardarKey,
-              child: FilledButton(
+              child: TonalistGradientButton(
+                label: 'Guardar',
+                loading: _saving,
                 onPressed: _saving ? null : _submit,
-                child: _saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Guardar'),
               ),
             ),
           ],
@@ -797,7 +710,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
         children: [
           const Icon(
             Icons.add_a_photo_outlined,
-            color: _azulHorizonte,
+            color: TonalistColors.azulHorizonte,
             size: 36,
           ),
           const SizedBox(height: 8),
@@ -805,7 +718,7 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
             'Toca para agregar foto',
             style: TextStyle(
               fontSize: 13,
-              color: _azulHorizonte.withValues(alpha: 0.6),
+              color: TonalistColors.azulHorizonte.withValues(alpha: 0.6),
             ),
           ),
         ],

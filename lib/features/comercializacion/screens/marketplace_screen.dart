@@ -10,28 +10,9 @@ import '../models/tienda_resumen.dart';
 import '../navigation/tienda_campesino_extra.dart';
 import '../repositories/beneficios_repository.dart';
 import '../repositories/productos_repository.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../widgets/producto_imagen_de_url.dart';
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.7)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.1,
-        0,
-        size.height * 0.7,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 class _HeaderAction extends StatelessWidget {
   final IconData icon;
@@ -479,19 +460,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
-          // Header Orgánico Fijo Superior
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 250,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: cs.primary),
-            ),
+          TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.marketplaceHeight,
           ),
           SafeArea(
             bottom: false,

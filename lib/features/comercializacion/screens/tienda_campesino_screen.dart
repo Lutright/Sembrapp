@@ -7,34 +7,10 @@ import '../../../core/services/location_service.dart';
 import '../models/producto.dart';
 import '../repositories/ordenes_repository.dart';
 import '../repositories/productos_repository.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../widgets/producto_imagen_de_url.dart';
-
-// ─── Paleta Sembrapp ─────────────────────────────────────────────────────────
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _rojoManta = Color(0xFFD34836);
-const Color _crema = Color(0xFFFBF9F1);
-
-// ─── OrganicHeaderClipper ────────────────────────────────────────────────────
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.7)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.1,
-        0,
-        size.height * 0.7,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 // ─── Carrito ─────────────────────────────────────────────────────────────────
 class _CarritoLinea {
@@ -194,7 +170,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
           content: Text(
             '«${prod.nombre}» añadido al pedido. Puedes seguir comprando aquí.',
           ),
-          backgroundColor: _azulHorizonte,
+          backgroundColor: TonalistColors.azulHorizonte,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -338,7 +314,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                         style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
                               fontFamily: 'Montserrat',
                               fontWeight: FontWeight.w700,
-                              color: _azulHorizonte,
+                              color: TonalistColors.azulHorizonte,
                             ),
                       ),
                     );
@@ -354,26 +330,12 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                     ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _confirmarPedido();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _rojoManta,
-                    foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(
-                      fontFamily: 'Montserrat',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  child: const Text('Confirmar pedido y abrir chat'),
-                ),
+              TonalistGradientButton(
+                label: 'Confirmar pedido y abrir chat',
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _confirmarPedido();
+                },
               ),
             ],
           ),
@@ -393,7 +355,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
     final nombreProductor = titulo;
 
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           // 1. Contenido scrolleable
@@ -403,7 +365,9 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
               slivers: [
                 // Espacio para el header
                 SliverToBoxAdapter(
-                  child: const SizedBox(height: 124),
+                  child: const SizedBox(
+                    height: TonalistHeaderMetrics.contentTopPadding,
+                  ),
                 ),
 
                 // Barra de búsqueda
@@ -484,7 +448,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                   const SliverFillRemaining(
                     child: Center(
                         child:
-                            CircularProgressIndicator(color: _azulHorizonte)),
+                            CircularProgressIndicator(color: TonalistColors.azulHorizonte)),
                   )
                 else if (_productos.isEmpty)
                   SliverFillRemaining(
@@ -548,31 +512,15 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             ),
           ),
 
-          // 2. Ola orgánica — más alta para el hero
           Positioned(
             left: 0,
             right: 0,
             top: 0,
-            height: 120,
-            child: IgnorePointer(
+            height: TonalistHeaderMetrics.standardHeight,
+            child: const IgnorePointer(
               ignoring: true,
-              child: ClipPath(
-                clipper: _OrganicHeaderClipper(),
-                child: isDestacado
-                    ? Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF1A4463), // Azul Horizonte
-                              Color(0xFF0D3250), // Azul más profundo
-                              Color(0xFF1A4463),
-                            ],
-                          ),
-                        ),
-                      )
-                    : Container(color: _azulHorizonte),
+              child: TonalistHeaderWave(
+                height: TonalistHeaderMetrics.standardHeight,
               ),
             ),
           ),
@@ -585,7 +533,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             child: SafeArea(
               bottom: false,
               child: SizedBox(
-                height: 120,
+                height: TonalistHeaderMetrics.standardHeight,
                 child: Stack(
                   children: [
                     Positioned(
@@ -644,27 +592,10 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: SizedBox(
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _mostrarResumenPedido,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _rojoManta,
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      shadowColor: _rojoManta.withValues(alpha: 0.4),
-                      shape: const StadiumBorder(),
-                      textStyle: const TextStyle(
-                        fontFamily: 'Montserrat',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    child: Text(
+                child: TonalistGradientButton(
+                  label:
                       'Revisar pedido ($_totalLineas · ${_totalPrecio.toStringAsFixed(0)} \$)',
-                    ),
-                  ),
+                  onPressed: _mostrarResumenPedido,
                 ),
               ),
             ),
@@ -735,7 +666,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                             fontFamily: 'Montserrat',
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: _azulHorizonte,
+                            color: TonalistColors.azulHorizonte,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -813,7 +744,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _rojoManta,
+                color: TonalistColors.rojoManta,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: const Text(
@@ -862,7 +793,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
               },
               icon: Opacity(
                 opacity: base <= 0 ? 0.4 : 1,
-                child: const Icon(Icons.remove_rounded, color: _azulHorizonte),
+                child: const Icon(Icons.remove_rounded, color: TonalistColors.azulHorizonte),
               ),
             ),
           ),
@@ -893,7 +824,7 @@ class _TiendaCampesinoScreenState extends State<TiendaCampesinoScreen> {
                 final next = c <= 0 ? 0.5 : c + 0.5;
                 _ajustarCantidad(p, next);
               },
-              icon: const Icon(Icons.add_rounded, color: _azulHorizonte),
+              icon: const Icon(Icons.add_rounded, color: TonalistColors.azulHorizonte),
             ),
           ),
         ],

@@ -7,28 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../audio/comercializacion_audio_phrases.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../models/indicador_economico.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 import '../repositories/indicadores_repository.dart';
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.78,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 /// Precios de referencia para campesinos (fuente externa).
 class IndicadoresEconomicosScreen extends StatefulWidget {
@@ -155,79 +136,22 @@ class _IndicadoresEconomicosScreenState
 
   @override
   Widget build(BuildContext context) {
-    const azulHorizonte = Color(0xFF1A4463);
-
     return Scaffold(
+      backgroundColor: TonalistColors.crema,
       body: Stack(
         children: [
           RefreshIndicator(
             onRefresh: _load,
             child: _buildBody(),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: ClipPath(
-              clipper: _OrganicHeaderClipper(),
-              child: Container(color: azulHorizonte),
-            ),
+          const TonalistHeaderBackground(
+            height: TonalistHeaderMetrics.standardHeight,
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: 120,
-            child: SafeArea(
-              bottom: false,
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 8,
-                    top: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () => context.pop(),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Precios de referencia',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Colors.white,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Fuente: SIPSA · DANE',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 13,
-                                fontFamily: 'Montserrat',
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          TonalistHeaderChrome(
+            height: TonalistHeaderMetrics.standardHeight,
+            title: 'Precios de referencia',
+            subtitle: 'Fuente: SIPSA · DANE',
+            onBack: () => context.pop(),
           ),
         ],
       ),
@@ -277,7 +201,12 @@ class _IndicadoresEconomicosScreenState
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 124, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              TonalistHeaderMetrics.contentTopPadding,
+              16,
+              8,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

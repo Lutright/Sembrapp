@@ -3,28 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/tonalist_colors.dart';
 import '../../../core/widgets/minimal_ui.dart';
-
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.8)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.06,
-        0,
-        size.height * 0.8,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -83,19 +65,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: TonalistColors.crema,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final headerHeight = constraints.maxHeight * 0.25;
           return Stack(
             children: [
-              ClipPath(
-                clipper: _OrganicHeaderClipper(),
-                child: Container(
-                  height: headerHeight,
-                  color: const Color(0xFF1A4463),
-                ),
-              ),
+              TonalistHeaderWave(height: headerHeight),
               SafeArea(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
@@ -189,9 +165,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
         ),
         const SizedBox(height: 32),
-        FilledButton(
+        TonalistGradientButton(
+          label: 'Volver a entrar',
           onPressed: () => context.pop(),
-          child: const Text('Volver a entrar'),
         ),
       ],
     );
@@ -279,18 +255,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          TonalistGradientButton(
+            label: 'Enviar enlace',
+            loading: _loading,
             onPressed: _loading ? null : _sendResetLink,
-            child: _loading
-                ? SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: cs.onPrimary,
-                    ),
-                  )
-                : const Text('Enviar enlace'),
           ),
           const SizedBox(height: 16),
           Row(

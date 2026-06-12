@@ -4,34 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/profile.dart';
 import '../../../core/repositories/profile_repository.dart';
+import '../../../core/theme/tonalist_colors.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
+import '../../../core/widgets/tonalist_screen_header.dart';
 
-// ─── Paleta Sembrapp ─────────────────────────────────────────────────────────
-const Color _azulHorizonte = Color(0xFF1A4463);
-const Color _rojoManta = Color(0xFFD34836);
 const Color _ocre = Color(0xFF6D5E00);
-const Color _crema = Color(0xFFFBF9F1);
-
-// ─── OrganicHeaderClipper (idéntico al de las demás pantallas) ────────────────
-final class _OrganicHeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.7)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.1,
-        0,
-        size.height * 0.7,
-      )
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ProfileScreen — Reconstrucción integral
@@ -101,7 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Cambios guardados'),
-            backgroundColor: _azulHorizonte,
+            backgroundColor: TonalistColors.azulHorizonte,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -114,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('No se pudo guardar'),
-            backgroundColor: _rojoManta,
+            backgroundColor: TonalistColors.rojoManta,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -146,10 +123,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isCampesino ? Icons.agriculture_rounded : Icons.shopping_bag_rounded;
 
     return Scaffold(
-      backgroundColor: _crema,
+      backgroundColor: TonalistColors.crema,
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: _azulHorizonte),
+              child: CircularProgressIndicator(color: TonalistColors.azulHorizonte),
             )
           : Column(
               children: [
@@ -203,15 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Stack(
       alignment: Alignment.topCenter,
       children: [
-        // 1. Ola azul orgánica – altura fija 200
-        ClipPath(
-          clipper: _OrganicHeaderClipper(),
-          child: Container(
-            height: 200,
-            width: double.infinity,
-            color: _azulHorizonte,
-          ),
-        ),
+        TonalistHeaderWave(height: TonalistHeaderMetrics.profileHeight),
 
         // 2. Título sobre la ola (debajo del botón atrás en el hit-test)
         Positioned(
@@ -331,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         size: 18,
                         color: isCampesino
                             ? Colors.green.shade700
-                            : _azulHorizonte),
+                            : TonalistColors.azulHorizonte),
                     const SizedBox(width: 8),
                     Text(
                       rolLabel,
@@ -341,7 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontWeight: FontWeight.w700,
                         color: isCampesino
                             ? Colors.green.shade800
-                            : _azulHorizonte,
+                            : TonalistColors.azulHorizonte,
                       ),
                     ),
                   ],
@@ -407,7 +376,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderSide: BorderSide(color: Colors.grey[200]!, width: 0.8),
               ),
               focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: _azulHorizonte, width: 2),
+                borderSide: BorderSide(color: TonalistColors.azulHorizonte, width: 2),
               ),
               hintText: 'Escribe tu nombre',
               hintStyle: TextStyle(
@@ -422,38 +391,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           const SizedBox(height: 4),
 
-          // Botón cápsula Rojo Manta – ancho completo
-          SizedBox(
-            width: double.infinity,
-            height: 55,
-            child: ElevatedButton(
-              onPressed: _saving ? null : _onSave,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _rojoManta,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: _rojoManta.withValues(alpha: 0.5),
-                disabledForegroundColor: Colors.white70,
-                elevation: 2,
-                shadowColor: _rojoManta.withValues(alpha: 0.3),
-                shape: const StadiumBorder(),
-                textStyle: const TextStyle(
-                  fontFamily: 'Montserrat',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              child: _saving
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Guardar cambios'),
-            ),
+          TonalistGradientButton(
+            label: 'Guardar cambios',
+            loading: _saving,
+            onPressed: _saving ? null : _onSave,
           ),
         ],
       ),

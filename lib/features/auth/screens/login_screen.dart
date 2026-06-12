@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/pending_notification_navigation.dart';
+import '../../../core/theme/tonalist_colors.dart';
 import '../../../core/widgets/minimal_ui.dart';
+import '../../../core/widgets/tonalist_gradient_button.dart';
 
 /// Rutas de assets
 const String _assetFondoCampo = 'assets/alfabetizacion/images/fondo_campo.jpg';
@@ -249,18 +251,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            FilledButton(
+                            TonalistGradientButton(
+                              label: 'Entrar',
+                              loading: _loading,
                               onPressed: _loading ? null : _signIn,
-                              child: _loading
-                                  ? SizedBox(
-                                      height: 24,
-                                      width: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: cs.onPrimary,
-                                      ),
-                                    )
-                                  : const Text('Entrar'),
                             ),
                             const SizedBox(height: 28),
                             Row(
