@@ -347,7 +347,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                 imagenUrl: nuevaUrl,
               );
             } catch (e) {
-              throw Exception('Fallo al guardar URL de imagen en producto nuevo: $e');
+              throw Exception(
+                  'Fallo al guardar URL de imagen en producto nuevo: $e');
             }
           } catch (_) {
             // Evita dejar productos "huérfanos" cuando falla solo el upload.
@@ -587,7 +588,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                         color: const Color(0xFF1A4463).withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFF1A4463).withValues(alpha: 0.20),
+                          color:
+                              const Color(0xFF1A4463).withValues(alpha: 0.20),
                           width: 1.5,
                         ),
                       ),
@@ -603,7 +605,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               key: widget.tutorialNombreKey,
               child: TextFormField(
                 controller: _nombreController,
-                onTap: () => unawaited(_hint(ComercializacionAudioPhrases.formNombre)),
+                onTap: () =>
+                    unawaited(_hint(ComercializacionAudioPhrases.formNombre)),
                 decoration: const InputDecoration(
                   labelText: 'Nombre',
                   prefixIcon: Icon(Icons.shopping_basket),
@@ -617,8 +620,8 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               key: widget.tutorialDescripcionKey,
               child: TextFormField(
                 controller: _descripcionController,
-                onTap: () =>
-                    unawaited(_hint(ComercializacionAudioPhrases.formDescripcion)),
+                onTap: () => unawaited(
+                    _hint(ComercializacionAudioPhrases.formDescripcion)),
                 decoration: const InputDecoration(
                   labelText: 'Descripción corta',
                   prefixIcon: Icon(Icons.description),
@@ -631,12 +634,14 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
               key: widget.tutorialPrecioKey,
               child: TextFormField(
                 controller: _precioController,
-                onTap: () => unawaited(_hint(ComercializacionAudioPhrases.formPrecio)),
+                onTap: () =>
+                    unawaited(_hint(ComercializacionAudioPhrases.formPrecio)),
                 decoration: const InputDecoration(
                   labelText: 'Precio',
                   prefixIcon: Icon(Icons.attach_money),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Requerido';
                   if (double.tryParse(v) == null) return 'Número válido';
@@ -656,6 +661,9 @@ class _ProductoFormBodyState extends State<_ProductoFormBody> {
                   DropdownMenuItem(value: 'kg', child: Text('kg')),
                   DropdownMenuItem(value: 'lb', child: Text('lb')),
                   DropdownMenuItem(value: 'unidad', child: Text('unidad')),
+                  DropdownMenuItem(value: 'caja', child: Text('caja')),
+                  DropdownMenuItem(value: 'bulto', child: Text('bulto')),
+                  DropdownMenuItem(value: 'arroba', child: Text('arroba')),
                 ],
                 onChanged: (v) {
                   setState(() => _unidad = v ?? 'kg');
