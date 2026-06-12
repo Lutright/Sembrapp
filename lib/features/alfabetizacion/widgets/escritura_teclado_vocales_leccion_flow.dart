@@ -9,6 +9,7 @@ import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
+import 'alfabetizacion_teclado_referencia.dart';
 
 enum _FaseTeclado {
   intro,
@@ -216,8 +217,7 @@ class _EscrituraTecladoVocalesLeccionFlowState
       subtitle: 'Escritura · Nivel ${widget.leccion.nivel}',
       progress: _progresoLeccion(),
       stepLabel: _tituloPantalla(),
-      expandBody: _fase == _FaseTeclado.demo ||
-          _fase == _FaseTeclado.practica,
+      expandBody: _fase == _FaseTeclado.demo,
       resizeForKeyboard: _fase == _FaseTeclado.practica,
       child: _buildFase(),
     );
@@ -330,8 +330,10 @@ class _EscrituraTecladoVocalesLeccionFlowState
   }
 
   Widget _buildPractica() {
+    final tecladoSistemaVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           'Escribe la vocal ${_vocalActual.letra}',
@@ -354,21 +356,19 @@ class _EscrituraTecladoVocalesLeccionFlowState
             height: 1.3,
           ),
         ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: Align(
-            alignment: Alignment.center,
-            child: _TecladoVocalEstatico(
-              vocalResaltada: _vocalActual.letra,
-              filas: _filasTeclado,
-              colorResaltado: _resaltadoTecla,
-              fondoResaltado: _resaltadoFondo,
-              opacidadReferencia: 0.45,
-              onLetraTap: _escribirLetraEnPractica,
-            ),
+        if (!tecladoSistemaVisible) ...[
+          const SizedBox(height: 10),
+          AlfabetizacionTecladoReferencia(
+            teclasResaltadas: {_vocalActual.letra},
+            filas: _filasTeclado,
+            colorResaltado: _resaltadoTecla,
+            fondoResaltado: _resaltadoFondo,
+            opacidadReferencia: 0.45,
+            onLetraTap: _escribirLetraEnPractica,
           ),
-        ),
-        const SizedBox(height: 10),
+          const SizedBox(height: 10),
+        ] else
+          const SizedBox(height: 12),
         TextField(
           focusNode: _entradaFocus,
           controller: _entradaController,
@@ -530,8 +530,8 @@ class _TecladoVocalAnimadoState extends State<_TecladoVocalAnimado>
       builder: (context, _) {
         return Opacity(
           opacity: _entradaAnim.value,
-          child: _TecladoVocalEstatico(
-            vocalResaltada: widget.vocalResaltada,
+          child: AlfabetizacionTecladoReferencia(
+            teclasResaltadas: {widget.vocalResaltada.toUpperCase()},
             filas: widget.filas,
             colorResaltado: widget.colorResaltado,
             fondoResaltado: widget.fondoResaltado,
@@ -539,143 +539,6 @@ class _TecladoVocalAnimadoState extends State<_TecladoVocalAnimado>
           ),
         );
       },
-    );
-  }
-}
-
-/// Representación visual del teclado QWERTY con una vocal resaltada.
-class _TecladoVocalEstatico extends StatelessWidget {
-  const _TecladoVocalEstatico({
-    required this.vocalResaltada,
-    required this.filas,
-    required this.colorResaltado,
-    required this.fondoResaltado,
-    this.opacidadReferencia = 1.0,
-    this.escalaResaltado = 1.0,
-    this.onLetraTap,
-  });
-
-  final String vocalResaltada;
-  final List<List<String>> filas;
-  final Color colorResaltado;
-  final Color fondoResaltado;
-  final double opacidadReferencia;
-  final double escalaResaltado;
-  final ValueChanged<String>? onLetraTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final objetivo = vocalResaltada.toUpperCase();
-    return Opacity(
-      opacity: opacidadReferencia,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Mantener el diseño original (teclas 28x36) y, si el dispositivo
-          // es muy estrecho/alto, escalar el "tarjetón" completo para evitar
-          // overflow manteniendo centrado.
-          return Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: 340,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.grey.shade400),
-                    boxShadow: AlfabetizacionLessonTokens.cardShadow,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < filas.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            bottom: i < filas.length - 1 ? 8 : 0,
-                          ),
-                          child: _filaTeclado(filas[i], objetivo),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _filaTeclado(List<String> letras, String objetivo) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var i = 0; i < letras.length; i++) ...[
-          if (i > 0) const SizedBox(width: 5),
-          _tecla(letras[i], letras[i] == objetivo),
-        ],
-      ],
-    );
-  }
-
-  Widget _tecla(String letra, bool resaltada) {
-    final child = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: 28,
-      height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: resaltada ? fondoResaltado : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: resaltada ? colorResaltado : Colors.grey.shade400,
-          width: resaltada ? 2.5 : 1,
-        ),
-        boxShadow: resaltada
-            ? [
-                BoxShadow(
-                  color: colorResaltado.withValues(alpha: 0.45),
-                  blurRadius: 10 * escalaResaltado,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
-      ),
-      child: Text(
-        letra,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: resaltada ? FontWeight.w800 : FontWeight.w600,
-          color: resaltada ? colorResaltado : Colors.grey.shade800,
-        ),
-      ),
-    );
-
-    final wrapped = !resaltada
-        ? child
-        : Transform.scale(
-            scale: escalaResaltado,
-            child: child,
-          );
-
-    if (onLetraTap == null) return wrapped;
-
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onLetraTap!(letra);
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: wrapped,
-      ),
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +9,7 @@ import '../data/lecciones_data.dart';
 import '../../../core/services/alfabetizacion_tts_coach.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
+import 'alfabetizacion_trazo_validator.dart';
 
 enum _FaseTrazo {
   intro,
@@ -120,7 +120,15 @@ class _EscrituraTrazosGuiadoLeccionFlowState
   }
 
   Future<void> _evaluarTrazo({required bool esGuiada}) async {
-    final ok = _trazoSuficiente(_puntos, _pasoActual.texto);
+    final box = _lienzoTrazoKey.currentContext?.findRenderObject() as RenderBox?;
+    final canvasSize = box?.size ?? Size.zero;
+    final ok = AlfabetizacionTrazoValidator.validarTextoEnLienzo(
+      puntosRaw: _puntos,
+      texto: _pasoActual.texto,
+      canvasSize: canvasSize,
+      fontSize: _fontModelo(_pasoActual.texto),
+      letterSpacing: _letterSpacingModelo(_pasoActual.texto),
+    );
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseTrazo.feedback;
@@ -164,33 +172,6 @@ class _EscrituraTrazosGuiadoLeccionFlowState
     if (!mounted) return;
     setState(() => _fase = _FaseTrazo.recompensa);
     await _ttsDecir(widget.config.mensajeCompletado);
-  }
-
-  bool _trazoSuficiente(List<Offset> raw, String texto) {
-    final puntos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
-    final letras = texto.replaceAll(' ', '').length;
-    final n = math.max(letras, 1);
-    final palabras = texto.split(' ').where((p) => p.isNotEmpty).length;
-    final minPuntos = 10 + n * 5 + palabras * 8;
-    if (puntos.length < minPuntos) return false;
-    final box = _bounds(puntos);
-    if (box.height < (n > 8 ? 36 : 28)) return false;
-    if (box.width < 30 + n * 14) return false;
-    return box.width * box.height >= 900 + n * 280;
-  }
-
-  Rect _bounds(List<Offset> pts) {
-    var left = pts.first.dx;
-    var right = pts.first.dx;
-    var top = pts.first.dy;
-    var bottom = pts.first.dy;
-    for (final p in pts) {
-      left = math.min(left, p.dx);
-      right = math.max(right, p.dx);
-      top = math.min(top, p.dy);
-      bottom = math.max(bottom, p.dy);
-    }
-    return Rect.fromLTRB(left, top, right, bottom);
   }
 
   double _progresoLeccion() {

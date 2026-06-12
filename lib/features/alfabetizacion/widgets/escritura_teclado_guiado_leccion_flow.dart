@@ -9,6 +9,7 @@ import '../data/lecciones_data.dart';
 import '../../../core/services/alfabetizacion_tts_coach.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
+import 'alfabetizacion_teclado_referencia.dart';
 
 enum _FaseTeclado {
   intro,
@@ -130,10 +131,23 @@ class _EscrituraTecladoGuiadoLeccionFlowState
     return limpio;
   }
 
+  /// Acepta la misma secuencia de letras con o sin espacios (p. ej. ABC = A B C).
+  bool _coincideEntrada(String ingresado, String esperado) {
+    final a = _normalizarEntrada(ingresado).trim();
+    final b = _normalizarEntrada(esperado).trim();
+    if (a == b) return true;
+    return a.replaceAll(' ', '') == b.replaceAll(' ', '');
+  }
+
   void _onEntradaCambiada(String value) {
-    final max = _pasoActual.texto.length;
+    final maxLetras =
+        _normalizarEntrada(_pasoActual.texto).replaceAll(' ', '').length;
     var limpio = _normalizarEntrada(value);
-    if (limpio.length > max) limpio = limpio.substring(0, max);
+    var letras = limpio.replaceAll(' ', '');
+    if (letras.length > maxLetras) {
+      letras = letras.substring(0, maxLetras);
+      limpio = letras;
+    }
     if (_entradaController.text != limpio) {
       _entradaController.value = TextEditingValue(
         text: limpio,
@@ -143,9 +157,7 @@ class _EscrituraTecladoGuiadoLeccionFlowState
   }
 
   Future<void> _evaluarPractica() async {
-    final texto = _normalizarEntrada(_entradaController.text).trim();
-    final esperado = _normalizarEntrada(_pasoActual.texto);
-    final ok = texto == esperado;
+    final ok = _coincideEntrada(_entradaController.text, _pasoActual.texto);
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseTeclado.feedback;
@@ -222,7 +234,7 @@ class _EscrituraTecladoGuiadoLeccionFlowState
       subtitle: 'Escritura · Nivel ${widget.leccion.nivel}',
       progress: _progresoLeccion(),
       stepLabel: _tituloPantalla(),
-      expandBody: _fase == _FaseTeclado.demo || _fase == _FaseTeclado.practica,
+      expandBody: _fase == _FaseTeclado.demo,
       resizeForKeyboard: _fase == _FaseTeclado.practica,
       child: _buildFase(),
     );
@@ -318,8 +330,10 @@ class _EscrituraTecladoGuiadoLeccionFlowState
 
   Widget _buildPractica() {
     final longitud = _pasoActual.texto.length;
+    final tecladoSistemaVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           'Escribe ${_pasoActual.texto}',
@@ -332,15 +346,18 @@ class _EscrituraTecladoGuiadoLeccionFlowState
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
         ),
-        const SizedBox(height: 16),
-        _TecladoEstatico(
-          teclasResaltadas: _teclasResaltadas,
-          filas: _filasTeclado,
-          colorResaltado: _resaltadoTecla,
-          fondoResaltado: _resaltadoFondo,
-          opacidadReferencia: 0.45,
-        ),
-        const SizedBox(height: 16),
+        if (!tecladoSistemaVisible) ...[
+          const SizedBox(height: 16),
+          AlfabetizacionTecladoReferencia(
+            teclasResaltadas: _teclasResaltadas,
+            filas: _filasTeclado,
+            colorResaltado: _resaltadoTecla,
+            fondoResaltado: _resaltadoFondo,
+            opacidadReferencia: 0.45,
+          ),
+          const SizedBox(height: 16),
+        ] else
+          const SizedBox(height: 12),
         TextField(
           controller: _entradaController,
           focusNode: _entradaFocus,
@@ -436,106 +453,6 @@ class _EscrituraTecladoGuiadoLeccionFlowState
   }
 }
 
-class _TecladoEstatico extends StatelessWidget {
-  const _TecladoEstatico({
-    required this.teclasResaltadas,
-    required this.filas,
-    required this.colorResaltado,
-    required this.fondoResaltado,
-    this.opacidadReferencia = 1.0,
-    this.escalaResaltado = 1.0,
-  });
-
-  final Set<String> teclasResaltadas;
-  final List<List<String>> filas;
-  final Color colorResaltado;
-  final Color fondoResaltado;
-  final double opacidadReferencia;
-  final double escalaResaltado;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacidadReferencia,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SizedBox(
-                width: 340,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.grey.shade400),
-                    boxShadow: AlfabetizacionLessonTokens.cardShadow,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < filas.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: i < filas.length - 1 ? 8 : 0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              for (var j = 0; j < filas[i].length; j++) ...[
-                                if (j > 0) const SizedBox(width: 5),
-                                _tecla(filas[i][j], teclasResaltadas.contains(filas[i][j])),
-                              ],
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _tecla(String letra, bool resaltada) {
-    final child = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: 28,
-      height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: resaltada ? fondoResaltado : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: resaltada ? colorResaltado : Colors.grey.shade400,
-          width: resaltada ? 2.5 : 1,
-        ),
-        boxShadow: resaltada
-            ? [
-                BoxShadow(
-                  color: colorResaltado.withValues(alpha: 0.45),
-                  blurRadius: 10 * escalaResaltado,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
-      ),
-      child: Text(
-        letra,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: resaltada ? FontWeight.w800 : FontWeight.w600,
-          color: resaltada ? colorResaltado : Colors.grey.shade800,
-        ),
-      ),
-    );
-    if (!resaltada) return child;
-    return Transform.scale(scale: escalaResaltado, child: child);
-  }
-}
-
 class _TecladoAnimado extends StatefulWidget {
   const _TecladoAnimado({
     super.key,
@@ -594,7 +511,7 @@ class _TecladoAnimadoState extends State<_TecladoAnimado>
       builder: (context, _) {
         return Opacity(
           opacity: _entradaAnim.value,
-          child: _TecladoEstatico(
+          child: AlfabetizacionTecladoReferencia(
             teclasResaltadas: widget.teclasResaltadas,
             filas: widget.filas,
             colorResaltado: widget.colorResaltado,

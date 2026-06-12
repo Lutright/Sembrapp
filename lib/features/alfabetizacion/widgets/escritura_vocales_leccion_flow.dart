@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +8,7 @@ import '../data/lecciones_data.dart';
 import '../../../core/services/alfabetizacion_tts_coach.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
+import 'alfabetizacion_trazo_validator.dart';
 
 enum _FaseEscritura {
   intro,
@@ -198,7 +198,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   }
 
   Future<void> _evaluarGuiada() async {
-    final ok = _trazoAproximado(_puntos, _vocalActual.trazo, letra: _vocalActual.letra);
+    final ok = _validarTrazoActual();
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
@@ -210,7 +210,7 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
   }
 
   Future<void> _evaluarLibre() async {
-    final ok = _trazoAproximado(_puntos, _vocalActual.trazo, letra: _vocalActual.letra);
+    final ok = _validarTrazoActual();
     setState(() {
       _fueCorrecto = ok;
       _fase = _FaseEscritura.feedback;
@@ -221,213 +221,20 @@ class _EscrituraVocalesLeccionFlowState extends State<EscrituraVocalesLeccionFlo
     await _ttsDecir(_mensajeFeedback);
   }
 
-  bool _trazoAproximado(
-    List<Offset> raw,
-    List<Offset> objetivo, {
-    required String letra,
-  }) {
-    if (letra == 'I') {
-      return _trazoLetraI(raw, objetivo);
-    }
-    if (letra == 'U') {
-      return _trazoLetraU(raw, objetivo);
-    }
-    return _trazoAproximadoContorno(
-      raw,
-      objetivo,
-      minAncho: 35,
-      minAlto: 35,
-      umbralCobertura: 0.62,
-      umbralPrecision: 0.52,
-      umbralCercaniaModelo: 0.2,
-      umbralCercaniaTrazo: 0.24,
+  bool _validarTrazoActual() {
+    final box = _lienzoTrazoKey.currentContext?.findRenderObject() as RenderBox?;
+    final canvasSize = box?.size ?? Size.zero;
+    final perfil = switch (_vocalActual.letra) {
+      'I' => AlfabetizacionTrazoPerfil.vocalI,
+      'U' => AlfabetizacionTrazoPerfil.vocalU,
+      _ => AlfabetizacionTrazoPerfil.estandar,
+    };
+    return AlfabetizacionTrazoValidator.validarLetraEnLienzo(
+      puntosRaw: _puntos,
+      letra: _vocalActual.letra,
+      canvasSize: canvasSize,
+      perfil: perfil,
     );
-  }
-
-  /// La I suele trazarse como una línea vertical estrecha; el umbral de ancho
-  /// general (35 px) la rechazaba aunque el trazo fuera correcto.
-  bool _trazoLetraI(List<Offset> raw, List<Offset> objetivo) {
-    if (_trazoVerticalAproximado(raw)) return true;
-    return _trazoAproximadoContorno(
-      raw,
-      objetivo,
-      minAncho: 10,
-      minAlto: 35,
-      umbralCobertura: 0.42,
-      umbralPrecision: 0.5,
-      umbralCercaniaModelo: 0.22,
-      umbralCercaniaTrazo: 0.3,
-    );
-  }
-
-  /// La U se dibuja con curva inferior; el modelo con pocos segmentos rectos
-  /// y las esquinas superiores obligatorias rechazaban trazos válidos.
-  bool _trazoLetraU(List<Offset> raw, List<Offset> objetivo) {
-    if (_trazoFormaUAproximada(raw)) return true;
-    return _trazoAproximadoContorno(
-      raw,
-      objetivo,
-      minAncho: 22,
-      minAlto: 35,
-      umbralCobertura: 0.45,
-      umbralPrecision: 0.48,
-      umbralCercaniaModelo: 0.24,
-      umbralCercaniaTrazo: 0.3,
-    );
-  }
-
-  bool _trazoFormaUAproximada(List<Offset> raw) {
-    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
-    if (puntosValidos.length < 8) return false;
-    final box = _bounds(puntosValidos);
-    if (box.height < 30) return false;
-    if (box.width < 18) return false;
-
-    final alto = math.max(box.height, 1.0);
-    final ancho = math.max(box.width, 1.0);
-    if (ancho / alto > 2.4) return false;
-
-    final normalizados = _normalizarTrazado(puntosValidos);
-    final izquierda = normalizados.where((p) => p.dx <= 0.44).toList();
-    final derecha = normalizados.where((p) => p.dx >= 0.56).toList();
-    if (izquierda.length < 2 || derecha.length < 2) return false;
-
-    final spanIzq = _spanVertical(normalizados.where((p) => p.dx <= 0.44));
-    final spanDer = _spanVertical(normalizados.where((p) => p.dx >= 0.56));
-    if (spanIzq < 0.32 && spanDer < 0.32) return false;
-    if (spanIzq + spanDer < 0.5) return false;
-
-    final enFondo = normalizados.where((p) => p.dy >= 0.55).length;
-    if (enFondo / normalizados.length < 0.1) return false;
-
-    final curvaInferior = normalizados.where(
-      (p) => p.dy >= 0.52 && p.dx >= 0.3 && p.dx <= 0.7,
-    );
-    if (curvaInferior.isEmpty) return false;
-
-    return true;
-  }
-
-  double _spanVertical(Iterable<Offset> pts) {
-    final lista = pts.toList();
-    if (lista.isEmpty) return 0;
-    final ys = lista.map((p) => p.dy);
-    return ys.reduce(math.max) - ys.reduce(math.min);
-  }
-
-  bool _trazoVerticalAproximado(List<Offset> raw) {
-    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
-    if (puntosValidos.length < 8) return false;
-    final box = _bounds(puntosValidos);
-    if (box.height < 35) return false;
-    if (box.width < 6) return false;
-
-    final alto = math.max(box.height, 1.0);
-    final ancho = math.max(box.width, 1.0);
-    if (alto / ancho < 1.6) return false;
-
-    final normalizados = _normalizarTrazado(puntosValidos);
-    final centroX =
-        normalizados.map((p) => p.dx).reduce((a, b) => a + b) / normalizados.length;
-
-    var alineados = 0;
-    for (final p in normalizados) {
-      if ((p.dx - centroX).abs() <= 0.3) alineados++;
-    }
-    if (alineados / normalizados.length < 0.55) return false;
-
-    final ys = normalizados.map((p) => p.dy);
-    final minY = ys.reduce(math.min);
-    final maxY = ys.reduce(math.max);
-    return maxY - minY >= 0.45;
-  }
-
-  bool _trazoAproximadoContorno(
-    List<Offset> raw,
-    List<Offset> objetivo, {
-    required double minAncho,
-    required double minAlto,
-    required double umbralCobertura,
-    required double umbralPrecision,
-    required double umbralCercaniaModelo,
-    required double umbralCercaniaTrazo,
-  }) {
-    final puntosValidos = raw.where((p) => p.dx.isFinite && p.dy.isFinite).toList();
-    if (puntosValidos.length < 10) return false;
-    final box = _bounds(puntosValidos);
-    if (box.width < minAncho || box.height < minAlto) return false;
-    final normalizados = _normalizarTrazado(puntosValidos);
-    final objetivoNormalizado = _normalizarTrazado(objetivo);
-
-    final coberturaModelo = _ratioCercaniaAContorno(
-      muestra: objetivoNormalizado,
-      contorno: normalizados,
-      umbral: umbralCercaniaModelo,
-    );
-    final precisionTrazo = _ratioCercaniaAContorno(
-      muestra: normalizados,
-      contorno: objetivoNormalizado,
-      umbral: umbralCercaniaTrazo,
-    );
-
-    return coberturaModelo >= umbralCobertura && precisionTrazo >= umbralPrecision;
-  }
-
-  List<Offset> _normalizarTrazado(List<Offset> pts) {
-    final box = _bounds(pts);
-    final ancho = math.max(box.width, 1.0);
-    final alto = math.max(box.height, 1.0);
-    return pts
-        .map((p) => Offset((p.dx - box.left) / ancho, (p.dy - box.top) / alto))
-        .toList();
-  }
-
-  double _ratioCercaniaAContorno({
-    required List<Offset> muestra,
-    required List<Offset> contorno,
-    required double umbral,
-  }) {
-    if (muestra.isEmpty || contorno.length < 2) return 0;
-    var cercanos = 0;
-    for (final p in muestra) {
-      final d = _distanciaMinimaAContorno(p, contorno);
-      if (d <= umbral) cercanos++;
-    }
-    return cercanos / muestra.length;
-  }
-
-  double _distanciaMinimaAContorno(Offset p, List<Offset> contorno) {
-    var minimo = double.infinity;
-    for (var i = 1; i < contorno.length; i++) {
-      final d = _distanciaPuntoASegmento(p, contorno[i - 1], contorno[i]);
-      if (d < minimo) minimo = d;
-    }
-    return minimo;
-  }
-
-  double _distanciaPuntoASegmento(Offset p, Offset a, Offset b) {
-    final ab = b - a;
-    final ap = p - a;
-    final ab2 = (ab.dx * ab.dx) + (ab.dy * ab.dy);
-    if (ab2 <= 1e-9) return (p - a).distance;
-    final t = ((ap.dx * ab.dx) + (ap.dy * ab.dy)) / ab2;
-    final tc = t.clamp(0.0, 1.0);
-    final proyeccion = Offset(a.dx + ab.dx * tc, a.dy + ab.dy * tc);
-    return (p - proyeccion).distance;
-  }
-
-  Rect _bounds(List<Offset> pts) {
-    var left = pts.first.dx;
-    var right = pts.first.dx;
-    var top = pts.first.dy;
-    var bottom = pts.first.dy;
-    for (final p in pts) {
-      left = math.min(left, p.dx);
-      right = math.max(right, p.dx);
-      top = math.min(top, p.dy);
-      bottom = math.max(bottom, p.dy);
-    }
-    return Rect.fromLTRB(left, top, right, bottom);
   }
 
   Future<void> _siguienteDesdeFeedback() async {

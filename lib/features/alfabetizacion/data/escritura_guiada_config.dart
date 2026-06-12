@@ -60,6 +60,36 @@ const kFlujoEscrituraTecladoFrasesImagenId = 'escritura_teclado_frases_imagen';
 const kFlujoEscrituraTrazosFrasesMezclaId = 'escritura_trazos_frases_mezcla';
 const kFlujoEscrituraTecladoFrasesMezclaId = 'escritura_teclado_frases_mezcla';
 
+// --- Orden alfabético (escritura nivel 1, paralelo a lectura L1-4) ---
+const kFlujoEscrituraTrazosOrdenAlfabeticoId = 'escritura_trazos_orden_alfabetico';
+const kFlujoEscrituraTecladoOrdenAlfabeticoId = 'escritura_teclado_orden_alfabetico';
+
+// --- Palabras (escritura nivel 4, paralelo a lectura L3) ---
+const kFlujoEscrituraTrazosPalabrasCortasId = 'escritura_trazos_palabras_cortas';
+const kFlujoEscrituraTecladoPalabrasCortasId = 'escritura_teclado_palabras_cortas';
+const kFlujoEscrituraTrazosPalabrasCampoId = 'escritura_trazos_palabras_campo';
+const kFlujoEscrituraTecladoPalabrasCampoId = 'escritura_teclado_palabras_campo';
+const kFlujoEscrituraTrazosPalabraImagenUnoId = 'escritura_trazos_palabra_imagen_uno';
+const kFlujoEscrituraTecladoPalabraImagenUnoId = 'escritura_teclado_palabra_imagen_uno';
+const kFlujoEscrituraTrazosPalabraImagenDosId = 'escritura_trazos_palabra_imagen_dos';
+const kFlujoEscrituraTecladoPalabraImagenDosId = 'escritura_teclado_palabra_imagen_dos';
+const kFlujoEscrituraTrazosCompletarPalabraUnoId = 'escritura_trazos_completar_palabra_uno';
+const kFlujoEscrituraTecladoCompletarPalabraUnoId = 'escritura_teclado_completar_palabra_uno';
+const kFlujoEscrituraTrazosCompletarPalabraDosId = 'escritura_trazos_completar_palabra_dos';
+const kFlujoEscrituraTecladoCompletarPalabraDosId = 'escritura_teclado_completar_palabra_dos';
+
+// --- Comprensión / escritura contextual (escritura nivel 5, paralelo a lectura L5) ---
+const kFlujoEscrituraTrazosComprensionBasicaId = 'escritura_trazos_comprension_basica';
+const kFlujoEscrituraTecladoComprensionBasicaId = 'escritura_teclado_comprension_basica';
+const kFlujoEscrituraTrazosComprensionQuienQueId = 'escritura_trazos_comprension_quien_que';
+const kFlujoEscrituraTecladoComprensionQuienQueId = 'escritura_teclado_comprension_quien_que';
+const kFlujoEscrituraTrazosComprensionDondeId = 'escritura_trazos_comprension_donde';
+const kFlujoEscrituraTecladoComprensionDondeId = 'escritura_teclado_comprension_donde';
+const kFlujoEscrituraTrazosSecuenciaBasicaId = 'escritura_trazos_secuencia_basica';
+const kFlujoEscrituraTecladoSecuenciaBasicaId = 'escritura_teclado_secuencia_basica';
+const kFlujoEscrituraTrazosVocabularioContextualId = 'escritura_trazos_vocabulario_contextual';
+const kFlujoEscrituraTecladoVocabularioContextualId = 'escritura_teclado_vocabulario_contextual';
+
 const _pasosSilabasMa = [
   EscrituraPaso(texto: 'MA', pista: 'MA de mano', emoji: '✋'),
   EscrituraPaso(texto: 'ME', pista: 'ME de mesa', emoji: '🪑'),
@@ -169,6 +199,121 @@ const _pasosFrasesMezcla = [
   EscrituraPaso(texto: 'MAMA USA PALA', pista: 'Mamá usa pala', emoji: '🪏'),
 ];
 
+const _pasosOrdenAlfabetico = [
+  EscrituraPaso(texto: 'A B C', pista: 'A B C en orden', emoji: '🔤'),
+  EscrituraPaso(texto: 'D E F', pista: 'D E F en orden', emoji: '🔤'),
+  EscrituraPaso(texto: 'M N Ñ', pista: 'M N Ñ en orden', emoji: '🔤'),
+];
+
+const _pasosPalabrasCortas = [
+  EscrituraPaso(texto: 'MAMA', pista: 'MAMA', emoji: '👩'),
+  EscrituraPaso(texto: 'PAPA', pista: 'PAPA', emoji: '👨'),
+  EscrituraPaso(texto: 'MESA', pista: 'MESA', emoji: '🪑'),
+  EscrituraPaso(texto: 'PUMA', pista: 'PUMA', emoji: '🐆'),
+];
+
+const _pasosPalabrasCampo = [
+  EscrituraPaso(texto: 'MAIZ', pista: 'MAÍZ', emoji: '🌽'),
+  EscrituraPaso(texto: 'PALA', pista: 'PALA', emoji: '🪏'),
+  EscrituraPaso(texto: 'VACA', pista: 'VACA', emoji: '🐄'),
+  EscrituraPaso(texto: 'RIEGO', pista: 'RIEGO', emoji: '💧'),
+];
+
+const _pasosPalabraImagenUno = [
+  EscrituraPaso(texto: 'PALA', pista: 'PALA · imagen 🪏', emoji: '🪏'),
+  EscrituraPaso(texto: 'MESA', pista: 'MESA · imagen 🪑', emoji: '🪑'),
+  EscrituraPaso(texto: 'VACA', pista: 'VACA · imagen 🐄', emoji: '🐄'),
+];
+
+const _pasosPalabraImagenDos = [
+  EscrituraPaso(texto: 'MAIZ', pista: 'MAÍZ · imagen 🌽', emoji: '🌽'),
+  EscrituraPaso(texto: 'RIEGO', pista: 'RIEGO · imagen 💧', emoji: '💧'),
+  EscrituraPaso(texto: 'MULA', pista: 'MULA · imagen 🐴', emoji: '🐴'),
+];
+
+const _pasosCompletarPalabraUno = [
+  EscrituraPaso(texto: 'MAMA', pista: 'Completa: MA __', emoji: '👩'),
+  EscrituraPaso(texto: 'PAPA', pista: 'Completa: PA __', emoji: '👨'),
+  EscrituraPaso(texto: 'MAIZ', pista: 'Completa: MA __ Z', emoji: '🌽'),
+];
+
+const _pasosCompletarPalabraDos = [
+  EscrituraPaso(texto: 'LANA', pista: 'Completa: LA __ A', emoji: '🧶'),
+  EscrituraPaso(texto: 'SACO', pista: 'Completa: SA __ O', emoji: '🧺'),
+  EscrituraPaso(texto: 'LAMA', pista: 'Completa: LA __ A', emoji: '🦙'),
+];
+
+const _pasosComprensionBasica = [
+  EscrituraPaso(
+    texto: 'EL CAMPESINO RIEGA MAIZ',
+    pista: 'El campesino riega maíz',
+    emoji: '🌽',
+  ),
+  EscrituraPaso(
+    texto: 'LA VACA TOMA AGUA',
+    pista: 'La vaca toma agua',
+    emoji: '🐄',
+  ),
+  EscrituraPaso(
+    texto: 'MAMA LLEVA LA PALA',
+    pista: 'Mamá lleva la pala',
+    emoji: '🪏',
+  ),
+];
+
+const _pasosComprensionQuienQue = [
+  EscrituraPaso(texto: 'PAPA SIEMBRA MAIZ', pista: 'Papá siembra maíz', emoji: '🌽'),
+  EscrituraPaso(texto: 'MAMA VENDE QUESO', pista: 'Mamá vende queso', emoji: '🧀'),
+  EscrituraPaso(
+    texto: 'LA VACA COME PASTO',
+    pista: 'La vaca come pasto',
+    emoji: '🐄',
+  ),
+];
+
+const _pasosComprensionDonde = [
+  EscrituraPaso(
+    texto: 'EL MAIZ ESTA EN LA CHACRA',
+    pista: 'El maíz está en la chacra',
+    emoji: '🌽',
+  ),
+  EscrituraPaso(
+    texto: 'LA VACA ESTA EN EL CORRAL',
+    pista: 'La vaca está en el corral',
+    emoji: '🐄',
+  ),
+  EscrituraPaso(
+    texto: 'LA PALA ESTA EN LA BODEGA',
+    pista: 'La pala está en la bodega',
+    emoji: '🪏',
+  ),
+];
+
+const _pasosSecuenciaBasica = [
+  EscrituraPaso(
+    texto: 'PRIMERO SIEMBRA DESPUES RIEGA',
+    pista: 'Primero siembra, después riega',
+    emoji: '🌱',
+  ),
+  EscrituraPaso(
+    texto: 'PRIMERO COSECHA DESPUES VENDE',
+    pista: 'Primero cosecha, después vende',
+    emoji: '🛒',
+  ),
+  EscrituraPaso(
+    texto: 'PRIMERO ORDEÑA DESPUES GUARDA',
+    pista: 'Primero ordeña, después guarda',
+    emoji: '🥛',
+  ),
+];
+
+const _pasosVocabularioContextual = [
+  EscrituraPaso(texto: 'COSECHA', pista: 'Recoger del cultivo', emoji: '🌾'),
+  EscrituraPaso(texto: 'MERCADO', pista: 'Donde se vende', emoji: '🏪'),
+  EscrituraPaso(texto: 'SEMILLA', pista: 'Para sembrar', emoji: '🌱'),
+  EscrituraPaso(texto: 'SURCO', pista: 'En el campo', emoji: '🚜'),
+];
+
 EscrituraGuiadaConfig _cfgFrases({
   required String titulo,
   required List<EscrituraPaso> pasos,
@@ -204,6 +349,57 @@ EscrituraGuiadaConfig _cfgPalabras({
         ? '¡Muy bien! Ya escribes palabras con trazos'
         : '¡Muy bien! Ya escribes palabras en el teclado',
     pasos: _pasosPalabrasComunes,
+  );
+}
+
+EscrituraGuiadaConfig _cfgOrdenAlfabetico({required bool esTrazos}) {
+  return EscrituraGuiadaConfig(
+    tituloNarrado: 'Orden alfabético básico',
+    nombreUnidad: 'Grupo',
+    introNarracion: esTrazos
+        ? 'Vamos a escribir letras en orden alfabético con trazos'
+        : 'Vamos a escribir letras en orden alfabético en el teclado',
+    mensajeCompletado: esTrazos
+        ? '¡Muy bien! Ya escribes grupos en orden alfabético'
+        : '¡Muy bien! Ya dominas el orden alfabético en el teclado',
+    pasos: _pasosOrdenAlfabetico,
+  );
+}
+
+EscrituraGuiadaConfig _cfgPalabrasTema({
+  required String titulo,
+  required List<EscrituraPaso> pasos,
+  required bool esTrazos,
+  required String introTrazos,
+  required String introTeclado,
+  required String finTrazos,
+  required String finTeclado,
+}) {
+  return EscrituraGuiadaConfig(
+    tituloNarrado: titulo,
+    nombreUnidad: 'Palabra',
+    introNarracion: esTrazos ? introTrazos : introTeclado,
+    mensajeCompletado: esTrazos ? finTrazos : finTeclado,
+    pasos: pasos,
+  );
+}
+
+EscrituraGuiadaConfig _cfgComprension({
+  required String titulo,
+  required List<EscrituraPaso> pasos,
+  required bool esTrazos,
+  required String introTrazos,
+  required String introTeclado,
+  required String finTrazos,
+  required String finTeclado,
+  String nombreUnidad = 'Escritura',
+}) {
+  return EscrituraGuiadaConfig(
+    tituloNarrado: titulo,
+    nombreUnidad: nombreUnidad,
+    introNarracion: esTrazos ? introTrazos : introTeclado,
+    mensajeCompletado: esTrazos ? finTrazos : finTeclado,
+    pasos: pasos,
   );
 }
 
@@ -305,6 +501,107 @@ final Map<String, EscrituraGuiadaConfig> escrituraTrazosConfigs = {
     introTrazos: 'Repaso de frases simples con trazos',
     finTrazos: '¡Muy bien! Dominas frases simples',
   ),
+  kFlujoEscrituraTrazosOrdenAlfabeticoId: _cfgOrdenAlfabetico(esTrazos: true),
+  kFlujoEscrituraTrazosPalabrasCortasId: _cfgPalabrasTema(
+    titulo: 'Palabras cortas',
+    pasos: _pasosPalabrasCortas,
+    esTrazos: true,
+    introTrazos: 'Vamos a escribir palabras cortas con trazos',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Ya escribes palabras cortas',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosPalabrasCampoId: _cfgPalabrasTema(
+    titulo: 'Palabras del campo',
+    pasos: _pasosPalabrasCampo,
+    esTrazos: true,
+    introTrazos: 'Palabras del campo con trazos',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Ya escribes palabras del campo',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosPalabraImagenUnoId: _cfgPalabrasTema(
+    titulo: 'Asociación palabra-imagen 1',
+    pasos: _pasosPalabraImagenUno,
+    esTrazos: true,
+    introTrazos: 'Escribe la palabra que corresponde a cada imagen',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Asocias palabras e imágenes',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosPalabraImagenDosId: _cfgPalabrasTema(
+    titulo: 'Asociación palabra-imagen 2',
+    pasos: _pasosPalabraImagenDos,
+    esTrazos: true,
+    introTrazos: 'Más palabras según la imagen con trazos',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Sigues con palabra e imagen',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosCompletarPalabraUnoId: _cfgPalabrasTema(
+    titulo: 'Completa palabras MA y PA',
+    pasos: _pasosCompletarPalabraUno,
+    esTrazos: true,
+    introTrazos: 'Completa y escribe palabras con MA y PA',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Completas palabras con trazos',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosCompletarPalabraDosId: _cfgPalabrasTema(
+    titulo: 'Completa palabras LA y SA',
+    pasos: _pasosCompletarPalabraDos,
+    esTrazos: true,
+    introTrazos: 'Completa y escribe palabras con LA y SA',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Completas más palabras',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosComprensionBasicaId: _cfgComprension(
+    titulo: 'Comprensión básica',
+    pasos: _pasosComprensionBasica,
+    esTrazos: true,
+    introTrazos: 'Escribe frases que entiendes del campo',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Comprendes y escribes frases',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosComprensionQuienQueId: _cfgComprension(
+    titulo: 'Comprensión: quién y qué',
+    pasos: _pasosComprensionQuienQue,
+    esTrazos: true,
+    introTrazos: 'Escribe quién hace qué en el campo',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Identificas quién y qué',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosComprensionDondeId: _cfgComprension(
+    titulo: 'Comprensión: dónde',
+    pasos: _pasosComprensionDonde,
+    esTrazos: true,
+    introTrazos: 'Escribe dónde están las cosas del campo',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Escribes dónde está cada cosa',
+    finTeclado: '',
+  ),
+  kFlujoEscrituraTrazosSecuenciaBasicaId: _cfgComprension(
+    titulo: 'Secuencia: primero y después',
+    pasos: _pasosSecuenciaBasica,
+    esTrazos: true,
+    introTrazos: 'Escribe secuencias del trabajo en el campo',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Ordenas primero y después',
+    finTeclado: '',
+    nombreUnidad: 'Secuencia',
+  ),
+  kFlujoEscrituraTrazosVocabularioContextualId: _cfgComprension(
+    titulo: 'Vocabulario contextual',
+    pasos: _pasosVocabularioContextual,
+    esTrazos: true,
+    introTrazos: 'Escribe palabras importantes del campo',
+    introTeclado: '',
+    finTrazos: '¡Muy bien! Ya dominas vocabulario del campo',
+    finTeclado: '',
+  ),
 };
 
 final Map<String, EscrituraGuiadaConfig> escrituraTecladoConfigs = {
@@ -404,6 +701,107 @@ final Map<String, EscrituraGuiadaConfig> escrituraTecladoConfigs = {
     esTrazos: false,
     introTeclado: 'Repaso de frases en el teclado',
     finTeclado: '¡Muy bien! Dominas frases en el teclado',
+  ),
+  kFlujoEscrituraTecladoOrdenAlfabeticoId: _cfgOrdenAlfabetico(esTrazos: false),
+  kFlujoEscrituraTecladoPalabrasCortasId: _cfgPalabrasTema(
+    titulo: 'Palabras cortas',
+    pasos: _pasosPalabrasCortas,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe palabras cortas en el teclado',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Palabras cortas en el teclado',
+  ),
+  kFlujoEscrituraTecladoPalabrasCampoId: _cfgPalabrasTema(
+    titulo: 'Palabras del campo',
+    pasos: _pasosPalabrasCampo,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Palabras del campo en el teclado',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Palabras del campo en el teclado',
+  ),
+  kFlujoEscrituraTecladoPalabraImagenUnoId: _cfgPalabrasTema(
+    titulo: 'Asociación palabra-imagen 1',
+    pasos: _pasosPalabraImagenUno,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe la palabra de cada imagen',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Palabra e imagen en el teclado',
+  ),
+  kFlujoEscrituraTecladoPalabraImagenDosId: _cfgPalabrasTema(
+    titulo: 'Asociación palabra-imagen 2',
+    pasos: _pasosPalabraImagenDos,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Más palabras según la imagen',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Sigues con palabra e imagen',
+  ),
+  kFlujoEscrituraTecladoCompletarPalabraUnoId: _cfgPalabrasTema(
+    titulo: 'Completa palabras MA y PA',
+    pasos: _pasosCompletarPalabraUno,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Completa palabras con MA y PA en el teclado',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Completas palabras en el teclado',
+  ),
+  kFlujoEscrituraTecladoCompletarPalabraDosId: _cfgPalabrasTema(
+    titulo: 'Completa palabras LA y SA',
+    pasos: _pasosCompletarPalabraDos,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Completa palabras con LA y SA en el teclado',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Completas más palabras',
+  ),
+  kFlujoEscrituraTecladoComprensionBasicaId: _cfgComprension(
+    titulo: 'Comprensión básica',
+    pasos: _pasosComprensionBasica,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe frases que comprendes del campo',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Comprendes y escribes en el teclado',
+  ),
+  kFlujoEscrituraTecladoComprensionQuienQueId: _cfgComprension(
+    titulo: 'Comprensión: quién y qué',
+    pasos: _pasosComprensionQuienQue,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe quién hace qué en el teclado',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Quién y qué en el teclado',
+  ),
+  kFlujoEscrituraTecladoComprensionDondeId: _cfgComprension(
+    titulo: 'Comprensión: dónde',
+    pasos: _pasosComprensionDonde,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe dónde están las cosas',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Dónde en el teclado',
+  ),
+  kFlujoEscrituraTecladoSecuenciaBasicaId: _cfgComprension(
+    titulo: 'Secuencia: primero y después',
+    pasos: _pasosSecuenciaBasica,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe secuencias en el teclado',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Secuencias en el teclado',
+    nombreUnidad: 'Secuencia',
+  ),
+  kFlujoEscrituraTecladoVocabularioContextualId: _cfgComprension(
+    titulo: 'Vocabulario contextual',
+    pasos: _pasosVocabularioContextual,
+    esTrazos: false,
+    introTrazos: '',
+    introTeclado: 'Escribe vocabulario del campo',
+    finTrazos: '',
+    finTeclado: '¡Muy bien! Vocabulario en el teclado',
   ),
 };
 
