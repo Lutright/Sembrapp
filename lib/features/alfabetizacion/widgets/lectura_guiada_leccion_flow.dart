@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../../../core/services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_answer_options.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
 
@@ -686,6 +687,8 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
   bool _actividadBloqueada = false;
   bool _mostrarMuyBien = false;
   bool _mostrarIntentaDeNuevo = false;
+  String? _opcionActividadSeleccionada;
+  bool? _opcionActividadFueCorrecta;
 
   int _aciertoAnimacion = 0;
 
@@ -844,6 +847,8 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
         _actividadBloqueada = true;
         _mostrarMuyBien = true;
         _aciertoAnimacion++;
+        _opcionActividadSeleccionada = opcion;
+        _opcionActividadFueCorrecta = true;
       });
       try {
         SystemSound.play(SystemSoundType.click);
@@ -857,6 +862,8 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
           _indiceEjercicio++;
           _actividadBloqueada = false;
           _mostrarMuyBien = false;
+          _opcionActividadSeleccionada = null;
+          _opcionActividadFueCorrecta = null;
         });
         await _hablarInstruccionEjercicio();
       } else {
@@ -865,12 +872,18 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
     } else {
       setState(() {
         _mostrarIntentaDeNuevo = true;
+        _opcionActividadSeleccionada = opcion;
+        _opcionActividadFueCorrecta = false;
       });
       await _ttsDecir('Intenta de nuevo');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted || _fase != _Fase.actividad) return;
       await _hablarInstruccionEjercicio();
       if (mounted) {
         setState(() {
           _mostrarIntentaDeNuevo = false;
+          _opcionActividadSeleccionada = null;
+          _opcionActividadFueCorrecta = null;
         });
       }
     }
@@ -1145,6 +1158,7 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
 
   Widget _buildActividad(BuildContext context) {
     final ej = widget.config.ejercicios[_indiceEjercicio];
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1154,7 +1168,7 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
         ],
         if (_mostrarIntentaDeNuevo) ...[
           Card(
-            color: Theme.of(context).colorScheme.errorContainer,
+            color: scheme.errorContainer,
             child: const Padding(
               padding: EdgeInsets.all(14),
               child: Text('Intenta de nuevo', textAlign: TextAlign.center),
@@ -1162,31 +1176,49 @@ class _LecturaGuiadaLeccionFlowState extends State<LecturaGuiadaLeccionFlow> {
           ),
           const SizedBox(height: 12),
         ],
+        Text(
+          'Selecciona la respuesta correcta',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 16),
         Card(
+          elevation: 0,
+          color: scheme.surfaceContainerHighest,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
               children: [
-                Text(ej.emojiIlustracion, style: const TextStyle(fontSize: 90)),
-                const SizedBox(height: 10),
+                Text(ej.emojiIlustracion, style: const TextStyle(fontSize: 96)),
+                const SizedBox(height: 16),
                 Text(
                   ej.textoPregunta,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        ...ej.opciones.map(
-          (op) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: OutlinedButton(
-              onPressed: _actividadBloqueada ? null : () => _elegirOpcionActividad(op),
-              child: Text(op),
-            ),
-          ),
+        const SizedBox(height: 24),
+        AlfabetizacionLessonAnswerOptions(
+          opciones: ej.opciones,
+          selectedOption: _opcionActividadSeleccionada,
+          selectedWasCorrect: _opcionActividadFueCorrecta,
+          enabled: !_actividadBloqueada,
+          onSelected: _elegirOpcionActividad,
+        ),
+        const SizedBox(height: 20),
+        TextButton.icon(
+          onPressed: _actividadBloqueada ? null : _hablarInstruccionEjercicio,
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Repetir la pregunta con voz'),
         ),
       ],
     );

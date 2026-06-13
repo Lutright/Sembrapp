@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../../../core/services/alfabetizacion_tts_coach.dart';
+import 'alfabetizacion_lesson_answer_options.dart';
 import 'alfabetizacion_lesson_feedback.dart';
 import 'alfabetizacion_lesson_shell.dart';
 
@@ -817,33 +818,12 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow> {
           ),
         ),
         const SizedBox(height: 24),
-        Row(
-          children: [
-            for (var i = 0; i < ej.opciones.length; i++) ...[
-              if (i > 0) const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _actividadBloqueada
-                      ? null
-                      : () => _elegirOpcionActividad(ej.opciones[i]),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(64),
-                    side: BorderSide(
-                      color: _colorBordeOpcionActividad(ej.opciones[i]),
-                      width: 1.5,
-                    ),
-                    backgroundColor: _colorFondoOpcionActividad(ej.opciones[i]),
-                    foregroundColor: _colorTextoOpcionActividad(ej.opciones[i]),
-                    textStyle: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  child: _buildLabelOpcionActividad(ej.opciones[i]),
-                ),
-              ),
-            ],
-          ],
+        AlfabetizacionLessonAnswerOptions(
+          opciones: ej.opciones,
+          selectedOption: _opcionActividadSeleccionada,
+          selectedWasCorrect: _opcionActividadFueCorrecta,
+          enabled: !_actividadBloqueada,
+          onSelected: _elegirOpcionActividad,
         ),
         const SizedBox(height: 20),
         TextButton.icon(
@@ -879,55 +859,5 @@ class _AbecedarioLeccionFlowState extends State<AbecedarioLeccionFlow> {
         ),
       ],
     );
-  }
-
-  Color _colorFondoOpcionActividad(String opcion) {
-    if (_opcionActividadSeleccionada != opcion) return Colors.white;
-    final ok = _opcionActividadFueCorrecta;
-    if (ok == true) return Colors.green.shade100;
-    if (ok == false) return AlfabetizacionUiColors.rojoAcento.withValues(alpha: 0.10);
-    return Colors.white;
-  }
-
-  Color _colorBordeOpcionActividad(String opcion) {
-    if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
-    final ok = _opcionActividadFueCorrecta;
-    if (ok == true) return Colors.green.shade700;
-    if (ok == false) return AlfabetizacionUiColors.rojoAcento;
-    return _azulHorizonte;
-  }
-
-  Color _colorTextoOpcionActividad(String opcion) {
-    if (_opcionActividadSeleccionada != opcion) return _azulHorizonte;
-    final ok = _opcionActividadFueCorrecta;
-    if (ok == true) return Colors.green.shade800;
-    if (ok == false) return AlfabetizacionUiColors.rojoAcento;
-    return _azulHorizonte;
-  }
-
-  Widget _buildLabelOpcionActividad(String opcion) {
-    if (_opcionActividadSeleccionada != opcion) return Text(opcion);
-    final ok = _opcionActividadFueCorrecta;
-    if (ok == true) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.check_circle, size: 20),
-          const SizedBox(width: 6),
-          Text(opcion),
-        ],
-      );
-    }
-    if (ok == false) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.cancel, size: 20),
-          const SizedBox(width: 6),
-          Text(opcion),
-        ],
-      );
-    }
-    return Text(opcion);
   }
 }

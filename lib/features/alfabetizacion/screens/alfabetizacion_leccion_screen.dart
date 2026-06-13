@@ -9,6 +9,7 @@ import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
 import '../repositories/alfabetizacion_repository.dart';
 import '../../../core/services/alfabetizacion_tts_coach.dart';
+import '../widgets/alfabetizacion_lesson_answer_options.dart';
 import '../widgets/alfabetizacion_lesson_feedback.dart';
 import '../widgets/alfabetizacion_lesson_shell.dart';
 import '../widgets/abecedario_leccion_flow.dart';
@@ -55,6 +56,9 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   int _narracionGen = 0;
   bool _mostrarAciertoIntermedio = false;
   int _aciertoAnimacion = 0;
+  String? _opcionLecturaSeleccionada;
+  bool? _opcionLecturaFueCorrecta;
+  bool _opcionesLecturaBloqueadas = false;
 
   @override
   void initState() {
@@ -138,11 +142,18 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
   }
 
   Future<void> _responderLectura(String opcion) async {
-    if (_completado || _leccion == null) return;
+    if (_completado || _leccion == null || _opcionesLecturaBloqueadas) return;
     final pregunta = _preguntaActual;
     if (pregunta == null) return;
     _narracionGen++;
     final correcto = opcion == pregunta.respuestaCorrecta;
+
+    setState(() {
+      _opcionesLecturaBloqueadas = true;
+      _opcionLecturaSeleccionada = opcion;
+      _opcionLecturaFueCorrecta = correcto;
+    });
+
     if (correcto) {
       await _ttsCoach.interrupt();
       await _ttsCoach.speak(
@@ -151,19 +162,33 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
             mounted && alfabetizacionTtsRouteActive(context),
       );
       if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (!mounted) return;
+      setState(() {
+        _opcionLecturaSeleccionada = null;
+        _opcionLecturaFueCorrecta = null;
+        _opcionesLecturaBloqueadas = false;
+      });
       await _avanzarSiCorresponde();
       return;
     }
-    setState(() {
-      _correcto = correcto;
-      _completado = true;
-    });
+
     await _ttsCoach.interrupt();
     await _ttsCoach.speak(
       'Incorrecto. Intenta otra vez.',
       shouldContinue: () =>
           mounted && alfabetizacionTtsRouteActive(context),
     );
+    if (!mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    setState(() {
+      _correcto = correcto;
+      _completado = true;
+      _opcionLecturaSeleccionada = null;
+      _opcionLecturaFueCorrecta = null;
+      _opcionesLecturaBloqueadas = false;
+    });
   }
 
   Future<void> _responderEscritura(String texto) async {
@@ -202,6 +227,9 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
       _completado = false;
       _correcto = null;
       _escrituraController?.clear();
+      _opcionLecturaSeleccionada = null;
+      _opcionLecturaFueCorrecta = null;
+      _opcionesLecturaBloqueadas = false;
     });
     await _ttsCoach.interrupt();
     await _narrarPreguntaActual(forzar: true);
@@ -245,6 +273,9 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
         _preguntaIndex++;
         _escrituraController?.clear();
         _mostrarAciertoIntermedio = false;
+        _opcionLecturaSeleccionada = null;
+        _opcionLecturaFueCorrecta = null;
+        _opcionesLecturaBloqueadas = false;
       });
       await _narrarPreguntaActual();
       return;
@@ -670,24 +701,12 @@ class _AlfabetizacionLeccionScreenState extends State<AlfabetizacionLeccionScree
 
   Widget _buildOpcionesLectura(BuildContext context, LeccionData leccion) {
     final opciones = _preguntaActual?.opciones ?? [];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: opciones
-          .map((op) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: FilledButton.tonal(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16, horizontal: 16),
-                    textStyle: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
-                  onPressed: () => _responderLectura(op),
-                  child: Text(op),
-                ),
-              ))
-          .toList(),
+    return AlfabetizacionLessonAnswerOptions(
+      opciones: opciones,
+      selectedOption: _opcionLecturaSeleccionada,
+      selectedWasCorrect: _opcionLecturaFueCorrecta,
+      enabled: !_opcionesLecturaBloqueadas,
+      onSelected: _responderLectura,
     );
   }
 
