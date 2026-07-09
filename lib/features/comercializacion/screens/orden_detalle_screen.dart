@@ -8,6 +8,7 @@ import '../audio/comercializacion_audio_phrases.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
 import '../repositories/orden_ayuda_repository.dart';
 import '../repositories/ordenes_repository.dart';
+import '../utils/orden_participante_nombre.dart';
 
 class OrdenDetalleScreen extends StatefulWidget {
   const OrdenDetalleScreen({
@@ -150,7 +151,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen>
     try {
       final res = await Supabase.instance.client
           .from('ordenes')
-          .select()
+          .select(
+            '*, comprador:comprador_id(id, full_name), '
+            'campesino:campesino_id(id, full_name)',
+          )
           .eq('id', widget.ordenId)
           .maybeSingle();
       if (mounted) {
@@ -531,20 +535,8 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen>
       );
     }
     final estado = _orden!['estado'] as String? ?? 'pendiente';
-    final compradorNombre =
-        (_orden!['comprador_nombre'] as String?)?.trim().isNotEmpty == true
-            ? (_orden!['comprador_nombre'] as String?)!.trim()
-            : (_orden!['buyer_name'] as String?)?.trim().isNotEmpty == true
-                ? (_orden!['buyer_name'] as String?)!.trim()
-                : 'Comprador';
-    final productorNombre =
-        (_orden!['campesino_nombre'] as String?)?.trim().isNotEmpty == true
-            ? (_orden!['campesino_nombre'] as String?)!.trim()
-            : (_orden!['seller_name'] as String?)?.trim().isNotEmpty == true
-                ? (_orden!['seller_name'] as String?)!.trim()
-                : (_orden!['productor_nombre'] as String?)?.trim().isNotEmpty == true
-                    ? (_orden!['productor_nombre'] as String?)!.trim()
-                    : 'Productor';
+    final compradorNombre = resolverNombreCompradorOrden(_orden!);
+    final productorNombre = resolverNombreProductorOrden(_orden!);
     final pedidoId = _orden!['id'] as String? ?? widget.ordenId;
     final uid = Supabase.instance.client.auth.currentUser?.id;
     final isCompradorDeLaOrden = uid == _orden!['comprador_id'];
@@ -609,7 +601,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen>
         children: [
           _headerCompacto(
             context,
-            compradorNombre,
+            otroParticipanteNombre,
             'Pedido #${pedidoId.length > 8 ? pedidoId.substring(0, 8) : pedidoId}',
           ),
           Expanded(

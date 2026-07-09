@@ -9,6 +9,7 @@ import '../audio/comercializacion_audio_phrases.dart';
 import '../../../core/theme/tonalist_colors.dart';
 import '../../../core/widgets/tonalist_screen_header.dart';
 import '../mixins/comercializacion_screen_audio_mixin.dart';
+import '../utils/orden_participante_nombre.dart';
 
 class _OrderStatusPill extends StatelessWidget {
   final String estado;
@@ -80,12 +81,17 @@ class _ComercializacionOrdenesScreenState
     extends State<ComercializacionOrdenesScreen>
     with ComercializacionScreenAudio {
   List<Map<String, dynamic>> _ordenes = [];
-  Map<String, String> _nombresProductorPorId = {};
-  Map<String, String> _nombresCompradorPorId = {};
   bool _loading = true;
+  bool _cargandoOrdenes = false;
   RealtimeChannel? _ordenesChannel;
-  RealtimeChannel? _ordenesCompradorChannel;
-  RealtimeChannel? _ordenesCampesinoChannel;
+  RealtimeChannel? _ordenesRolChannel;
+  Timer? _recargaDebounce;
+
+  bool get _esComprador {
+    final role = Supabase.instance.client.auth.currentUser?.userMetadata?['role']
+        as String?;
+    return role == 'comprador';
+  }
 
   @override
   void initState() {
@@ -97,76 +103,71 @@ class _ComercializacionOrdenesScreenState
 
   @override
   void dispose() {
+    _recargaDebounce?.cancel();
     if (_ordenesChannel != null) {
       Supabase.instance.client.removeChannel(_ordenesChannel!);
     }
-    if (_ordenesCompradorChannel != null) {
-      Supabase.instance.client.removeChannel(_ordenesCompradorChannel!);
-    }
-    if (_ordenesCampesinoChannel != null) {
-      Supabase.instance.client.removeChannel(_ordenesCampesinoChannel!);
+    if (_ordenesRolChannel != null) {
+      Supabase.instance.client.removeChannel(_ordenesRolChannel!);
     }
     super.dispose();
   }
 
-  Future<void> _load() async {
+  void _programarRecarga() {
+    _recargaDebounce?.cancel();
+    _recargaDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) unawaited(_load(silencioso: true));
+    });
+  }
+
+  List<Map<String, dynamic>> _deduplicarOrdenesPorId(List<dynamic> raw) {
+    final vistos = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final orden = Map<String, dynamic>.from(row);
+      final id = orden['id'] as String?;
+      if (id == null || id.isEmpty || vistos.contains(id)) continue;
+      vistos.add(id);
+      out.add(orden);
+    }
+    return out;
+  }
+
+  Future<void> _load({bool silencioso = false}) async {
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) {
       setState(() => _loading = false);
       return;
     }
-    setState(() => _loading = true);
+    if (_cargandoOrdenes) return;
+    _cargandoOrdenes = true;
+    if (!silencioso && mounted) setState(() => _loading = true);
     try {
-      final res = await Supabase.instance.client
+      var query = Supabase.instance.client
           .from('ordenes')
-          .select('*, orden_items(cantidad, precio_unitario)')
-          .or('comprador_id.eq.$uid,campesino_id.eq.$uid')
-          .order('created_at', ascending: false);
-      final ordenes = List<Map<String, dynamic>>.from(res as List);
-      final idsProductor = ordenes
-          .map((o) => o['campesino_id'] as String?)
-          .whereType<String>()
-          .toSet()
-          .toList();
-      final idsComprador = ordenes
-          .map((o) => o['comprador_id'] as String?)
-          .whereType<String>()
-          .toSet()
-          .toList();
-      final nombresProductor = await _cargarNombresPerfiles(idsProductor);
-      final nombresComprador = await _cargarNombresPerfiles(idsComprador);
+          .select(
+            '*, orden_items(cantidad, precio_unitario), '
+            'comprador:comprador_id(id, full_name), '
+            'campesino:campesino_id(id, full_name)',
+          );
+      if (_esComprador) {
+        query = query.eq('comprador_id', uid);
+      } else {
+        query = query.eq('campesino_id', uid);
+      }
+      final res = await query.order('created_at', ascending: false);
+      final ordenes = _deduplicarOrdenesPorId(res as List);
       if (mounted) {
         setState(() {
           _ordenes = ordenes;
-          _nombresProductorPorId = nombresProductor;
-          _nombresCompradorPorId = nombresComprador;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<Map<String, String>> _cargarNombresPerfiles(List<String> ids) async {
-    if (ids.isEmpty) return {};
-    try {
-      final res = await Supabase.instance.client
-          .from('profiles')
-          .select('id, full_name')
-          .inFilter('id', ids);
-      final out = <String, String>{};
-      for (final row in res as List) {
-        final m = row as Map<String, dynamic>;
-        final id = m['id'] as String?;
-        final fullName = m['full_name'] as String?;
-        if (id != null && fullName != null && fullName.trim().isNotEmpty) {
-          out[id] = fullName.trim();
-        }
-      }
-      return out;
-    } catch (_) {
-      return {};
+    } finally {
+      _cargandoOrdenes = false;
     }
   }
 
@@ -183,48 +184,37 @@ class _ComercializacionOrdenesScreenState
   void _suscribirRealtimeOrdenes() {
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) return;
+
+    final columnaRol = _esComprador ? 'comprador_id' : 'campesino_id';
+
+    _ordenesRolChannel = Supabase.instance.client
+        .channel('mis_ordenes_${columnaRol}_$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'ordenes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: columnaRol,
+            value: uid,
+          ),
+          callback: (_) => _programarRecarga(),
+        )
+        .subscribe();
+
+    // Solo ítems de pedidos propios (evita recargas por actividad ajena en la red).
     _ordenesChannel = Supabase.instance.client
-        .channel('mis_ordenes_items_$uid')
+        .channel('mis_ordenes_items_propios_$uid')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'orden_items',
-          callback: (_) {
-            if (mounted) _load();
-          },
-        )
-        .subscribe();
-
-    _ordenesCompradorChannel = Supabase.instance.client
-        .channel('mis_ordenes_comprador_$uid')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'ordenes',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'comprador_id',
-            value: uid,
-          ),
-          callback: (_) {
-            if (mounted) _load();
-          },
-        )
-        .subscribe();
-
-    _ordenesCampesinoChannel = Supabase.instance.client
-        .channel('mis_ordenes_campesino_$uid')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'ordenes',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'campesino_id',
-            value: uid,
-          ),
-          callback: (_) {
-            if (mounted) _load();
+          callback: (payload) {
+            final ordenId = payload.newRecord['orden_id'] as String? ??
+                payload.oldRecord['orden_id'] as String?;
+            if (ordenId == null) return;
+            final pertenece = _ordenes.any((o) => o['id'] == ordenId);
+            if (pertenece) _programarRecarga();
           },
         )
         .subscribe();
@@ -245,7 +235,12 @@ class _ComercializacionOrdenesScreenState
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 124, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                      20,
+                      TonalistHeaderMetrics.ordenesContentTopPadding,
+                      20,
+                      0,
+                    ),
                     child: buildComercializacionAudioCoachBarFor(
                       ComercializacionAudioPhrases.ordenesWelcome,
                     ),
@@ -260,7 +255,7 @@ class _ComercializacionOrdenesScreenState
                         color: const Color(0xFF1A4463).withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
@@ -271,7 +266,9 @@ class _ComercializacionOrdenesScreenState
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Aquí están los pedidos que debes preparar y entregar. Toca uno para ver detalles y coordinar con el comprador por chat.',
+                              _esComprador
+                                  ? 'Aquí ves los pedidos que has hecho. Toca uno para ver detalles y chatear con el productor.'
+                                  : 'Aquí están los pedidos que debes preparar y entregar. Toca uno para ver detalles y coordinar con el comprador por chat.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Color(0xD91A4463),
@@ -314,10 +311,6 @@ class _ComercializacionOrdenesScreenState
                           final id = o['id'] as String? ?? '';
                           final estado = o['estado'] as String? ?? 'Pendiente';
                           final uid = Supabase.instance.client.auth.currentUser?.id;
-                          final productorId = o['campesino_id'] as String?;
-                          final compradorId = o['comprador_id'] as String?;
-                          final esVistaProductor =
-                              uid != null && productorId != null && uid == productorId;
 
                           // Manejo de variables con default premium y cálculo dinámico de items
                           double? totalDouble;
@@ -344,32 +337,10 @@ class _ComercializacionOrdenesScreenState
                               ? '\$${totalDouble.toStringAsFixed(0)}'
                               : '\$ --';
 
-                          final rawNombreProductor = o['tienda_nombre']?.toString() ??
-                              o['productor_nombre']?.toString() ??
-                              o['vendedor_nombre']?.toString() ??
-                              (productorId != null
-                                  ? _nombresProductorPorId[productorId]
-                                  : null);
-                          final rawNombreComprador = o['comprador_nombre']?.toString() ??
-                              o['buyer_name']?.toString() ??
-                              o['cliente_nombre']?.toString() ??
-                              o['nombre_comprador']?.toString() ??
-                              (compradorId != null
-                                  ? _nombresCompradorPorId[compradorId]
-                                  : null);
-                          final fallbackNombre = esVistaProductor
-                              ? (compradorId != null && compradorId.length >= 4
-                                  ? 'Comprador ${compradorId.substring(compradorId.length - 4)}'
-                                  : 'Comprador')
-                              : (productorId != null && productorId.length >= 4
-                                  ? 'Productor ${productorId.substring(productorId.length - 4)}'
-                                  : 'Productor');
-                          final rawNombre =
-                              esVistaProductor ? rawNombreComprador : rawNombreProductor;
-                          final tituloTarjeta =
-                              (rawNombre != null && rawNombre.trim().isNotEmpty)
-                                  ? rawNombre.trim()
-                                  : fallbackNombre;
+                          final tituloTarjeta = resolverContraparteOrden(
+                            orden: o,
+                            usuarioActualId: uid,
+                          );
 
                           final shortId =
                               id.length >= 8 ? id.substring(0, 8) : id;

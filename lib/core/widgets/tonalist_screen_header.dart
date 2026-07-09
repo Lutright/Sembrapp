@@ -12,6 +12,8 @@ abstract final class TonalistHeaderMetrics {
   static const double marketplaceHeight = 250;
   static const double ordenesWaveHeight = 160;
   static const double contentTopPadding = 124;
+  /// Ola de Mis pedidos + curva orgánica (~106% de [ordenesWaveHeight]).
+  static const double ordenesContentTopPadding = 178;
   static const double lessonContentTopPadding = 128;
   static const double homeContentTopPadding = 220;
 }
