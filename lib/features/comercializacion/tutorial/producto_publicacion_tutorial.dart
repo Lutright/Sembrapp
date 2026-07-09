@@ -64,8 +64,8 @@ List<TutorialStep> buildProductoPublicacionTutorialSteps({
       id: kTutorialProductoFormStepAyuda,
       targetKey: ayudaKey,
       ttsPhrase:
-          'Para repetir esta guía después, toca el signo de pregunta arriba a la derecha y elige Ver tutorial de nuevo.',
-      hintText: '¿ Ver la guía otra vez?',
+          'Para repetir esta guía después, toca el botón Guía arriba a la derecha y elige Ver tutorial de nuevo.',
+      hintText: 'Guía por voz',
       padding: const EdgeInsets.all(10),
     ),
   ];

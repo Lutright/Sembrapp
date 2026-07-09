@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../tutorial_service.dart';
 
-/// Botón ? en el header: ayuda por audio y, si aplica, repetir el walkthrough de la pantalla.
+/// Botón de guía en el header: ayuda por audio y, si aplica, repetir el walkthrough.
 class TutorialHelpButton extends StatelessWidget {
   const TutorialHelpButton({
     super.key,
     required this.phrases,
     this.onReplayWalkthrough,
-    this.tooltip = 'Ayuda',
+    this.tooltip = 'Guía por voz',
   });
 
   final List<String> phrases;
@@ -21,19 +21,20 @@ class TutorialHelpButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = IconTheme.of(context).color ?? _azul;
+    final fg = IconTheme.of(context).color ?? Colors.white;
 
     if (onReplayWalkthrough == null) {
-      return IconButton(
+      return _GuiaChip(
+        foregroundColor: fg,
         tooltip: tooltip,
-        icon: Icon(Icons.help_outline_rounded, color: iconColor),
-        onPressed: () => unawaited(_playPhrases(context)),
+        onTap: () => unawaited(_playPhrases(context)),
       );
     }
 
     return PopupMenuButton<String>(
       tooltip: tooltip,
-      icon: Icon(Icons.help_outline_rounded, color: iconColor),
+      offset: const Offset(0, 44),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       onSelected: (value) {
         if (value == 'audio') {
           unawaited(_playPhrases(context));
@@ -71,6 +72,7 @@ class TutorialHelpButton extends StatelessWidget {
           ),
         ),
       ],
+      child: _GuiaChip(foregroundColor: fg),
     );
   }
 
@@ -82,5 +84,52 @@ class TutorialHelpButton extends StatelessWidget {
       if (t.isEmpty) continue;
       await TutorialService.instance.speakForContext(context, t);
     }
+  }
+}
+
+class _GuiaChip extends StatelessWidget {
+  const _GuiaChip({
+    required this.foregroundColor,
+    this.tooltip,
+    this.onTap,
+  });
+
+  final Color foregroundColor;
+  final String? tooltip;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final chip = Material(
+      color: Colors.white.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.volume_up_rounded, color: foregroundColor, size: 18),
+              const SizedBox(width: 5),
+              Text(
+                'Guía',
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontFamily: 'Montserrat',
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (tooltip == null) return chip;
+    return Tooltip(message: tooltip!, child: chip);
   }
 }

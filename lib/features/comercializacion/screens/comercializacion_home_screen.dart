@@ -310,7 +310,7 @@ class _ComercializacionHomeScreenState extends State<ComercializacionHomeScreen>
                       data: const IconThemeData(color: Colors.white),
                       child: TutorialHelpButton(
                         phrases: productorMercadoMenuHelpPhrases,
-                        tooltip: 'Ayuda',
+                        tooltip: 'Guía por voz',
                         onReplayWalkthrough: () => unawaited(_replayTutorial()),
                       ),
                     ),

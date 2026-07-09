@@ -151,7 +151,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen>
                       data: const IconThemeData(color: Colors.white),
                       child: TutorialHelpButton(
                         phrases: productoFormHelpPhrases,
-                        tooltip: 'Ayuda',
+                        tooltip: 'Guía por voz',
                         onReplayWalkthrough: () => unawaited(_replayTutorial()),
                       ),
                     ),

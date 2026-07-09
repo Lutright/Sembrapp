@@ -59,8 +59,8 @@ List<TutorialStep> buildProductorMercadoMenuTutorialSteps({
       id: kTutorialProductorMercadoStepAyuda,
       targetKey: ayudaKey,
       ttsPhrase:
-          'Si quieres ver esta guía otra vez, toca el signo de pregunta arriba a la derecha y elige Ver tutorial de nuevo.',
-      hintText: '¿ Necesitas la guía otra vez?',
+          'Si quieres ver esta guía otra vez, toca el botón Guía arriba a la derecha y elige Ver tutorial de nuevo.',
+      hintText: 'Guía por voz',
       padding: const EdgeInsets.all(10),
     ),
   ];
