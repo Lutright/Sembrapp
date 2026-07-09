@@ -1,12 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../alfabetizacion_ui_colors.dart';
 import '../data/lecciones_data.dart';
@@ -110,7 +107,6 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
   static const Duration _ttsSpeakTimeout = Duration(seconds: 7);
 
   final FlutterTts _tts = FlutterTts();
-  final stt.SpeechToText _speech = stt.SpeechToText();
 
   bool _ttsListo = false;
   bool _ttsDisposed = false;
@@ -136,11 +132,6 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
     } catch (_) {}
   }
 
-  bool _speechDisponible = false;
-  bool _escuchandoVoz = false;
-  String? _localeIdVoz;
-  String _ultimoReconocido = '';
-
   _Fase _fase = _Fase.intro;
   int _indicePresentacion = 0;
   int _indicePractica = 0;
@@ -158,46 +149,6 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
   void initState() {
     super.initState();
     _inicializarTts();
-    _inicializarSpeech();
-  }
-
-  Future<void> _inicializarSpeech() async {
-    if (kIsWeb) return;
-    try {
-      final ok = await _speech.initialize(
-        onStatus: (status) {
-          if (status == stt.SpeechToText.doneStatus ||
-              status == stt.SpeechToText.notListeningStatus) {
-            if (mounted) setState(() => _escuchandoVoz = false);
-          }
-        },
-        onError: (_) {
-          if (mounted) setState(() => _escuchandoVoz = false);
-        },
-      );
-      if (!ok || !mounted) return;
-      final locales = await _speech.locales();
-      setState(() {
-        _speechDisponible = true;
-        _localeIdVoz = _elegirLocaleEspanol(locales);
-      });
-    } catch (_) {
-      if (mounted) setState(() => _speechDisponible = false);
-    }
-  }
-
-  String? _elegirLocaleEspanol(List<stt.LocaleName> locales) {
-    final es = locales
-        .where((l) => l.localeId.toLowerCase().startsWith('es'))
-        .toList();
-    if (es.isEmpty) return null;
-    const preferidos = ['es_ES', 'es_MX', 'es_AR', 'es_CO'];
-    for (final id in preferidos) {
-      for (final l in es) {
-        if (l.localeId == id) return l.localeId;
-      }
-    }
-    return es.first.localeId;
   }
 
   Future<void> _inicializarTts() async {
@@ -296,11 +247,6 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
     _ttsGen++;
     unawaited(_ttsStopSeguro());
     unawaited(_tts.stop());
-    if (_speechDisponible) {
-      try {
-        unawaited(_speech.stop());
-      } catch (_) {}
-    }
     super.dispose();
   }
 
@@ -385,13 +331,6 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
     await _hablar('Pulsa Escuchar otra vez cuando quieras repetir');
-    if (_speechDisponible) {
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-      if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
-      await _hablar(
-        'Pulsa el botón del micrófono, di la vocal en voz alta y espera un momento',
-      );
-    }
     await Future<void>.delayed(const Duration(milliseconds: 400));
     if (!mounted || _fase != _Fase.practica || !_ttsFlujoOk()) return;
     await _hablar('Pulsa el botón verde para continuar');
@@ -405,100 +344,9 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
     await _hablarLetraVocal(_vocales[_indicePractica].letra);
   }
 
-  bool _textoCoincideConVocal(String reconocido, String letra) {
-    final L = letra.toUpperCase().trim();
-    if (L.isEmpty) return false;
-    var t = reconocido.toUpperCase().trim();
-    t = t.replaceAll(RegExp('[^A-ZÁÉÍÓÚÑ\\s]'), '');
-    if (t.isEmpty) return false;
-    if (t == L) return true;
-    final partes = t.split(RegExp('\\s+'));
-    if (partes.any((p) => p == L)) return true;
-    if (partes.contains('VOCAL') && partes.any((p) => p == L)) return true;
-    if (t.length == 1 && t == L) return true;
-    return false;
-  }
-
-  void _onResultadoVozPractica(SpeechRecognitionResult result) {
-    if (!result.finalResult) {
-      if (mounted) {
-        setState(() => _ultimoReconocido = result.recognizedWords);
-      }
-      return;
-    }
-    unawaited(_evaluarVozPractica(result.recognizedWords));
-  }
-
-  Future<void> _evaluarVozPractica(String palabras) async {
-    if (!mounted) return;
-    setState(() {
-      _escuchandoVoz = false;
-      _ultimoReconocido = palabras;
-    });
-    try {
-      await _speech.stop();
-    } catch (_) {}
-    if (palabras.trim().isEmpty) {
-      await _hablar('No te escuché bien. Intenta otra vez.');
-      return;
-    }
-    final letra = _vocales[_indicePractica].letra;
-    if (_textoCoincideConVocal(palabras, letra)) {
-      try {
-        SystemSound.play(SystemSoundType.click);
-      } catch (_) {}
-      await _hablar('¡Muy bien!');
-    } else {
-      await _hablar('Intenta otra vez. Di la vocal $letra.');
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-      if (!mounted || _fase != _Fase.practica) return;
-      await _hablarLetraVocal(letra);
-    }
-  }
-
-  Future<void> _pulsarMicrofonoPractica() async {
-    if (!_speechDisponible) {
-      await _hablar(
-        'En este aparato no está disponible el micrófono. Pulsa Escuchar otra vez para escuchar.',
-      );
-      return;
-    }
-    if (_speech.isListening) {
-      try {
-        await _speech.stop();
-      } catch (_) {}
-      return;
-    }
-    await _ttsInterrumpir();
-    setState(() {
-      _escuchandoVoz = true;
-      _ultimoReconocido = '';
-    });
-    try {
-      await _speech.listen(
-        onResult: _onResultadoVozPractica,
-        listenFor: const Duration(seconds: 20),
-        pauseFor: const Duration(seconds: 3),
-        localeId: _localeIdVoz,
-        listenOptions: stt.SpeechListenOptions(
-          listenMode: stt.ListenMode.confirmation,
-          partialResults: true,
-          cancelOnError: true,
-        ),
-      );
-    } catch (_) {
-      if (mounted) setState(() => _escuchandoVoz = false);
-      await _hablar('No se pudo usar el micrófono. Intenta de nuevo.');
-    }
-  }
-
   Future<void> _siguientePractica() async {
     await _ttsInterrumpir();
-    try {
-      if (_speech.isListening) await _speech.stop();
-    } catch (_) {}
     if (!mounted) return;
-    setState(() => _escuchandoVoz = false);
     if (_indicePractica < _vocales.length - 1) {
       setState(() => _indicePractica++);
       await _entradaPracticaActual();
@@ -833,7 +681,7 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Toca la letra, el botón Escuchar o el micrófono.',
+          'Toca la letra o el botón Escuchar.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: scheme.onSurfaceVariant,
@@ -860,38 +708,6 @@ class _VocalesLeccionFlowState extends State<VocalesLeccionFlow> {
           ),
         ),
         const SizedBox(height: 16),
-        if (_speechDisponible && !kIsWeb) ...[
-          Center(
-            child: SizedBox(
-              width: 56,
-              height: 56,
-              child: IconButton(
-                onPressed: _pulsarMicrofonoPractica,
-                style: IconButton.styleFrom(
-                  backgroundColor: _azulHorizonte,
-                  foregroundColor: Colors.white,
-                  shape: const StadiumBorder(),
-                ),
-                icon: Icon(
-                  _escuchandoVoz ? Icons.mic_rounded : Icons.mic_none_rounded,
-                  size: 30,
-                ),
-              ),
-            ),
-          ),
-          if (_ultimoReconocido.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Escuché: $_ultimoReconocido',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
-          const SizedBox(height: 12),
-        ],
         OutlinedButton.icon(
           onPressed: _repetirPractica,
           icon: const Icon(Icons.replay_rounded),
